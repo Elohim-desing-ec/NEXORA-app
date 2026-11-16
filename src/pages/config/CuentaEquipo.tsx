@@ -3,7 +3,10 @@ import type { User } from '@supabase/supabase-js'
 import { ArrowRight, CreditCard, Download, Mail, Trash2, UserPlus, Users, XCircle } from 'lucide-react'
 import { Badge, Button, Campo, Card, Scroll } from '../../components/ui'
 import { ROLES } from '../../store/useApp'
-import { cancelarPlan, diasRestantes, enviarCorreo, guardarMiembro, historialCompras, listarMiembros, mensajeError, miAcceso, quitarMiembro, supabase, urlRetorno, type Acceso, type Compra, type Miembro } from '../../lib/cuenta'
+import { cancelarPlan, diasRestantes, enviarCorreo, esComprable, guardarMiembro, historialCompras, historialPagos, listarMiembros, mensajeError, miAcceso, quitarMiembro, supabase, urlRetorno, type Acceso, type Compra, type Miembro, type Pago } from '../../lib/cuenta'
+import { limitesDe } from '../../lib/planes'
+import { money } from '../../lib/format'
+import { useApp } from '../../store/useApp'
 import { salir } from '../../lib/nube'
 import { descargarRecibo } from '../../lib/recibo'
 import { urlGmail } from '../../lib/google'
@@ -22,6 +25,8 @@ export default function CuentaEquipo() {
   const [cuenta, setCuenta] = useState<User | null>(null)
   const [acceso, setAcceso] = useState<Acceso | null>(null)
   const [compras, setCompras] = useState<Compra[]>([])
+  const [pagos, setPagos] = useState<Pago[]>([])
+  const sucursales = useApp((st) => st.sucursales.length)
   const [miembros, setMiembros] = useState<Miembro[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -38,8 +43,8 @@ export default function CuentaEquipo() {
       const a = await miAcceso()
       setAcceso(a)
       if (!a) return
-      const [m, c] = await Promise.all([listarMiembros(a.empresaId), a.esDueno ? historialCompras() : Promise.resolve([])])
-      setMiembros(m); setCompras(c)
+      const [m, c, p] = await Promise.all([listarMiembros(a.empresaId), a.esDueno ? historialCompras() : Promise.resolve([]), a.esDueno ? historialPagos() : Promise.resolve([])])
+      setMiembros(m); setCompras(c); setPagos(p)
     } catch (e) { setError(mensajeError(e, tx)) } finally { setCargando(false) }
   }
   useEffect(() => { cargar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -49,6 +54,8 @@ export default function CuentaEquipo() {
     if (!acceso) return
     const email = nuevo.email.trim().toLowerCase()
     if (email === cuenta?.email?.toLowerCase()) return setError('Ese es su propio correo: usted ya es el titular.')
+    const tope = limitesDe(acceso.plan).personas
+    if (tope !== null && !miembros.some((x) => x.email === email) && miembros.length + 1 >= tope) return setError(`Su plan ${acceso.plan} permite ${tope} personas (usted incluido). Mejore su plan para invitar a más.`)
     setOcupado(true); setError(''); setAviso(null)
     try {
       await guardarMiembro(acceso.empresaId, { ...nuevo, email })
@@ -79,7 +86,10 @@ export default function CuentaEquipo() {
     </Card>
   )
 
-  const dias = acceso?.plan === 'Prueba' ? diasRestantes(acceso.vence) : null
+  const dias = acceso?.vence ? diasRestantes(acceso.vence) : null
+  const lim = limitesDe(acceso?.plan)
+  const pagado = !!acceso?.plan && esComprable(acceso.plan)
+  const uso = (n: number, tope: number | null) => (tope === null ? `${n} (sin límite)` : `${n} de ${tope}`)
   return (
     <div className="space-y-4">
       {error && <p role="alert" className="rounded-lg border border-peligro/30 bg-peligro/10 px-3 py-2 text-xs text-peligro">{error}</p>}
@@ -87,28 +97,42 @@ export default function CuentaEquipo() {
       <Card titulo={<span className="flex items-center gap-2"><CreditCard size={16} />Su plan</span>}>
         {acceso ? <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1 text-sm">
-            <div className="flex items-center gap-2 font-display text-2xl font-bold">{acceso.plan === 'Prueba' ? 'Prueba gratis' : acceso.plan ?? 'Sin plan'}
-              {acceso.vigente ? <Badge tono="verde">{dias !== null ? `${dias} ${dias === 1 ? 'día' : 'días'} restantes` : 'Activo'}</Badge> : <Badge tono="rojo">Inactivo</Badge>}</div>
+            <div className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold">{acceso.plan === 'Prueba' ? 'Prueba gratis' : acceso.plan ?? 'Sin plan'}
+              {!acceso.vigente ? <Badge tono="rojo">Vencido</Badge> : dias === null ? <Badge tono="verde">Activo</Badge> : dias <= 5 ? <Badge tono="ambar">{dias === 1 ? 'Vence mañana' : `Vence en ${dias} días`}</Badge> : <Badge tono="verde">Hasta el {fecha(acceso.vence!)}</Badge>}</div>
             <div className="text-muted">Empresa: <span className="text-fg">{acceso.empresa || '—'}</span></div>
             <div className="text-muted">Cuenta: <span className="text-fg">{cuenta.email}</span></div>
             <div className="text-muted">Su rol: <span className="text-fg">{acceso.esDueno ? 'Titular de la cuenta (Gerente General)' : acceso.rol}</span></div>
+            {acceso.esDueno && <div className="text-muted">Uso: <span className="text-fg">{uso(sucursales, lim.sucursales)} sucursales · {uso(miembros.length + 1, lim.personas)} personas</span></div>}
           </div>
           {acceso.esDueno
             ? <div className="flex flex-col gap-2 sm:items-end">
-                <Button variante="primario" onClick={() => { location.hash = '#/planes' }}>{acceso.plan === 'Prueba' ? 'Elegir un plan' : 'Cambiar de plan'} <ArrowRight size={15} /></Button>
-                {acceso.vigente && <Button onClick={cancelar} className="text-peligro"><XCircle size={15} />Cancelar plan</Button>}
+                {pagado && <Button variante="primario" onClick={() => { location.hash = `#/comprar?plan=${encodeURIComponent(acceso.plan!)}&periodo=mensual` }}>Renovar {acceso.plan} <ArrowRight size={15} /></Button>}
+                <Button variante={pagado ? 'vidrio' : 'primario'} onClick={() => { location.hash = '#/planes' }}>{acceso.plan === 'Prueba' || !acceso.vigente ? 'Elegir un plan' : 'Cambiar de plan'} <ArrowRight size={15} /></Button>
+                {pagado && <p className="text-[11px] text-muted sm:text-right">Su plan no se renueva solo: renueve antes de que venza. Lo que pague se suma desde la fecha de vencimiento.</p>}
+                {acceso.vigente && !pagado && acceso.plan !== 'Prueba' && <Button onClick={cancelar} className="text-peligro"><XCircle size={15} />Cancelar plan</Button>}
               </div>
             : <p className="text-xs text-muted sm:text-right">El plan y la facturación los administra el titular de la cuenta.</p>}
         </div> : <p className="text-sm text-muted">Esta cuenta no tiene un plan. <a href="#/planes" className="text-primario hover:underline">Ver planes</a></p>}
       </Card>
 
-      {acceso?.esDueno && compras.length > 0 && <Card titulo="Historial de compras">
+      {acceso?.esDueno && pagos.length > 0 && <Card titulo="Pagos con Payphone">
+        <Scroll><table className="w-full text-sm">
+          <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Fecha</th><th className="pr-3">Plan</th><th className="pr-3">Total</th><th className="pr-3">Vigencia</th><th className="pr-3">Tarjeta</th><th /></tr></thead>
+          <tbody>{pagos.map((p) => <tr key={p.id} className="border-t border-fg/10">
+            <td className="py-2 pr-3 whitespace-nowrap">{fecha(p.confirmado)}</td><td className="pr-3">{p.plan} · {p.periodo === 'anual' ? '1 año' : '1 mes'}</td><td className="pr-3 whitespace-nowrap">{money(p.monto / 100, 2)}</td>
+            <td className="pr-3 whitespace-nowrap">{fecha(p.desde)} – {fecha(p.vence)}</td><td className="pr-3">{p.tarjeta || '—'}</td>
+            <td className="text-right"><button title="Descargar comprobante" aria-label="Descargar comprobante" onClick={() => descargarRecibo({ id: p.id, plan: `${p.plan} (${p.periodo === 'anual' ? '1 año' : '1 mes'})`, precio: money(p.monto / 100, 2), empresa: p.empresa, titular: String(cuenta.user_metadata?.full_name ?? ''), formaPago: ['Payphone', p.tarjeta].filter(Boolean).join(' · '), fecha: p.confirmado, email: cuenta.email ?? '', vigencia: `${fecha(p.desde)} – ${fecha(p.vence)}` })} className="rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-fg"><Download size={15} /></button></td>
+          </tr>)}</tbody>
+        </table></Scroll>
+      </Card>}
+
+      {acceso?.esDueno && compras.length > 0 && <Card titulo="Compras anteriores (demostración)">
         <Scroll><table className="w-full text-sm">
           <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Fecha</th><th className="pr-3">Plan</th><th className="pr-3">Precio</th><th className="pr-3">Tarjeta</th><th className="pr-3">Estado</th><th /></tr></thead>
           <tbody>{compras.map((c) => <tr key={c.id} className="border-t border-fg/10">
             <td className="py-2 pr-3 whitespace-nowrap">{fecha(c.creada)}</td><td className="pr-3">{c.plan}</td><td className="pr-3 whitespace-nowrap">{c.precio}</td><td className="pr-3">{c.tarjeta_ultimos ? `•••• ${c.tarjeta_ultimos}` : '—'}</td>
             <td className="pr-3">{c.estado === 'activa' ? <Badge tono="verde">Activa</Badge> : <Badge tono="gris">Reemplazada o cancelada</Badge>}</td>
-            <td className="text-right"><button title="Descargar comprobante" aria-label="Descargar comprobante" onClick={() => descargarRecibo({ id: c.id, plan: c.plan, precio: c.precio, empresa: c.empresa, titular: c.titular, ultimos: c.tarjeta_ultimos, fecha: c.creada, email: cuenta.email ?? '' })} className="rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-fg"><Download size={15} /></button></td>
+            <td className="text-right"><button title="Descargar comprobante" aria-label="Descargar comprobante" onClick={() => descargarRecibo({ id: c.id, plan: c.plan, precio: c.precio, empresa: c.empresa, titular: c.titular, formaPago: c.tarjeta_ultimos ? `Tarjeta **** ${c.tarjeta_ultimos}` : '', fecha: c.creada, email: cuenta.email ?? '', demostracion: true })} className="rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-fg"><Download size={15} /></button></td>
           </tr>)}</tbody>
         </table></Scroll>
       </Card>}

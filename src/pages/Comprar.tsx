@@ -1,18 +1,19 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Building2, Check, CreditCard, Download, Gift, Lock, Mail, PartyPopper, ShieldCheck, User as IconoUsuario } from 'lucide-react'
+import { ArrowRight, Building2, Check, Download, Gift, Lock, Mail, PartyPopper, ShieldCheck, Smartphone, User as IconoUsuario, XCircle } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { Button, cx } from '../components/ui'
 import { AccesoSocial } from '../components/Acceso'
 import { useTx } from '../lib/idioma'
-import { usePlanes } from '../lib/planes'
-import { CORREO_NEXORA, DIAS_PRUEBA, enviarCorreo, esComprable, guardarDestino, iniciarPrueba, miAcceso, mensajeError, pruebaUsada, registrarCompra, supabase, tomarErrorRetorno, urlRetorno, type Acceso, type Licencia, type PlanComprable } from '../lib/cuenta'
+import { money } from '../lib/format'
+import { usePlanes, precioPartes, type Periodo } from '../lib/planes'
+import { CORREO_NEXORA, DIAS_PRUEBA, confirmarPago, diasRestantes, enviarCorreo, esComprable, guardarDestino, iniciarPrueba, miAcceso, mensajeError, olvidarRetornoPago, prepararPago, pruebaUsada, retornoPago, supabase, tomarErrorRetorno, urlRetorno, type Acceso, type Licencia, type Pago, type PlanComprable } from '../lib/cuenta'
 import { entrarConAcceso } from '../lib/nube'
 import { descargarRecibo } from '../lib/recibo'
-import { formatoTarjeta, formatoVence, luhn, marcaTarjeta, soloDigitos, venceValido } from '../lib/tarjeta'
 import { MarcoAcceso } from './Login'
 
-const planDeRuta = () => new URLSearchParams(location.hash.split('?')[1] ?? '').get('plan') ?? ''
+const parametro = (k: string) => new URLSearchParams(location.hash.split('?')[1] ?? '').get(k) ?? ''
+const fechaLarga = (d: string) => new Date(d).toLocaleDateString('es-EC', { day: 'numeric', month: 'long', year: 'numeric' })
 
 const Aviso = ({ tono = 'error', children }: { tono?: 'error' | 'ok' | 'info'; children: ReactNode }) =>
   <p role={tono === 'error' ? 'alert' : 'status'} className={cx('rounded-lg border px-3 py-2 text-xs', tono === 'error' && 'border-peligro/30 bg-peligro/10 text-peligro', tono === 'ok' && 'border-exito/30 bg-exito/10 text-exito', tono === 'info' && 'border-primario/30 bg-primario/10 text-fg')}>{children}</p>
@@ -25,19 +26,34 @@ function Paso({ n, titulo, activo, hecho }: { n: number; titulo: string; activo:
   )
 }
 
+/** Mensual / Anual (2 meses gratis). */
+export function SelectorPeriodo({ valor, onChange }: { valor: Periodo; onChange: (p: Periodo) => void }) {
+  const tx = useTx()
+  return (
+    <div className="inline-flex rounded-full border border-primario/30 bg-fg/5 p-1 text-xs font-semibold">
+      {(['mensual', 'anual'] as const).map((p) => (
+        <button key={p} type="button" onClick={() => onChange(p)} className={cx('rounded-full px-4 py-1.5 transition', valor === p ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black' : 'text-muted hover:text-fg')}>
+          {p === 'mensual' ? tx('Mensual', 'Monthly', 'Mensal') : <>{tx('Anual', 'Yearly', 'Anual')} <span className={valor === p ? '' : 'text-primario'}>· {tx('2 meses gratis', '2 months free', '2 meses grátis')}</span></>}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Comprar() {
   const tx = useTx()
-  const { empresas, emprendimientos, prueba } = usePlanes()
-  const [nombrePlan, setNombrePlan] = useState(planDeRuta)
-  useEffect(() => { const h = () => setNombrePlan(planDeRuta()); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
-  const plan = [...empresas, ...emprendimientos, prueba].find((p) => p.nombre === nombrePlan)
+  const { planes, prueba } = usePlanes()
+  const [nombrePlan, setNombrePlan] = useState(() => parametro('plan'))
+  const [periodo, setPeriodo] = useState<Periodo>(() => (parametro('periodo') === 'anual' ? 'anual' : 'mensual'))
+  useEffect(() => { const h = () => setNombrePlan(parametro('plan')); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
+  const plan = [...planes, prueba].find((p) => p.nombre === nombrePlan)
   const esPrueba = plan?.nombre === 'Prueba'
 
   const [cuenta, setCuenta] = useState<User | null>(null)
   const [cargando, setCargando] = useState(true)
   const [acceso, setAcceso] = useState<Acceso | null>(null)
   const [usada, setUsada] = useState(false)
-  const [hecho, setHecho] = useState<{ licencia: Licencia; titular: string; ultimos: string; correo: boolean | null } | null>(null)
+  const [hecho, setHecho] = useState<{ licencia: Licencia; correo: boolean | null } | null>(null)
   const [entrando, setEntrando] = useState(false)
   const [error, setError] = useState(() => tomarErrorRetorno())
 
@@ -58,8 +74,8 @@ export default function Comprar() {
     return () => { vivo = false; data.subscription.unsubscribe() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const listo = (licencia: Licencia, titular = '', ultimos = '') => {
-    setHecho({ licencia, titular, ultimos, correo: null })
+  const pruebaLista = (licencia: Licencia) => {
+    setHecho({ licencia, correo: null })
     enviarCorreo({ tipo: 'recibo' }).then((correo) => setHecho((h) => (h ? { ...h, correo } : h)))
   }
 
@@ -75,20 +91,17 @@ export default function Comprar() {
 
   if (!plan || (!esPrueba && !esComprable(plan.nombre))) return (
     <MarcoAcceso>
-      <h1 className="text-center font-display text-2xl font-bold">{plan ? plan.nombre : tx('Plan no encontrado', 'Plan not found', 'Plano não encontrado')}</h1>
-      <p className="mt-3 text-center text-sm text-muted">{plan
-        ? tx('Este plan se cotiza a la medida de su red de sucursales. Escríbanos y le respondemos con una propuesta; para empezar hoy, elija NEXORA Nube o NEXORA Pro.', 'This plan is quoted for your branch network. Write to us for a proposal; to start today, choose NEXORA Cloud or NEXORA Pro.', 'Este plano é cotado para sua rede de filiais. Escreva-nos para uma proposta; para começar hoje, escolha NEXORA Nuvem ou NEXORA Pro.')
-        : tx('Elija uno de los planes disponibles.', 'Choose one of the available plans.', 'Escolha um dos planos disponíveis.')}</p>
-      {plan && <a href={`mailto:${CORREO_NEXORA}?subject=${encodeURIComponent('Cotización NEXORA Global')}`} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primario/40 px-4 py-2.5 text-sm font-medium hover:bg-primario/10"><Mail size={15} />{CORREO_NEXORA}</a>}
+      <h1 className="text-center font-display text-2xl font-bold">{tx('Elija su plan', 'Choose your plan', 'Escolha seu plano')}</h1>
+      <p className="mt-3 text-center text-sm text-muted">{tx('Ese plan ya no está disponible. Vea los planes para emprendimientos o escríbanos si su empresa necesita algo a la medida.', 'That plan is no longer available. See the small-business plans or write to us for something tailored.', 'Esse plano não está mais disponível. Veja os planos ou escreva-nos para algo sob medida.')}</p>
+      <a href={`mailto:${CORREO_NEXORA}?subject=${encodeURIComponent('NEXORA para mi empresa')}`} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-primario/40 px-4 py-2.5 text-sm font-medium hover:bg-primario/10"><Mail size={15} />{CORREO_NEXORA}</a>
       <Button variante="primario" className="mt-3 w-full !py-2.5" onClick={() => { location.hash = '#/planes' }}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>
     </MarcoAcceso>
   )
 
   // Situación de la cuenta frente al plan elegido.
-  const planActual = acceso?.esDueno && acceso.vigente ? acceso.plan : null
-  const mismo = !hecho && planActual === plan.nombre
-  const pruebaNoDisponible = esPrueba && !hecho && (usada || !!planActual)
-  const paso = !cuenta ? 1 : hecho || mismo ? 3 : 2
+  const vigente = acceso?.esDueno && acceso.vigente ? acceso : null
+  const pruebaNoDisponible = esPrueba && !hecho && (usada || !!vigente?.plan)
+  const paso = !cuenta ? 1 : hecho ? 3 : 2
   const titulo = plan.titulo ?? plan.nombre
 
   return (
@@ -98,13 +111,19 @@ export default function Comprar() {
         <aside className="md:border-r md:border-fg/10 md:pr-8">
           <div className="text-xs uppercase tracking-[.2em] text-muted">{tx('Su plan', 'Your plan', 'Seu plano')} · {plan.tipo}</div>
           <div className="mt-1 font-display text-3xl font-bold">{titulo}</div>
-          <div className="mt-3"><span className="texto-oro font-display text-4xl font-bold tnum">{plan.precio}</span><span className="ml-1 text-sm text-muted">{plan.unidad}</span></div>
-          <p className="mt-2 text-xs text-muted">{plan.nota}</p>
+          {esPrueba
+            ? <div className="mt-3"><span className="texto-oro font-display text-4xl font-bold tnum">{money(0, 0)}</span><span className="ml-1 text-sm text-muted">{tx('por 14 días', 'for 14 days', 'por 14 dias')}</span></div>
+            : <>
+                <div className="mt-4"><SelectorPeriodo valor={periodo} onChange={setPeriodo} /></div>
+                <div className="mt-3"><span className="texto-oro font-display text-4xl font-bold tnum">{precioPartes(plan, periodo, tx)[0]}</span><span className="ml-1 text-sm text-muted">{precioPartes(plan, periodo, tx)[1]}</span></div>
+                <p className="text-xs text-muted">{tx('IVA incluido', 'VAT included', 'IVA incluído')}{periodo === 'anual' ? ` · ${tx(`equivale a ${money(plan.anual / 12, 2)} al mes`, `equals ${money(plan.anual / 12, 2)} a month`, `equivale a ${money(plan.anual / 12, 2)} por mês`)}` : ''}</p>
+              </>}
+          <p className="mt-3 text-xs text-muted">{plan.nota}</p>
           <ul className="mt-5 space-y-2 text-sm">{plan.incluye.map((x) => <li key={x} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-primario" /><span>{x}</span></li>)}</ul>
           <button onClick={() => { location.hash = '#/planes' }} className="mt-5 text-xs text-primario hover:underline">{tx('Cambiar de plan', 'Change plan', 'Trocar de plano')}</button>
           <div className="mt-6 flex items-start gap-2 rounded-xl border border-fg/10 bg-fg/5 p-3 text-[11px] text-muted"><ShieldCheck size={15} className="mt-0.5 shrink-0 text-primario" />{esPrueba
             ? tx('Sin tarjeta. Al terminar los 14 días elige un plan y sus datos se conservan.', 'No card. After 14 days choose a plan and keep your data.', 'Sem cartão. Após 14 dias escolha um plano e mantenha seus dados.')
-            : tx('Al terminar el pago su cuenta queda habilitada al instante para ingresar a NEXORA.', 'Once payment is done your account is enabled instantly to enter NEXORA.', 'Ao concluir o pagamento sua conta é liberada na hora para entrar no NEXORA.')}</div>
+            : tx('Pago seguro con Payphone. Sin renovación automática: usted decide cuándo renovar y sus datos siempre se conservan.', 'Secure payment with Payphone. No automatic renewal: you decide when to renew and your data is always kept.', 'Pagamento seguro com Payphone. Sem renovação automática: você decide quando renovar e seus dados são mantidos.')}</div>
         </aside>
 
         {/* Pasos */}
@@ -121,24 +140,114 @@ export default function Comprar() {
                 ? pruebaNoDisponible
                   ? <div className="space-y-4 text-center">
                       <Gift className="mx-auto text-primario" size={36} />
-                      <p className="text-sm text-muted">{planActual ? tx(`Su cuenta ya tiene ${planActual} activo.`, `Your account already has ${planActual} active.`, `Sua conta já tem ${planActual} ativo.`) : tx('Esta cuenta ya usó su prueba gratis. Elija un plan para seguir usando NEXORA: sus datos se conservan.', 'This account already used its free trial. Choose a plan to keep using NEXORA: your data is kept.', 'Esta conta já usou o teste grátis. Escolha um plano para continuar: seus dados são mantidos.')}</p>
-                      {planActual ? <Button variante="primario" className="w-full !py-2.5" disabled={entrando} onClick={entrarAhora}>{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></Button>
+                      <p className="text-sm text-muted">{vigente?.plan ? tx(`Su cuenta ya tiene ${vigente.plan} activo.`, `Your account already has ${vigente.plan} active.`, `Sua conta já tem ${vigente.plan} ativo.`) : tx('Esta cuenta ya usó su prueba gratis. Elija un plan para seguir usando NEXORA: sus datos se conservan.', 'This account already used its free trial. Choose a plan to keep using NEXORA: your data is kept.', 'Esta conta já usou o teste grátis. Escolha um plano para continuar: seus dados são mantidos.')}</p>
+                      {vigente?.plan ? <Button variante="primario" className="w-full !py-2.5" disabled={entrando} onClick={entrarAhora}>{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></Button>
                         : <Button variante="primario" className="w-full !py-2.5" onClick={() => { location.hash = '#/planes' }}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>}
                     </div>
-                  : <PasoPrueba cuenta={cuenta!} onListo={(l) => listo(l)} onOtraCuenta={() => supabase.auth.signOut()} />
-                : <PasoPago cuenta={cuenta!} plan={plan.nombre as PlanComprable} precio={`${plan.precio} ${plan.unidad}`.trim()} planActual={planActual} onListo={listo} onOtraCuenta={() => supabase.auth.signOut()} />)
+                  : <PasoPrueba cuenta={cuenta!} onListo={pruebaLista} onOtraCuenta={() => supabase.auth.signOut()} />
+                : <PasoPayphone cuenta={cuenta!} plan={plan.nombre as PlanComprable} periodo={periodo} total={periodo === 'anual' ? plan.anual : plan.mensual} acceso={acceso} onOtraCuenta={() => supabase.auth.signOut()} />)
             : <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="py-4 text-center">
                 <PartyPopper className="mx-auto text-primario" size={40} />
-                <h2 className="mt-3 font-display text-2xl font-bold">{hecho ? (esPrueba ? tx('¡Su prueba gratis empezó!', 'Your free trial started!', 'Seu teste grátis começou!') : tx('¡Compra completada!', 'Purchase complete!', 'Compra concluída!')) : tx('Ya tiene este plan', 'You already have this plan', 'Você já tem este plano')}</h2>
-                <p className="mt-2 text-sm text-muted">{esPrueba && hecho
-                  ? tx(`Tiene ${DIAS_PRUEBA} días para usar NEXORA con la cuenta ${cuenta?.email}.`, `You have ${DIAS_PRUEBA} days to use NEXORA with ${cuenta?.email}.`, `Você tem ${DIAS_PRUEBA} dias para usar o NEXORA com ${cuenta?.email}.`)
-                  : tx(`La cuenta ${cuenta?.email} tiene ${hecho?.licencia.plan ?? planActual} activo. Ya puede ingresar a NEXORA.`, `Account ${cuenta?.email} has ${hecho?.licencia.plan ?? planActual} active. You can now enter NEXORA.`, `A conta ${cuenta?.email} tem ${hecho?.licencia.plan ?? planActual} ativo. Já pode entrar no NEXORA.`)}</p>
-                {hecho && <p className="mt-2 text-xs text-muted">{hecho.correo === null ? tx('Enviando su correo de bienvenida…', 'Sending your welcome email…', 'Enviando seu e-mail de boas-vindas…') : hecho.correo ? tx(`Le enviamos la bienvenida${esPrueba ? '' : ' y el comprobante'} a ${cuenta?.email}.`, `We emailed your welcome${esPrueba ? '' : ' and receipt'} to ${cuenta?.email}.`, `Enviamos as boas-vindas${esPrueba ? '' : ' e o comprovante'} para ${cuenta?.email}.`) : ''}</p>}
+                <h2 className="mt-3 font-display text-2xl font-bold">{tx('¡Su prueba gratis empezó!', 'Your free trial started!', 'Seu teste grátis começou!')}</h2>
+                <p className="mt-2 text-sm text-muted">{tx(`Tiene ${DIAS_PRUEBA} días para usar NEXORA con la cuenta ${cuenta?.email}.`, `You have ${DIAS_PRUEBA} days to use NEXORA with ${cuenta?.email}.`, `Você tem ${DIAS_PRUEBA} dias para usar o NEXORA com ${cuenta?.email}.`)}</p>
+                {hecho?.correo && <p className="mt-2 text-xs text-muted">{tx(`Le enviamos la bienvenida a ${cuenta?.email}.`, `We emailed your welcome to ${cuenta?.email}.`, `Enviamos as boas-vindas para ${cuenta?.email}.`)}</p>}
                 <Button variante="primario" className="mt-6 w-full !py-3" disabled={entrando} onClick={entrarAhora}>{entrando ? tx('Abriendo NEXORA…', 'Opening NEXORA…', 'Abrindo o NEXORA…') : <>{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></>}</Button>
-                {hecho && !esPrueba && hecho.licencia.id && <Button className="mt-2 w-full" onClick={() => descargarRecibo({ id: hecho.licencia.id!, plan: hecho.licencia.plan, precio: hecho.licencia.precio, empresa: hecho.licencia.empresa, titular: hecho.titular, ultimos: hecho.ultimos, fecha: hecho.licencia.creada, email: cuenta?.email ?? '' })}><Download size={15} />{tx('Descargar comprobante (PDF)', 'Download receipt (PDF)', 'Baixar comprovante (PDF)')}</Button>}
               </motion.div>}
         </section>
       </div>
+    </MarcoAcceso>
+  )
+}
+
+/** Paso de pago: prepara el cobro y lleva a la página segura de Payphone. */
+function PasoPayphone({ cuenta, plan, periodo, total, acceso, onOtraCuenta }: { cuenta: User; plan: PlanComprable; periodo: Periodo; total: number; acceso: Acceso | null; onOtraCuenta: () => void }) {
+  const tx = useTx()
+  const tieneEmpresa = !!acceso?.esDueno
+  const [empresa, setEmpresa] = useState(acceso?.esDueno ? acceso.empresa : '')
+  const [error, setError] = useState('')
+  const [ocupado, setOcupado] = useState(false)
+  const vigente = acceso?.esDueno && acceso.vigente ? acceso : null
+  const dias = vigente?.vence ? diasRestantes(vigente.vence) : null
+
+  const pagar = async (e: FormEvent) => {
+    e.preventDefault(); setError(''); setOcupado(true)
+    try { location.href = await prepararPago(plan, periodo, empresa) } // la persona paga en Payphone y vuelve a NEXORA
+    catch (err) { setError(mensajeError(err, tx)); setOcupado(false) }
+  }
+
+  return (
+    <form onSubmit={pagar} className="space-y-4">
+      <div>
+        <h2 className="mb-1 font-display text-xl font-bold">{tx('Pago', 'Payment', 'Pagamento')}</h2>
+        <p className="text-xs text-muted">{tx('Cuenta', 'Account', 'Conta')}: <span className="text-fg">{cuenta.email}</span> · <button type="button" onClick={onOtraCuenta} className="text-primario hover:underline">{tx('cambiar', 'change', 'trocar')}</button></p>
+      </div>
+      {vigente?.plan === 'Prueba' && <Aviso tono="info">{tx('Su prueba gratis termina al pagar. Todos sus datos se conservan.', 'Your free trial ends when you pay. All your data is kept.', 'Seu teste grátis termina ao pagar. Todos os seus dados são mantidos.')}</Aviso>}
+      {vigente?.plan && vigente.plan !== 'Prueba' && vigente.vence && <Aviso tono="info">{tx(`Su plan ${vigente.plan} vence el ${fechaLarga(vigente.vence)}${dias !== null ? ` (en ${dias} días)` : ''}. Lo que pague ahora se suma desde esa fecha: no pierde días.`, `Your ${vigente.plan} plan ends on ${fechaLarga(vigente.vence)}. What you pay now is added from that date: you lose no days.`, `Seu plano ${vigente.plan} vence em ${fechaLarga(vigente.vence)}. O que pagar agora soma a partir dessa data.`)}</Aviso>}
+      {!tieneEmpresa && <div className="relative"><Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input required autoComplete="organization" aria-label={tx('Empresa', 'Company', 'Empresa')} className="inp pl-9" placeholder={tx('Nombre de su empresa o emprendimiento', 'Your company or business name', 'Nome da sua empresa ou negócio')} value={empresa} onChange={(e) => setEmpresa(e.target.value)} /></div>}
+
+      <div className="rounded-xl border border-fg/10 bg-fg/5 p-4 text-sm">
+        <div className="flex justify-between"><span className="text-muted">{plan} · {periodo === 'anual' ? tx('1 año', '1 year', '1 ano') : tx('1 mes', '1 month', '1 mês')}</span><span className="tnum">{money(total, 2)}</span></div>
+        <div className="mt-2 flex justify-between border-t border-fg/10 pt-2 font-semibold"><span>{tx('Total (IVA incluido)', 'Total (VAT included)', 'Total (IVA incluído)')}</span><span className="tnum">{money(total, 2)}</span></div>
+      </div>
+
+      {error && <Aviso>{error}</Aviso>}
+      <Button variante="primario" type="submit" disabled={ocupado} className="w-full !py-3">{ocupado ? tx('Abriendo Payphone…', 'Opening Payphone…', 'Abrindo Payphone…') : <><Lock size={15} />{tx(`Pagar ${money(total, 2)} con Payphone`, `Pay ${money(total, 2)} with Payphone`, `Pagar ${money(total, 2)} com Payphone`)}</>}</Button>
+      <p className="flex items-start gap-2 text-[11px] text-muted"><Smartphone size={14} className="mt-0.5 shrink-0" />{tx('Pagará en la página segura de Payphone con tarjeta de crédito o débito, o con la app Payphone. Al terminar volverá a NEXORA y su plan se activa al instante.', 'You will pay on Payphone\'s secure page with a credit/debit card or the Payphone app. Then you return to NEXORA and your plan is activated instantly.', 'Você pagará na página segura do Payphone com cartão ou com o app Payphone. Depois volta ao NEXORA e seu plano é ativado na hora.')}</p>
+    </form>
+  )
+}
+
+/** Al volver de Payphone (#/pago): confirma el pago y muestra el resultado. */
+export function ResultadoPago() {
+  const tx = useTx()
+  const [estado, setEstado] = useState<'confirmando' | 'ok' | 'error' | 'sin-datos'>('confirmando')
+  const [pago, setPago] = useState<Pago | null>(null)
+  const [mensaje, setMensaje] = useState('')
+  const [correo, setCorreo] = useState<boolean | null>(null)
+  const [cuenta, setCuenta] = useState<User | null>(null)
+  const [entrando, setEntrando] = useState(false)
+  const iniciado = useRef(false)
+
+  useEffect(() => {
+    if (iniciado.current) return
+    iniciado.current = true
+    supabase.auth.getSession().then(({ data }) => setCuenta(data.session?.user ?? null))
+    const r = retornoPago()
+    if (!r) { setEstado('sin-datos'); return }
+    confirmarPago(r.id, r.clientTxId)
+      .then((p) => { setPago(p); setEstado('ok'); enviarCorreo({ tipo: 'recibo' }).then(setCorreo) })
+      .catch((e) => { setMensaje(String(e?.message ?? e)); setEstado('error') })
+      .finally(olvidarRetornoPago)
+  }, [])
+
+  const entrar = async () => {
+    if (!cuenta) { location.hash = '#/login'; return }
+    setEntrando(true)
+    try { const r = await entrarConAcceso(cuenta); location.hash = '#/login'; if (r.estado !== 'ok') setEntrando(false) } catch { location.hash = '#/login' }
+  }
+
+  return (
+    <MarcoAcceso>
+      {estado === 'confirmando' && <div className="py-6 text-center">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primario border-t-transparent" />
+        <h1 className="mt-4 font-display text-xl font-bold">{tx('Confirmando su pago…', 'Confirming your payment…', 'Confirmando seu pagamento…')}</h1>
+        <p className="mt-1 text-sm text-muted">{tx('No cierre esta ventana.', 'Please don\'t close this window.', 'Não feche esta janela.')}</p>
+      </div>}
+      {estado === 'ok' && pago && <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="text-center">
+        <PartyPopper className="mx-auto text-primario" size={40} />
+        <h1 className="mt-3 font-display text-2xl font-bold">{tx('¡Pago aprobado!', 'Payment approved!', 'Pagamento aprovado!')}</h1>
+        <p className="mt-2 text-sm text-muted">{tx(`Su plan ${pago.plan} está activo hasta el ${fechaLarga(pago.vence)}.`, `Your ${pago.plan} plan is active until ${fechaLarga(pago.vence)}.`, `Seu plano ${pago.plan} está ativo até ${fechaLarga(pago.vence)}.`)}</p>
+        {correo && <p className="mt-1 text-xs text-muted">{tx(`Le enviamos el comprobante a ${cuenta?.email ?? 'su correo'}.`, `We emailed your receipt to ${cuenta?.email ?? 'your email'}.`, `Enviamos o comprovante para ${cuenta?.email ?? 'seu e-mail'}.`)}</p>}
+        <Button variante="primario" className="mt-6 w-full !py-3" disabled={entrando} onClick={entrar}>{entrando ? tx('Abriendo NEXORA…', 'Opening NEXORA…', 'Abrindo o NEXORA…') : <>{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></>}</Button>
+        <Button className="mt-2 w-full" onClick={() => descargarRecibo({ id: pago.id, plan: `${pago.plan} (${pago.periodo === 'anual' ? '1 año' : '1 mes'})`, precio: money(pago.monto / 100, 2), empresa: pago.empresa, titular: String(cuenta?.user_metadata?.full_name ?? ''), formaPago: ['Payphone', pago.tarjeta].filter(Boolean).join(' · '), fecha: pago.confirmado, email: cuenta?.email ?? '', vigencia: `${fechaLarga(pago.desde)} – ${fechaLarga(pago.vence)}` })}><Download size={15} />{tx('Descargar comprobante (PDF)', 'Download receipt (PDF)', 'Baixar comprovante (PDF)')}</Button>
+      </motion.div>}
+      {(estado === 'error' || estado === 'sin-datos') && <div className="text-center">
+        <XCircle className="mx-auto text-peligro" size={40} />
+        <h1 className="mt-3 font-display text-2xl font-bold">{estado === 'error' ? tx('El pago no se completó', 'The payment was not completed', 'O pagamento não foi concluído') : tx('No hay un pago para confirmar', 'No payment to confirm', 'Nenhum pagamento para confirmar')}</h1>
+        <p className="mt-2 text-sm text-muted">{estado === 'error' ? `${mensaje}. ${tx('No se realizó ningún cobro. Puede intentarlo de nuevo.', 'You were not charged. You can try again.', 'Nada foi cobrado. Pode tentar novamente.')}` : tx('Si pagó y no ve su plan activo, escríbanos con el número de su transacción.', 'If you paid and your plan is not active, write to us with your transaction number.', 'Se pagou e o plano não está ativo, escreva-nos com o número da transação.')}</p>
+        <Button variante="primario" className="mt-6 w-full !py-2.5" onClick={() => { location.hash = '#/planes' }}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>
+        <a href={`mailto:${CORREO_NEXORA}?subject=${encodeURIComponent('Ayuda con mi pago de NEXORA')}`} className="mt-3 inline-block text-xs text-primario hover:underline">{CORREO_NEXORA}</a>
+      </div>}
     </MarcoAcceso>
   )
 }
@@ -216,45 +325,3 @@ function PasoCuenta({ plan, onError }: { plan: string; onError: (m: string) => v
   )
 }
 
-function PasoPago({ cuenta, plan, precio, planActual, onListo, onOtraCuenta }: { cuenta: User; plan: PlanComprable; precio: string; planActual: string | null; onListo: (l: Licencia, titular: string, ultimos: string) => void; onOtraCuenta: () => void }) {
-  const tx = useTx()
-  const [empresa, setEmpresa] = useState('')
-  const [titular, setTitular] = useState(String(cuenta.user_metadata?.full_name ?? ''))
-  const [tarjeta, setTarjeta] = useState('')
-  const [vence, setVence] = useState('')
-  const [cvc, setCvc] = useState('')
-  const [error, setError] = useState('')
-  const [ocupado, setOcupado] = useState(false)
-  const marca = marcaTarjeta(tarjeta)
-
-  const pagar = async (e: FormEvent) => {
-    e.preventDefault(); setError('')
-    if (!luhn(tarjeta)) return setError(tx('Número de tarjeta inválido', 'Invalid card number', 'Número de cartão inválido'))
-    if (!venceValido(vence)) return setError(tx('Fecha de vencimiento inválida o vencida (MM/AA)', 'Invalid or expired date (MM/YY)', 'Data de validade inválida ou vencida (MM/AA)'))
-    if (!/^\d{3,4}$/.test(cvc)) return setError(tx('Código de seguridad inválido', 'Invalid security code', 'Código de segurança inválido'))
-    setOcupado(true)
-    await new Promise((r) => setTimeout(r, 1200)) // "procesando pago" (simulado)
-    try { onListo(await registrarCompra({ plan, precio, empresa, titular, tarjeta }), titular, soloDigitos(tarjeta).slice(-4)) }
-    catch (err) { setError(mensajeError(err, tx)); setOcupado(false) }
-  }
-
-  return (
-    <div>
-      <h2 className="mb-1 font-display text-xl font-bold">{tx('Datos de pago', 'Payment details', 'Dados de pagamento')}</h2>
-      <p className="mb-4 text-xs text-muted">{tx('Cuenta', 'Account', 'Conta')}: <span className="text-fg">{cuenta.email}</span> · <button onClick={onOtraCuenta} className="text-primario hover:underline">{tx('cambiar', 'change', 'trocar')}</button></p>
-      {planActual && <div className="mb-3"><Aviso tono="info">{tx(`Su plan actual (${planActual}) se reemplazará por ${plan} al pagar. Sus datos se conservan.`, `Your current plan (${planActual}) will be replaced by ${plan}. Your data is kept.`, `Seu plano atual (${planActual}) será substituído por ${plan}. Seus dados são mantidos.`)}</Aviso></div>}
-      <Aviso tono="info">{tx('Pago de demostración: no se cobra dinero. Use una tarjeta de prueba como 4242 4242 4242 4242, cualquier fecha futura y CVC 123.', 'Demo payment: no money is charged. Use a test card like 4242 4242 4242 4242, any future date and CVC 123.', 'Pagamento de demonstração: nada é cobrado. Use um cartão de teste como 4242 4242 4242 4242, qualquer data futura e CVC 123.')}</Aviso>
-      <form onSubmit={pagar} className="mt-4 space-y-3">
-        <div className="relative"><Building2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input required autoComplete="organization" aria-label={tx('Empresa', 'Company', 'Empresa')} className="inp pl-9" placeholder={tx('Nombre de su empresa', 'Your company name', 'Nome da sua empresa')} value={empresa} onChange={(e) => setEmpresa(e.target.value)} /></div>
-        <div className="relative"><IconoUsuario size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input required autoComplete="cc-name" aria-label={tx('Titular de la tarjeta', 'Cardholder name', 'Titular do cartão')} className="inp pl-9" placeholder={tx('Titular de la tarjeta', 'Cardholder name', 'Titular do cartão')} value={titular} onChange={(e) => setTitular(e.target.value)} /></div>
-        <div className="relative"><CreditCard size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input required inputMode="numeric" autoComplete="cc-number" aria-label={tx('Número de tarjeta', 'Card number', 'Número do cartão')} className="inp pl-9 pr-28 tnum" placeholder="1234 5678 9012 3456" value={tarjeta} onChange={(e) => setTarjeta(formatoTarjeta(e.target.value))} />{marca && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted">{marca}</span>}</div>
-        <div className="grid grid-cols-2 gap-3">
-          <input required inputMode="numeric" autoComplete="cc-exp" aria-label={tx('Vencimiento (MM/AA)', 'Expiry (MM/YY)', 'Validade (MM/AA)')} className="inp tnum" placeholder={tx('MM/AA', 'MM/YY', 'MM/AA')} value={vence} onChange={(e) => setVence(formatoVence(e.target.value))} />
-          <input required inputMode="numeric" autoComplete="cc-csc" aria-label="CVC" className="inp tnum" placeholder="CVC" value={cvc} onChange={(e) => setCvc(soloDigitos(e.target.value).slice(0, 4))} />
-        </div>
-        {error && <Aviso>{error}</Aviso>}
-        <Button variante="primario" type="submit" disabled={ocupado} className="w-full !py-3">{ocupado ? tx('Procesando pago…', 'Processing payment…', 'Processando pagamento…') : <><Lock size={15} />{tx(`Pagar ${precio}`, `Pay ${precio}`, `Pagar ${precio}`)}</>}</Button>
-      </form>
-    </div>
-  )
-}

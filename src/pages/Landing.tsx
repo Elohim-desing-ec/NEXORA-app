@@ -11,11 +11,13 @@ import { money, num } from '../lib/format'
 import { useIdioma, useTx } from '../lib/idioma'
 import { SelectorIdioma } from '../components/SelectorIdioma'
 import { InstalarApp } from '../components/InstalarApp'
-import { usePlanes } from '../lib/planes'
+import { usePlanes, precioPartes, type Periodo } from '../lib/planes'
+import { SelectorPeriodo } from './Comprar'
+import { CORREO_NEXORA } from '../lib/cuenta'
 
 const suave = [0.16, 1, 0.3, 1] as const
 const ingresar = () => { location.hash = '#/login' }
-const comprar = (plan: string) => { location.hash = `#/comprar?plan=${encodeURIComponent(plan)}` }
+const comprar = (plan: string, periodo = 'mensual') => { location.hash = `#/comprar?plan=${encodeURIComponent(plan)}&periodo=${periodo}` }
 
 /** Aparece al entrar en pantalla (scroll reveal). */
 function Revelar({ children, retraso = 0, className }: { children: ReactNode; retraso?: number; className?: string }) {
@@ -71,10 +73,9 @@ function Bento({ icono, titulo, texto, children, className }: { icono: ReactNode
 export default function Landing() {
   const p = PROYECTO
   const tx = useTx(), idioma = useIdioma((s) => s.idioma)
-  const [grupo, setGrupo] = useState<'empresas' | 'emprendimientos'>('empresas')
+  const [periodo, setPeriodo] = useState<Periodo>('mensual')
   const K = F.indicadores(p), R = F.reemplazo(p)
-  const { empresas, emprendimientos } = usePlanes()
-  const planes = grupo === 'empresas' ? empresas : emprendimientos
+  const { planes } = usePlanes()
   // #/planes (desde Ingresar o Comprar): baja directo a los planes
   useEffect(() => { if (location.hash === '#/planes') setTimeout(() => document.querySelector('#planes')?.scrollIntoView({ behavior: 'smooth' }), 300) }, [])
   const hero = useRef<HTMLDivElement>(null)
@@ -201,23 +202,24 @@ export default function Landing() {
         <div className="mt-10 grid gap-4 md:grid-cols-3">{[['01', tx('Configure su empresa', 'Set up your company', 'Configure sua empresa'), tx('País, moneda, identificación fiscal y sucursales ubicadas en el mapa.', 'Country, currency, tax ID and branches placed on the map.', 'País, moeda, identificação fiscal e filiais no mapa.')], ['02', tx('Cargue sus datos', 'Load your data', 'Carregue seus dados'), tx('Productos con la plantilla de Excel, proveedores y su equipo con roles.', 'Products with the Excel template, suppliers and your team with roles.', 'Produtos com o modelo do Excel, fornecedores e sua equipe com funções.')], ['03', tx('Opere y decida', 'Operate and decide', 'Opere e decida'), tx('Registre ventas y compras; la IA y los reportes hacen el resto.', 'Record sales and purchases; AI and reports do the rest.', 'Registre vendas e compras; a IA e os relatórios fazem o resto.')]].map(([n, t, d], k) => (
           <Revelar key={n} retraso={k * 0.12}><div className="glass glass-hover h-full p-6"><div className="texto-oro font-display text-4xl font-bold">{n}</div><div className="mt-3 font-semibold">{t}</div><p className="mt-1 text-sm text-muted">{d}</p></div></Revelar>))}</div>
 
-        {/* Planes (salen de los valores del proyecto) */}
-        <Revelar className="mt-20 scroll-mt-24 text-center"><div id="planes" className="scroll-mt-24" /><h3 className="font-display text-2xl font-bold sm:text-4xl">{tx('Elija su', 'Choose your', 'Escolha seu')} <span className="texto-oro">{tx('plan', 'plan', 'plano')}</span></h3><p className="mx-auto mt-3 max-w-2xl text-sm text-muted">{tx('Desde un emprendimiento con una sola tienda hasta una red en varios países.', 'From a one-store small business to a network across several countries.', 'De um pequeno negócio com uma loja a uma rede em vários países.')}</p>
-          <div className="mt-6 inline-flex rounded-full border border-primario/30 bg-fg/5 p-1">{([['empresas', tx('Planes empresas', 'Business plans', 'Planos empresas')], ['emprendimientos', tx('Planes emprendimientos', 'Small business plans', 'Planos pequenos negócios')]] as const).map(([g, t]) => (
-            <button key={g} onClick={() => setGrupo(g)} className={cx('rounded-full px-4 py-2 text-xs font-semibold transition sm:px-5 sm:text-sm', grupo === g ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black' : 'text-muted hover:text-fg')}>{t}</button>))}</div></Revelar>
+        {/* Planes para emprendimientos (precios en src/lib/planes.ts y en la función payphone) */}
+        <Revelar className="mt-20 scroll-mt-24 text-center"><div id="planes" className="scroll-mt-24" /><h3 className="font-display text-2xl font-bold sm:text-4xl">{tx('Elija su', 'Choose your', 'Escolha seu')} <span className="texto-oro">{tx('plan', 'plan', 'plano')}</span></h3><p className="mx-auto mt-3 max-w-2xl text-sm text-muted">{tx('Para emprendimientos y negocios que están creciendo. Empiece con 14 días gratis y pague mes a mes o por año.', 'For small and growing businesses. Start with 14 free days and pay monthly or yearly.', 'Para pequenos negócios e empresas em crescimento. Comece com 14 dias grátis e pague por mês ou por ano.')}</p>
+          <div className="mt-6"><SelectorPeriodo valor={periodo} onChange={setPeriodo} /></div></Revelar>
         <Revelar className="mt-8"><button onClick={() => comprar('Prueba')} className="mx-auto flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-2xl border border-primario/40 bg-primario/10 px-5 py-3 text-sm transition hover:bg-primario/20">
           <Sparkles size={16} className="text-primario" /><span><b>{tx('¿Quiere probar primero?', 'Want to try first?', 'Quer testar primeiro?')}</b> {tx('14 días gratis, sin tarjeta.', '14 days free, no card.', '14 dias grátis, sem cartão.')}</span><span className="flex items-center gap-1 font-semibold text-primario">{tx('Probar gratis', 'Try free', 'Testar grátis')} <ArrowRight size={14} /></span>
         </button></Revelar>
         <div className="mt-8 grid items-stretch gap-4 md:grid-cols-3">{planes.map((pl, k) => (
-          <Revelar key={grupo + pl.nombre} retraso={k * 0.12} className="h-full"><div className={cx('glass relative flex h-full flex-col p-6 sm:p-7', pl.destacado && 'border-primario/60 shadow-[0_20px_60px_-20px_rgb(var(--t-oro)/.55)]')}>
+          <Revelar key={pl.nombre} retraso={k * 0.12} className="h-full"><div className={cx('glass relative flex h-full flex-col p-6 sm:p-7', pl.destacado && 'border-primario/60 shadow-[0_20px_60px_-20px_rgb(var(--t-oro)/.55)]')}>
             {pl.destacado && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-black">{tx('Recomendado', 'Recommended', 'Recomendado')}</span>}
             <div className="text-xs uppercase tracking-[.2em] text-muted">{pl.tipo}</div>
             <div className="mt-1 font-display text-2xl font-bold">{pl.nombre}</div>
-            <div className="mt-4"><span className="texto-oro font-display text-4xl font-bold tnum">{pl.precio}</span><span className="ml-1 text-sm text-muted">{pl.unidad}</span></div>
+            <div className="mt-4"><span className="texto-oro font-display text-4xl font-bold tnum">{precioPartes(pl, periodo, tx)[0]}</span><span className="ml-1 text-sm text-muted">{precioPartes(pl, periodo, tx)[1]}</span></div>
+            <p className="text-[11px] text-muted">{tx('IVA incluido', 'VAT included', 'IVA incluído')}{periodo === 'anual' ? ` · ${tx('2 meses gratis', '2 months free', '2 meses grátis')}` : ''}</p>
             <p className="mt-1 min-h-[2.5rem] text-xs text-muted">{pl.nota}</p>
             <ul className="mt-5 flex-1 space-y-2 text-sm">{pl.incluye.map((x) => <li key={x} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-primario" /><span>{x}</span></li>)}</ul>
-            <button onClick={() => comprar(pl.nombre)} className={cx('mt-6 flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition', pl.destacado ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black hover:brightness-110' : 'border border-primario/40 hover:bg-primario/10')}>{pl.boton} <ArrowRight size={15} /></button>
+            <button onClick={() => comprar(pl.nombre, periodo)} className={cx('mt-6 flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition', pl.destacado ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black hover:brightness-110' : 'border border-primario/40 hover:bg-primario/10')}>{pl.boton} <ArrowRight size={15} /></button>
           </div></Revelar>))}</div>
+        <p className="mt-6 text-center text-xs text-muted">{tx('Pagos seguros con Payphone · sin renovación automática · cancele cuando quiera.', 'Secure payments with Payphone · no automatic renewal · cancel anytime.', 'Pagamentos seguros com Payphone · sem renovação automática · cancele quando quiser.')} {tx('¿Su empresa necesita más?', 'Need more for your company?', 'Sua empresa precisa de mais?')} <a href={`mailto:${CORREO_NEXORA}?subject=${encodeURIComponent('NEXORA para mi empresa')}`} className="text-primario hover:underline">{tx('Escríbanos', 'Write to us', 'Escreva-nos')}</a></p>
       </section>
 
       {/* Llamado final con horizonte */}

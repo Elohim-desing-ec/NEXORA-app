@@ -51,10 +51,26 @@ Deno.serve(async (req) => {
   let para: string, asunto: string, html: string
 
   if (pedido.tipo === 'recibo') {
+    // Pago con Payphone (planes actuales); si no hay, licencia anterior o prueba gratis.
+    const { data: pg } = await sb.from('pagos').select('id, plan, periodo, monto, empresa, tarjeta, desde, vence, confirmado').eq('estado', 'aprobado').order('confirmado', { ascending: false }).limit(1).maybeSingle()
     const { data: l } = await sb.from('licencias').select('id, plan, precio, empresa, titular, tarjeta_ultimos, creada').eq('estado', 'activa').order('creada', { ascending: false }).limit(1).maybeSingle()
     const { data: p } = await sb.from('pruebas').select('empresa, vence').maybeSingle()
     para = user.email
-    if (l) {
+    const dinero = (c: number) => `$ ${(c / 100).toFixed(2)}`
+    if (pg) {
+      asunto = `Bienvenido a NEXORA · Comprobante de ${pg.plan}`
+      html = plantilla('¡Gracias por su pago!', `
+        <p>Su plan <b>${esc(pg.plan)}</b> está activo hasta el <b>${esc(fecha(pg.vence))}</b>. Ingrese con esta cuenta (${esc(user.email)}) e invite a su equipo desde Configuración → Cuenta y equipo.</p>
+        <table width="100%" style="margin-top:12px;border-top:1px solid #44403c;font-size:13px">
+          ${fila('Comprobante', `N.º ${esc(String(pg.id).slice(0, 8).toUpperCase())}`)}
+          ${fila('Fecha', esc(fecha(pg.confirmado)))}
+          ${fila('Empresa', esc(pg.empresa))}
+          ${fila('Plan', `${esc(pg.plan)} (${pg.periodo === 'anual' ? '1 año' : '1 mes'})`)}
+          ${fila('Vigencia', `${esc(fecha(pg.desde))} – ${esc(fecha(pg.vence))}`)}
+          ${fila('Pagado con Payphone', `${esc(dinero(pg.monto))} (IVA incluido)${pg.tarjeta ? ' · ' + esc(pg.tarjeta) : ''}`)}
+        </table>
+        <p style="font-size:11px;color:#a8a29e">Su plan no se renueva solo: le avisaremos antes de que venza.</p>`, 'Ingresar a NEXORA')
+    } else if (l) {
       asunto = `Bienvenido a NEXORA · Comprobante de ${l.plan}`
       html = plantilla('¡Gracias por su compra!', `
         <p>Su plan <b>${esc(l.plan)}</b> ya está activo. Ingrese con esta cuenta (${esc(user.email)}) e invite a su equipo desde Configuración → Cuenta y equipo.</p>

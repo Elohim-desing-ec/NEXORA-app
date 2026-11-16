@@ -1,7 +1,7 @@
-/** Comprobante de compra en PDF (pago simulado). jsPDF se descarga solo cuando se pide el comprobante. */
+/** Comprobante de compra en PDF. jsPDF se descarga solo cuando se pide el comprobante. */
 import { CORREO_NEXORA } from './cuenta'
 
-export interface DatosRecibo { id: string; plan: string; precio: string; empresa: string; titular: string; ultimos: string; fecha: string; email: string }
+export interface DatosRecibo { id: string; plan: string; precio: string; empresa: string; titular: string; formaPago: string; fecha: string; email: string; vigencia?: string; demostracion?: boolean }
 
 export async function descargarRecibo(r: DatosRecibo) {
   const { default: JsPDF } = await import('jspdf')
@@ -17,7 +17,7 @@ export async function descargarRecibo(r: DatosRecibo) {
   d.setFont('helvetica', 'normal'); d.setFontSize(9); d.setTextColor(110, 110, 110)
   d.text(`N.º ${r.id.slice(0, 8).toUpperCase()}   ·   ${fecha}`, 12, 50)
 
-  const filas: [string, string][] = [['Cliente', r.email], ['Empresa', r.empresa || '—'], ['Titular', r.titular || '—'], ['Plan', r.plan], ['Forma de pago', r.ultimos ? `Tarjeta **** ${r.ultimos}` : '—']]
+  const filas: [string, string][] = [['Cliente', r.email], ['Empresa', r.empresa || '—'], ['Titular', r.titular || '—'], ['Plan', r.plan], ...(r.vigencia ? [['Vigencia', r.vigencia] as [string, string]] : []), ['Forma de pago', r.formaPago.replace(/•/g, '*') || '—']]
   let y = 62
   d.setFontSize(10)
   for (const [k, v] of filas) {
@@ -30,7 +30,7 @@ export async function descargarRecibo(r: DatosRecibo) {
   d.text('Total', 12, y + 4); d.text(r.precio, W - 12, y + 4, { align: 'right' })
 
   d.setFont('helvetica', 'normal'); d.setFontSize(8); d.setTextColor(140, 140, 140)
-  d.text('Pago de demostración: no se realizó ningún cobro real.', 12, y + 18)
+  d.text(r.demostracion ? 'Pago de demostración: no se realizó ningún cobro real.' : 'Pago procesado por Payphone. Precio con IVA incluido.', 12, y + 18)
   d.text(`Soporte: ${CORREO_NEXORA}`, 12, y + 23)
   d.save(`NEXORA-comprobante-${r.id.slice(0, 8).toUpperCase()}.pdf`)
 }

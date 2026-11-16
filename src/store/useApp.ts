@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { limitesDe } from '../lib/planes'
 import type { TemaColor } from '../lib/temas'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
@@ -198,6 +199,8 @@ export const useApp = create<AppState>()(persist((set, get) => {
       if (!id || !s.nombre.trim() || !s.ciudad.trim()) return 'Código, nombre y ciudad son obligatorios'
       const lista = get().sucursales, previa = idAnterior ?? (lista.some((x) => x.id === id) ? id : undefined)
       if (lista.some((x) => x.id === id && x.id !== previa)) return `Ya existe una sucursal con el código ${id}`
+      const tope = limitesDe(get().licencia?.plan).sucursales
+      if (!previa && tope !== null && lista.length >= tope) return `Su plan ${get().licencia?.plan} permite ${tope === 1 ? '1 sucursal' : `${tope} sucursales`}. Mejore su plan en Configuración → Cuenta y equipo para agregar más.`
       const nueva = { ...s, id }
       let { productos, movimientos, ordenes } = get()
       if (previa && previa !== id) { // cambio de código: se renombra en todo el historial

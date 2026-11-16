@@ -4,7 +4,6 @@
  */
 import { useSyncExternalStore } from 'react'
 import { createClient, type User } from '@supabase/supabase-js'
-import { soloDigitos } from './tarjeta'
 
 // Clave publicable: está hecha para ir en el navegador; los datos se protegen con RLS en la base.
 const URL_SUPABASE = 'https://loldipdbreouzvdciuic.supabase.co'
@@ -13,8 +12,8 @@ const CLAVE_PUBLICA = 'sb_publishable_fbBB3EOKcRj0s5P2pegH4Q_ozdAhCG2'
 // PKCE: Supabase vuelve con ?code=… en la URL y no choca con las rutas por # de la app.
 export const supabase = createClient(URL_SUPABASE, CLAVE_PUBLICA, { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } })
 
-/** Planes que se pueden comprar en línea (NEXORA Global se cotiza). */
-export const PLANES_COMPRABLES = ['Emprende', 'Emprende Plus', 'Emprende Propio', 'NEXORA Nube', 'NEXORA Pro'] as const
+/** Planes que se pagan en línea con Payphone (emprendimientos y negocios en crecimiento). */
+export const PLANES_COMPRABLES = ['Emprende', 'Emprende Plus', 'Crece'] as const
 export type PlanComprable = (typeof PLANES_COMPRABLES)[number]
 export const esComprable = (p: string): p is PlanComprable => (PLANES_COMPRABLES as readonly string[]).includes(p)
 
@@ -66,11 +65,37 @@ export async function miAcceso(): Promise<Acceso | null> {
   return r ? { empresaId: r.empresa_id, empresa: r.empresa, esDueno: r.es_dueno, rol: r.rol, roles: r.roles ?? [], plan: r.plan, vence: r.vence, vigente: r.vigente } : null
 }
 
-/** Pago simulado: registra el plan, crea la empresa si no existe y reemplaza el plan anterior. */
-export async function registrarCompra(c: { plan: PlanComprable; precio: string; empresa: string; titular: string; tarjeta: string }): Promise<Licencia> {
-  const { data, error } = await supabase.rpc('comprar_plan', { p_plan: c.plan, p_precio: c.precio, p_empresa: c.empresa, p_titular: c.titular, p_ultimos: soloDigitos(c.tarjeta).slice(-4) })
+export interface Pago { id: string; plan: string; periodo: 'mensual' | 'anual'; monto: number; empresa: string; tarjeta: string; autorizacion: string; desde: string; vence: string; confirmado: string }
+
+async function payphone<T>(cuerpo: Record<string, unknown>): Promise<T & { ok: boolean; motivo?: string; mensaje?: string }> {
+  const { data, error } = await supabase.functions.invoke('payphone', { body: cuerpo })
+  if (error) {
+    // Las respuestas con error (4xx/5xx) también traen el motivo en el cuerpo.
+    const r = (error as { context?: Response }).context
+    const d = r ? await r.json().catch(() => null) : null
+    return d ?? { ok: false, motivo: 'red', mensaje: error.message }
+  }
+  return data
+}
+
+/** Prepara el cobro y devuelve la dirección del formulario de Payphone (la persona paga allá y vuelve a NEXORA). */
+export async function prepararPago(plan: PlanComprable, periodo: 'mensual' | 'anual', empresa: string) {
+  const r = await payphone<{ url?: string }>({ accion: 'preparar', plan, periodo, empresa })
+  if (!r.ok || !r.url) throw new Error(r.motivo === 'pagos-no-configurados' ? 'pagos-no-configurados' : r.mensaje || r.motivo || 'No se pudo preparar el pago')
+  return r.url
+}
+
+/** Al volver de Payphone: confirma el pago (Payphone da 5 minutos) y activa el plan. */
+export async function confirmarPago(id: string, clientTxId: string): Promise<Pago> {
+  const r = await payphone<{ pago?: Pago }>({ accion: 'confirmar', id, clientTxId })
+  if (!r.ok || !r.pago) throw new Error(r.mensaje || 'El pago no fue aprobado')
+  return r.pago
+}
+
+export async function historialPagos(): Promise<Pago[]> {
+  const { data, error } = await supabase.from('pagos').select('id, plan, periodo, monto, empresa, tarjeta, autorizacion, desde, vence, confirmado').eq('estado', 'aprobado').order('confirmado', { ascending: false })
   if (error) throw error
-  return data[0]
+  return data ?? []
 }
 
 export async function iniciarPrueba(empresa: string): Promise<Licencia> {
@@ -130,6 +155,7 @@ export function mensajeError(e: unknown, tx: (es: string, en: string, pt: string
   if (/ya usó su prueba/i.test(m)) return tx('Esta cuenta ya usó su prueba gratis. Elija un plan para continuar.', 'This account already used its free trial. Choose a plan to continue.', 'Esta conta já usou o teste grátis. Escolha um plano para continuar.')
   if (/ya tiene un plan activo/i.test(m)) return tx('Esta cuenta ya tiene un plan activo', 'This account already has an active plan', 'Esta conta já tem um plano ativo')
   if (/duplicate key|already exists/i.test(m)) return tx('Esa persona ya está en su equipo', 'That person is already on your team', 'Essa pessoa já está na sua equipe')
+  if (/pagos-no-configurados/.test(m)) return tx('Los pagos con Payphone se están activando. Pruebe NEXORA gratis mientras tanto o escríbanos.', 'Payphone payments are being set up. Try NEXORA free meanwhile or contact us.', 'Os pagamentos com Payphone estão sendo ativados. Teste o NEXORA grátis enquanto isso.')
   if (/rate limit|too many/i.test(m)) return tx('Demasiados intentos. Espere unos minutos.', 'Too many attempts. Wait a few minutes.', 'Muitas tentativas. Aguarde alguns minutos.')
   if (/provider is not enabled|unsupported provider/i.test(m)) return tx('Este método de ingreso aún no está activado', 'This sign-in method is not enabled yet', 'Este método de login ainda não está ativado')
   return m
@@ -153,6 +179,13 @@ const AUTO = 'nexora-auto'
 export const pedirContinuar = () => { try { sessionStorage.setItem(AUTO, '1') } catch { /* sin almacenamiento */ } }
 export const tomarContinuar = () => { try { const v = sessionStorage.getItem(AUTO) === '1'; sessionStorage.removeItem(AUTO); return v } catch { return false } }
 
+const RETORNO_PAGO = 'nexora-pago'
+/** Datos con los que Payphone devolvió a la persona (para confirmar el pago). */
+export function retornoPago(): { id: string; clientTxId: string } | null {
+  try { return JSON.parse(sessionStorage.getItem(RETORNO_PAGO) ?? 'null') } catch { return null }
+}
+export const olvidarRetornoPago = () => { try { sessionStorage.removeItem(RETORNO_PAGO) } catch { /* sin almacenamiento */ } }
+
 if (typeof window !== 'undefined') {
   const q = new URLSearchParams(location.search)
   const e = q.get('error_description') ?? q.get('error')
@@ -160,6 +193,12 @@ if (typeof window !== 'undefined') {
     errorRetorno = e.replace(/\+/g, ' ')
     const d = tomarDestino()
     history.replaceState(history.state, '', urlRetorno() + (d ? rutaDe(d) : location.hash))
+  }
+  // Regreso de Payphone: ?id=…&clientTransactionId=… → se guarda y se abre #/pago para confirmarlo.
+  const idPago = q.get('id'), txPago = q.get('clientTransactionId')
+  if (idPago && txPago) {
+    try { sessionStorage.setItem(RETORNO_PAGO, JSON.stringify({ id: idPago, clientTxId: txPago })) } catch { /* sin almacenamiento */ }
+    history.replaceState(history.state, '', urlRetorno() + '#/pago')
   }
   supabase.auth.onAuthStateChange((ev) => {
     if (ev === 'PASSWORD_RECOVERY') { tomarDestino(); recuperando = true; avisar() }

@@ -178,7 +178,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <button aria-label="Cerrar sesión" onClick={() => { salir() }} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
           </div>
         </header>
-        {licencia?.plan === 'Prueba' && <AvisoPrueba vence={licencia.vence} titular={!!licencia.esDueno} />}
+        {licencia && (licencia.plan === 'Prueba' || (diasRestantes(licencia.vence) ?? 99) <= 5) && <AvisoPlan plan={licencia.plan} vence={licencia.vence} titular={!!licencia.esDueno} />}
         <main className="mx-3 mt-5 mb-10 min-w-0 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>
       </div>
     </div>
@@ -194,15 +194,17 @@ function IconoNube() {
   return <span title={texto} aria-label={texto} role="status" className={cx('hidden shrink-0 rounded-xl p-2 sm:block', e === 'sin-conexion' ? 'text-peligro' : e === 'al-dia' ? 'text-exito' : 'animate-pulse text-muted')}>{e === 'sin-conexion' ? <CloudOff size={17} /> : <Cloud size={17} />}</span>
 }
 
-/** Franja con los días que quedan de la prueba gratis. */
-function AvisoPrueba({ vence, titular }: { vence: string | null; titular: boolean }) {
+/** Franja con los días que quedan de la prueba gratis o de un plan por vencer. */
+function AvisoPlan({ plan, vence, titular }: { plan: string; vence: string | null; titular: boolean }) {
   const tx = useTx()
   const d = diasRestantes(vence) ?? 0
+  const prueba = plan === 'Prueba'
+  const quedan = d === 1 ? tx('queda 1 día', '1 day left', 'resta 1 dia') : tx(`quedan ${d} días`, `${d} days left`, `restam ${d} dias`)
   return (
     <div className="no-print mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primario/30 bg-primario/10 px-3 py-2 text-xs lg:ml-0">
       <Gift size={15} className="shrink-0 text-primario" />
-      <span className="flex-1">{d === 1 ? tx('Prueba gratis: queda 1 día.', 'Free trial: 1 day left.', 'Teste grátis: resta 1 dia.') : tx(`Prueba gratis: quedan ${d} días.`, `Free trial: ${d} days left.`, `Teste grátis: restam ${d} dias.`)} {tx('Sus datos se conservan al elegir un plan.', 'Your data is kept when you choose a plan.', 'Seus dados são mantidos ao escolher um plano.')}</span>
-      {titular && <a href="#/planes" className="rounded-lg bg-primario px-3 py-1 font-semibold text-black hover:brightness-110">{tx('Elegir plan', 'Choose plan', 'Escolher plano')}</a>}
+      <span className="flex-1">{prueba ? tx('Prueba gratis:', 'Free trial:', 'Teste grátis:') : tx(`Su plan ${plan} vence pronto:`, `Your ${plan} plan ends soon:`, `Seu plano ${plan} vence em breve:`)} {quedan}. {tx('Sus datos se conservan.', 'Your data is kept.', 'Seus dados são mantidos.')}</span>
+      {titular && <a href={prueba ? '#/planes' : `#/comprar?plan=${encodeURIComponent(plan)}&periodo=mensual`} className="rounded-lg bg-primario px-3 py-1 font-semibold text-black hover:brightness-110">{prueba ? tx('Elegir plan', 'Choose plan', 'Escolher plano') : tx('Renovar', 'Renew', 'Renovar')}</a>}
     </div>
   )
 }

@@ -55,14 +55,23 @@ No forma parte del menú del sistema. Se abre desde el botón de la pantalla de 
 
 ## Cuentas, planes y datos en la nube (Supabase)
 
-- **Nadie entra sin plan.** Se compra en la portada (*Elija su plan*) o se activa la **prueba gratis de 14 días** (sin tarjeta). El pago es **simulado**: valida la tarjeta (prueba con `4242 4242 4242 4242`) pero no cobra.
+- **Nadie entra sin plan.** Se paga en la portada (*Elija su plan*) con **Payphone** o se activa la **prueba gratis de 14 días** (sin tarjeta).
 - **Ingreso:** correo y contraseña, Google o Facebook; *¿Olvidó su contraseña?* envía un enlace por correo.
 - **Datos en la nube:** productos, ventas, compras, sucursales, etc. se guardan en Supabase (`datos`) y se ven en vivo en todos los equipos de la empresa.
 - **Equipo:** *Configuración → Cuenta y equipo → Invitar*. La persona entra con ese mismo correo (o Google) y ve lo que permite su rol.
 - **Facturación:** en la misma sección: plan, días de prueba, historial, comprobante en PDF, cambiar o cancelar.
-- **Precios:** los planes de empresa (Nube y Pro) salen del análisis económico; los de emprendimiento ($29, $59/mes y $590) son precios de mercado para tiendas pequeñas (`src/lib/planes.ts`).
+- **Planes (emprendimientos):** Emprende $29/mes, Emprende Plus $59/mes, Crece $99/mes (IVA incluido). Pago anual = 10 meses. Sin renovación automática: al pagar se suma 1 mes o 1 año desde que vence el plan actual. Límites: 1/3/10 sucursales y 3/10/ilimitadas personas. Precios en `src/lib/planes.ts` **y** en `supabase/functions/payphone` (una prueba verifica que coincidan).
 
 Proyecto Supabase: `nexora` (`loldipdbreouzvdciuic`). Función de correo: `supabase/functions/correo`.
+
+### Pagos (Payphone)
+
+Flujo: NEXORA prepara el cobro en el servidor (`supabase/functions/payphone`, acción `preparar`) → la persona paga en la página de Payphone → Payphone vuelve a la web con `?id=…&clientTransactionId=…` → la app abre `#/pago` y el servidor **confirma** con Payphone (hay 5 minutos) y activa el plan (tabla `pagos`).
+
+1. Payphone Business → crear la sucursal **NEXORA** (para separar sus ventas de otras tiendas) y un usuario con rol **Desarrollador** asignado a esa sucursal.
+2. Payphone Developer (con ese usuario) → aplicación tipo **WEB**: Dominio web `https://elohim-desing-ec.github.io` y URL de respuesta `https://elohim-desing-ec.github.io/NEXORA-app/`.
+3. Copiar el **Token** y el **StoreID** de la sucursal NEXORA.
+4. Supabase → **Edge Functions → Secrets**: `PAYPHONE_TOKEN` y `PAYPHONE_STORE_ID`. Opcional: `IVA` (por defecto `0.15`; `0` si no cobra IVA).
 
 ### Correo (Gmail de la empresa)
 

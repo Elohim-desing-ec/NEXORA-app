@@ -38,6 +38,7 @@ const RedGlobal = precargable(() => import('./pages/RedGlobal'))
 const Bienvenida = lazy(() => import('./components/Bienvenida').then((m) => ({ default: m.Bienvenida })))
 const Landing = precargable(() => import('./pages/Landing'))
 const Comprar = lazy(() => import('./pages/Comprar'))
+const ResultadoPago = lazy(() => import('./pages/Comprar').then((m) => ({ default: m.ResultadoPago })))
 const Cargando = () => <div className="p-10 text-center text-muted">Cargando…</div>
 
 
@@ -67,6 +68,7 @@ export default function App() {
   if (!listo) vista = null
   else if (recuperando) vista = <NuevaClave />
   // Planes y compra se abren también con la sesión iniciada (para cambiar de plan desde "Cuenta y equipo").
+  else if (hash.startsWith('#/pago')) vista = <Suspense fallback={null}><ResultadoPago /></Suspense> // regreso de Payphone
   else if (hash.startsWith('#/comprar')) vista = <Suspense fallback={null}><Comprar /></Suspense>
   else if (hash === '#/planes') vista = <Suspense fallback={null}><Landing /></Suspense>
   else if (!usuario) vista = hash.startsWith('#/login') ? <Login /> : <Suspense fallback={null}><Landing /></Suspense>
