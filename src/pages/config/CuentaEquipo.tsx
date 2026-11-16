@@ -97,14 +97,16 @@ export default function CuentaEquipo() {
       <Card titulo={<span className="flex items-center gap-2"><CreditCard size={16} />Su plan</span>}>
         {acceso ? <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1 text-sm">
-            <div className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold">{acceso.plan === 'Prueba' ? 'Prueba gratis' : acceso.plan ?? 'Sin plan'}
+            <div className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold">{acceso.plan === 'Prueba' ? 'Prueba gratis' : acceso.plan === 'Administrador' ? 'Administrador de NEXORA' : acceso.plan ?? 'Sin plan'}
               {!acceso.vigente ? <Badge tono="rojo">Vencido</Badge> : dias === null ? <Badge tono="verde">Activo</Badge> : dias <= 5 ? <Badge tono="ambar">{dias === 1 ? 'Vence mañana' : `Vence en ${dias} días`}</Badge> : <Badge tono="verde">Hasta el {fecha(acceso.vence!)}</Badge>}</div>
             <div className="text-muted">Empresa: <span className="text-fg">{acceso.empresa || '—'}</span></div>
             <div className="text-muted">Cuenta: <span className="text-fg">{cuenta.email}</span></div>
             <div className="text-muted">Su rol: <span className="text-fg">{acceso.esDueno ? 'Titular de la cuenta (Gerente General)' : acceso.rol}</span></div>
             {acceso.esDueno && <div className="text-muted">Uso: <span className="text-fg">{uso(sucursales, lim.sucursales)} sucursales · {uso(miembros.length + 1, lim.personas)} personas</span></div>}
           </div>
-          {acceso.esDueno
+          {acceso.plan === 'Administrador'
+            ? <p className="text-xs text-muted sm:text-right">Acceso permanente de la creadora de NEXORA: sin pagos, sin vencimiento y sin límites.</p>
+            : acceso.esDueno
             ? <div className="flex flex-col gap-2 sm:items-end">
                 {pagado && <Button variante="primario" onClick={() => { location.hash = `#/comprar?plan=${encodeURIComponent(acceso.plan!)}&periodo=mensual` }}>Renovar {acceso.plan} <ArrowRight size={15} /></Button>}
                 <Button variante={pagado ? 'vidrio' : 'primario'} onClick={() => { location.hash = '#/planes' }}>{acceso.plan === 'Prueba' || !acceso.vigente ? 'Elegir un plan' : 'Cambiar de plan'} <ArrowRight size={15} /></Button>
