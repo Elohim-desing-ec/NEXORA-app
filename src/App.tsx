@@ -8,7 +8,8 @@ import { Splash } from './components/Splash'
 import { DefsGraficos } from './components/charts'
 import { useIdioma } from './lib/idioma'
 import { recordarTema, temaGuardado } from './lib/temas'
-import Login from './pages/Login'
+import Login, { NuevaClave } from './pages/Login'
+import { useRecuperando } from './lib/cuenta'
 import Dashboard from './pages/Dashboard'
 
 /**
@@ -35,16 +36,20 @@ const Configuracion = precargable(() => import('./pages/Configuracion'))
 const RedGlobal = precargable(() => import('./pages/RedGlobal'))
 const Bienvenida = lazy(() => import('./components/Bienvenida').then((m) => ({ default: m.Bienvenida })))
 const Landing = precargable(() => import('./pages/Landing'))
+const Comprar = lazy(() => import('./pages/Comprar'))
 const Cargando = () => <div className="p-10 text-center text-muted">Cargando…</div>
 
 
 export default function App() {
-  const { usuario, pagina, tema, empresa } = useApp()
+  const { usuario: sesion, pagina, tema, empresa, licencia } = useApp()
+  // Sin un plan comprado nadie entra (ni sesiones guardadas de antes de exigir la licencia).
+  const usuario = licencia ? sesion : null
   // IndexedDB carga de forma asíncrona: se espera antes de mostrar datos
   const listo = useSyncExternalStore((cb) => useApp.persist.onFinishHydration(cb), hidratado)
   setMoneda(SIMBOLOS[empresa.moneda] ?? empresa.moneda)
   const [hash, setHash] = useState(location.hash)
   const [intro, setIntro] = useState(true)
+  const recuperando = useRecuperando()
   // Al entrar, descarga en segundo plano todas las secciones para que cambiar entre ellas sea instantáneo
   useEffect(() => { if (!usuario) return; const t = setTimeout(() => PRECARGAS.forEach((p) => p().catch(() => undefined)), 600); return () => clearTimeout(t) }, [usuario])
   const fin = useCallback(() => setIntro(false), [])
@@ -57,7 +62,8 @@ export default function App() {
 
   let vista
   if (!listo) vista = null
-  else if (!usuario) vista = hash === '#/login' ? <Login /> : <Suspense fallback={null}><Landing /></Suspense>
+  else if (recuperando) vista = <NuevaClave />
+  else if (!usuario) vista = hash.startsWith('#/login') ? <Login /> : hash.startsWith('#/comprar') ? <Suspense fallback={null}><Comprar /></Suspense> : <Suspense fallback={null}><Landing /></Suspense>
   else {
     const p = permisosDe(usuario).includes(pagina) ? pagina : 'dashboard'
     const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { supabase } from '../lib/cuenta'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
@@ -172,7 +173,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 border-l border-fg/10 pl-2">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-xs font-bold text-black">{usuario.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
             <div className="hidden leading-tight xl:block"><div className="text-xs font-semibold">{usuario.nombre}</div><div className="max-w-[16rem] truncate text-[10px] text-muted">{rolesDe(usuario).join(' · ')}</div></div>
-            <button aria-label="Cerrar sesión" onClick={logout} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
+            <button aria-label="Cerrar sesión" onClick={() => { supabase.auth.signOut().finally(logout) }} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
           </div>
         </header>
         <main className="mx-3 mt-5 mb-10 min-w-0 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>

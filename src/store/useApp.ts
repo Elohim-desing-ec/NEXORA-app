@@ -85,6 +85,10 @@ interface AppState extends Datos {
   setMenuColapsado: (v: boolean) => void
   login: (u: Usuario) => void
   logout: () => void
+  /** Plan comprado en este equipo: sin él nadie puede ingresar (ni el equipo con usuario y contraseña). */
+  licencia: { plan: string; desde: string } | null
+  /** Ingreso con una cuenta NEXORA que tiene licencia activa: usa o crea su usuario (Gerente General). */
+  entrarConCuenta: (c: { id: string; email: string; nombre: string; foto?: string }, licencia: { plan: string; desde: string }) => void
   ir: (p: Pagina) => void
   setTema: (t: 'oscuro' | 'claro') => void
   /** Tema de color de cada usuario (id de usuario → tema) */
@@ -160,6 +164,23 @@ export const useApp = create<AppState>()(persist((set, get) => {
     empresa: EMPRESA_BASE, sucursales: [], proveedores: [], tareas: [], notas: [], clientes: [], ...VACIO,
     login: (usuario) => { set({ usuario, pagina: 'dashboard' }); log('Inicio de sesión', `${usuario.nombre} (${rolesDe(usuario).join(', ')})`) },
     logout: () => { log('Cierre de sesión', get().usuario?.nombre ?? ''); set({ usuario: null }) },
+    licencia: null,
+    entrarConCuenta: (c, licencia) => {
+      const email = c.email.toLowerCase()
+      const lista = get().usuarios
+      const previo = lista.find((x) => !!x.email && x.email.toLowerCase() === email)
+      let u: Usuario
+      if (previo) u = { ...previo, foto: previo.foto ?? c.foto }
+      else {
+        const base = email.split('@')[0].replace(/[^a-z0-9._-]/g, '') || 'usuario'
+        let usuario = base, n = 2
+        while (lista.some((x) => x.usuario.toLowerCase() === usuario)) usuario = `${base}${n++}`
+        u = { id: c.id, nombre: c.nombre, usuario, rol: 'Gerente General', email: c.email, clave: crypto.randomUUID(), foto: c.foto }
+      }
+      set({ licencia, usuarios: previo ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u] })
+      if (!previo) log('Usuario creado', `${u.nombre} (cuenta ${c.email}, plan ${licencia.plan})`)
+      get().login(u)
+    },
     ir: (pagina) => set({ pagina }),
     setTema: (tema) => set({ tema }),
     temasColor: {},
