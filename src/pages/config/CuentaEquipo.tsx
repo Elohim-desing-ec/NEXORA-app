@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { ArrowRight, CreditCard, Download, Mail, Trash2, UserPlus, Users, XCircle } from 'lucide-react'
-import { Badge, Button, Campo, Card, Scroll } from '../../components/ui'
-import { ROLES } from '../../store/useApp'
+import { ArrowRight, CreditCard, Download, Mail, Pencil, Trash2, UserPlus, Users, XCircle } from 'lucide-react'
+import { Badge, Button, Campo, Card, Modal, Scroll } from '../../components/ui'
+import { SelectorRoles, seccionesQueVe } from '../../components/SelectorRoles'
+import { ROLES, type Rol } from '../../store/useApp'
 import { cancelarPlan, diasRestantes, enviarCorreo, esComprable, guardarMiembro, historialCompras, historialPagos, listarMiembros, mensajeError, miAcceso, quitarMiembro, supabase, urlRetorno, type Acceso, type Compra, type Miembro, type Pago } from '../../lib/cuenta'
 import { limitesDe } from '../../lib/planes'
 import { money } from '../../lib/format'
 import { useApp } from '../../store/useApp'
-import { salir } from '../../lib/nube'
+import { refrescarEquipo, salir } from '../../lib/nube'
 import { descargarRecibo } from '../../lib/recibo'
 import { urlGmail } from '../../lib/google'
 import { useTx } from '../../lib/idioma'
@@ -32,6 +33,7 @@ export default function CuentaEquipo() {
   const [error, setError] = useState('')
   const [aviso, setAviso] = useState<{ texto: string; gmail?: string } | null>(null)
   const [nuevo, setNuevo] = useState({ nombre: '', email: '', rol: 'Vendedor' })
+  const [editar, setEditar] = useState<{ email: string; nombre: string; rol: Rol; roles: Rol[] } | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
   const cargar = async () => {
@@ -63,6 +65,7 @@ export default function CuentaEquipo() {
       // Se muestra al instante (una lectura justo después de guardar a veces aún no lo trae).
       setMiembros((l) => [...l.filter((x) => x.email !== email), { ...m, roles: [], creado: new Date().toISOString() }])
       setNuevo({ nombre: '', email: '', rol: nuevo.rol })
+      refrescarEquipo()
       if (await enviarCorreo({ tipo: 'invitacion', email })) setAviso({ texto: `Listo: le enviamos la invitación a ${email}.` })
       else setAviso({ texto: `${email} ya tiene acceso. Avísele con un correo: abra Gmail con la invitación lista y pulse Enviar.`, gmail: invitacionGmail(m, acceso.empresa, cuenta?.user_metadata?.full_name ?? cuenta?.email ?? '') })
     } catch (err) { setError(mensajeError(err, tx)) } finally { setOcupado(false) }
@@ -70,7 +73,19 @@ export default function CuentaEquipo() {
 
   const quitar = async (m: Miembro) => {
     if (!acceso || !confirm(`¿Quitar a ${m.nombre || m.email} del equipo? Ya no podrá ingresar a NEXORA.`)) return
-    try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)) } catch (err) { setError(mensajeError(err, tx)) }
+    try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)); refrescarEquipo() } catch (err) { setError(mensajeError(err, tx)) }
+  }
+
+  const guardarEdicion = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!acceso || !editar) return
+    setOcupado(true); setError('')
+    try {
+      await guardarMiembro(acceso.empresaId, editar)
+      setMiembros((l) => l.map((x) => (x.email === editar.email ? { ...x, nombre: editar.nombre, rol: editar.rol, roles: editar.roles } : x)))
+      setEditar(null)
+      refrescarEquipo()
+    } catch (err) { setError(mensajeError(err, tx)) } finally { setOcupado(false) }
   }
 
   const cancelar = async () => {
@@ -142,11 +157,13 @@ export default function CuentaEquipo() {
       {acceso && <Card titulo={<span className="flex items-center gap-2"><Users size={16} />Equipo en la nube</span>}>
         <p className="mb-3 text-xs text-muted">Cada persona entra con su propio correo (o Google) y ve los mismos datos de la empresa en tiempo real, según su rol.</p>
         {miembros.length ? <Scroll><table className="w-full text-sm">
-          <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Nombre</th><th className="pr-3">Correo</th><th className="pr-3">Rol</th><th /></tr></thead>
+          <thead><tr className="text-left text-xs text-muted"><th className="py-2 pr-3">Nombre</th><th className="pr-3">Correo</th><th className="pr-3">Roles</th><th className="pr-3">Puede ver</th><th /></tr></thead>
           <tbody>{miembros.map((m) => <tr key={m.email} className="border-t border-fg/10">
-            <td className="py-2 pr-3">{m.nombre || '—'}</td><td className="pr-3">{m.email}</td><td className="pr-3">{m.rol}</td>
+            <td className="py-2 pr-3">{m.nombre || '—'}</td><td className="pr-3">{m.email}</td><td className="pr-3"><div className="flex flex-wrap gap-1">{[m.rol, ...(m.roles ?? [])].map((r) => <Badge key={r} tono={r === m.rol ? 'violeta' : 'gris'}>{r}</Badge>)}</div></td>
+            <td className="whitespace-normal pr-3 text-xs text-muted">{seccionesQueVe({ rol: m.rol as Rol, roles: (m.roles ?? []) as Rol[] }).join(' · ')}</td>
             <td className="whitespace-nowrap text-right">{acceso.esDueno && <>
               <a title="Enviar invitación por Gmail" aria-label="Enviar invitación por Gmail" href={invitacionGmail(m, acceso.empresa, cuenta.user_metadata?.full_name ?? cuenta.email ?? '')} target="_blank" rel="noreferrer" className="inline-block rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-fg"><Mail size={15} /></a>
+              <button title="Editar roles" aria-label="Editar roles" onClick={() => setEditar({ email: m.email, nombre: m.nombre, rol: m.rol as Rol, roles: (m.roles ?? []) as Rol[] })} className="rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-fg"><Pencil size={15} /></button>
               <button title="Quitar del equipo" aria-label="Quitar del equipo" onClick={() => quitar(m)} className="rounded-lg p-1.5 text-muted hover:bg-fg/10 hover:text-peligro"><Trash2 size={15} /></button>
             </>}</td>
           </tr>)}</tbody>
@@ -160,6 +177,15 @@ export default function CuentaEquipo() {
         </form>}
         {aviso && <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-exito/30 bg-exito/10 px-3 py-2 text-xs"><span className="flex-1">{aviso.texto}</span>{aviso.gmail && <a href={aviso.gmail} target="_blank" rel="noreferrer" className="rounded-lg bg-primario px-3 py-1 font-semibold text-black hover:brightness-110">Abrir Gmail</a>}</div>}
       </Card>}
+      <Modal abierto={!!editar} onClose={() => setEditar(null)} titulo="Editar persona del equipo" ancho="max-w-lg">
+        {editar && <form onSubmit={guardarEdicion} className="space-y-3">
+          <p className="text-xs text-muted">{editar.email}</p>
+          <Campo label="Nombre"><input className="inp" value={editar.nombre} onChange={(e) => setEditar({ ...editar, nombre: e.target.value })} /></Campo>
+          <SelectorRoles valor={editar} onChange={(v) => setEditar({ ...v, roles: v.roles ?? [] })} />
+          <p className="text-[11px] text-muted">El cambio se aplica al instante en el NEXORA de esa persona.</p>
+          <div className="flex justify-end gap-2"><Button type="button" onClick={() => setEditar(null)}>Cancelar</Button><Button variante="primario" type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Guardar'}</Button></div>
+        </form>}
+      </Modal>
     </div>
   )
 }

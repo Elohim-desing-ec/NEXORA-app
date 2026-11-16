@@ -6,9 +6,11 @@
  */
 import { useSyncExternalStore } from 'react'
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
-import { useApp, ROLES, type Rol } from '../store/useApp'
+import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
 import { EMPRESA_BASE } from '../data/base'
-import { fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
+import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
+
+const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
 
 const CLAVES = ['empresa', 'sucursales', 'proveedores', 'productos', 'movimientos', 'ordenes', 'auditoria', 'gastos', 'cierres', 'ventas', 'tareas', 'notas', 'clientes'] as const
 type Clave = (typeof CLAVES)[number]
@@ -87,6 +89,8 @@ export async function conectarNube(a: Acceso, usuario: User) {
       if (!r?.clave || !CLAVES.includes(r.clave) || r.actualizado_por === miId || pendientes.has(r.clave)) return
       aplicar({ [r.clave]: r.valor })
     })
+    // Roles nuevos o personas quitadas: se actualizan al instante
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'miembros', filter: `empresa_id=eq.${a.empresaId}` }, () => { refrescarEquipo() })
     .subscribe()
   document.addEventListener('visibilitychange', alOcultar)
   if (pendientes.size) await subir()
@@ -104,6 +108,19 @@ export function desconectarNube() {
   fijar('apagada')
 }
 
+/** Trae el equipo de la nube a la lista de usuarios. Si a quien está usando la app lo quitaron del equipo, sale. */
+export async function refrescarEquipo() {
+  const id = empresaId
+  if (!id) return
+  try {
+    const personas = await equipoEmpresa(id)
+    if (!personas.length) return
+    useApp.getState().sincronizarEquipo(personas.map((p) => ({ email: p.email, nombre: p.nombre, esDueno: p.es_dueno, rol: comoRol(p.rol) ?? 'Vendedor', roles: (p.roles ?? []).map(comoRol).filter((x): x is Rol => !!x) })))
+    const yo = useApp.getState().usuario
+    if (yo && esCuenta(yo) && !personas.some((p) => yo.id === `cuenta:${p.email.toLowerCase()}`)) await salir()
+  } catch { /* sin conexión: se mantiene la lista guardada */ }
+}
+
 /** Cierra la sesión de la app y de la cuenta NEXORA (guardando lo pendiente). */
 export async function salir() {
   await subir()
@@ -111,8 +128,6 @@ export async function salir() {
   await supabase.auth.signOut().catch(() => undefined)
   useApp.getState().logout()
 }
-
-const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
 
 export type Resultado = { estado: 'ok' } | { estado: 'sin-plan' | 'vencida'; acceso: Acceso | null }
 
@@ -128,6 +143,7 @@ export async function entrarConAcceso(u: User): Promise<Resultado> {
     { plan: a.plan, vence: a.vence, empresaId: a.empresaId, esDueno: a.esDueno },
     a.esDueno ? undefined : { rol, roles: a.roles.map(comoRol).filter((x): x is Rol => !!x) },
   )
+  await refrescarEquipo()
   return { estado: 'ok' }
 }
 
@@ -141,5 +157,6 @@ export async function reanudar() {
     if (!a?.vigente || !a.plan) { desconectarNube(); useApp.setState({ licencia: null }); useApp.getState().logout(); return }
     useApp.setState({ licencia: { plan: a.plan, vence: a.vence, empresaId: a.empresaId, esDueno: a.esDueno } })
     await conectarNube(a, u)
+    await refrescarEquipo()
   } catch { fijar('sin-conexion') } // sin internet: se sigue con los datos de este navegador
 }

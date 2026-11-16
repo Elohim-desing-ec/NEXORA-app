@@ -20,6 +20,11 @@ export interface Licencia { plan: string; vence: string | null; empresaId?: stri
 /** ¿El plan sigue vigente? (la prueba gratis vence; los planes pagados no). */
 export const licenciaVigente = (l: Licencia | null | undefined) => !!l && (!l.vence || new Date(l.vence).getTime() > Date.now())
 
+/** Id estable de una persona con cuenta NEXORA (el mismo en todos los equipos de la empresa). */
+export const idCuenta = (email: string) => `cuenta:${email.toLowerCase()}`
+/** ¿Es una persona del equipo en la nube (entra con su propia cuenta)? */
+export const esCuenta = (u: Pick<Usuario, 'id'>) => u.id.startsWith('cuenta:')
+
 /** Sin usuarios precargados: el titular entra con su cuenta NEXORA y crea o invita a su equipo. */
 export const USUARIOS: Usuario[] = []
 /** Ids de los usuarios de demostración que traían las versiones anteriores (se quitan en la versión 6). */
@@ -87,6 +92,8 @@ interface AppState extends Datos {
   licencia: Licencia | null
   /** Ingreso con una cuenta NEXORA con plan vigente: usa o crea su usuario. El titular es Gerente General; un invitado, el rol que le dieron. */
   entrarConCuenta: (c: { id: string; email: string; nombre: string; foto?: string }, licencia: Licencia, permiso?: { rol: Rol; roles: Rol[] }) => void
+  /** Copia el equipo de la nube (titular + invitados) a la lista de usuarios: así aparece en toda la app. */
+  sincronizarEquipo: (personas: { email: string; nombre: string; rol: Rol; roles: Rol[]; esDueno: boolean }[]) => void
   ir: (p: Pagina) => void
   setTema: (t: 'oscuro' | 'claro') => void
   /** Tema de color de cada usuario (id de usuario → tema) */
@@ -136,10 +143,30 @@ const sello = () => new Date().toISOString()
  * Almacenamiento en IndexedDB: cientos de MB (localStorage solo admite ~5 MB), necesario para empresas
  * grandes con miles de productos y movimientos. Si encuentra datos antiguos en localStorage, los migra.
  */
+/**
+ * Datos guardados en IndexedDB (más espacio). Si el navegador no lo permite (modo privado de algunos celulares),
+ * se usa localStorage y, como último recurso, la memoria de la pestaña. Así la app nunca falla al guardar.
+ */
+const hayIDB = typeof indexedDB !== 'undefined'
+const memoria = new Map<string, string>()
+const local = {
+  get: (n: string) => { try { return localStorage.getItem(n) } catch { return memoria.get(n) ?? null } },
+  set: (n: string, v: string) => { try { localStorage.setItem(n, v) } catch { memoria.set(n, v) } },
+  del: (n: string) => { try { localStorage.removeItem(n) } catch { /* sin almacenamiento */ } memoria.delete(n) },
+}
 const almacen: StateStorage = {
-  getItem: async (n) => (await idbGet<string>(n)) ?? localStorage.getItem(n),
-  setItem: async (n, v) => { await idbSet(n, v); localStorage.removeItem(n) },
-  removeItem: async (n) => { await idbDel(n); localStorage.removeItem(n) },
+  getItem: async (n) => {
+    if (hayIDB) try { const v = await idbGet<string>(n); if (v != null) return v } catch { /* IndexedDB bloqueado */ }
+    return local.get(n)
+  },
+  setItem: async (n, v) => {
+    if (hayIDB) try { await idbSet(n, v); local.del(n); return } catch { /* IndexedDB bloqueado */ }
+    local.set(n, v)
+  },
+  removeItem: async (n) => {
+    if (hayIDB) try { await idbDel(n) } catch { /* IndexedDB bloqueado */ }
+    local.del(n)
+  },
 }
 const total = (p: Producto) => Object.values(p.stock).reduce((a, b) => a + (b || 0), 0)
 const VACIO = { productos: [], movimientos: [], ordenes: [], auditoria: [], ventas: [], gastos: [], cierres: [] }
@@ -173,11 +200,41 @@ export const useApp = create<AppState>()(persist((set, get) => {
         const base = email.split('@')[0].replace(/[^a-z0-9._-]/g, '') || 'usuario'
         let usuario = base, n = 2
         while (lista.some((x) => x.usuario.toLowerCase() === usuario)) usuario = `${base}${n++}`
-        u = { id: c.id, nombre: c.nombre, usuario, rol: permiso?.rol ?? 'Gerente General', roles: permiso?.roles, email: c.email, clave: crypto.randomUUID(), foto: c.foto }
+        u = { id: idCuenta(email), nombre: c.nombre, usuario, rol: permiso?.rol ?? 'Gerente General', roles: permiso?.roles, email: c.email, clave: crypto.randomUUID(), foto: c.foto }
       }
       set({ licencia, usuarios: previo ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u] })
       if (!previo) log('Usuario creado', `${u.nombre} (cuenta ${c.email}, plan ${licencia.plan})`)
       get().login(u)
+    },
+    sincronizarEquipo: (personas) => {
+      let { usuarios, tareas, usuario } = get()
+      const temasColor = { ...get().temasColor }
+      usuarios = [...usuarios]
+      // Si alguien ya estaba con otro id (antes de usar cuentas), sus tareas pasan a su id de cuenta
+      const reasignar = (viejo: string, nuevo: string) => {
+        tareas = tareas.map((t) => (t.asignados.includes(viejo) || t.creadoPor === viejo ? { ...t, asignados: t.asignados.map((a) => (a === viejo ? nuevo : a)), creadoPor: t.creadoPor === viejo ? nuevo : t.creadoPor } : t))
+        if (usuario?.id === viejo) usuario = { ...usuario, id: nuevo }
+        if (temasColor[viejo] && !temasColor[nuevo]) temasColor[nuevo] = temasColor[viejo]
+      }
+      for (const p of personas) {
+        const email = p.email.toLowerCase(), id = idCuenta(email)
+        const k = usuarios.findIndex((u) => u.id === id || (!!u.email && u.email.toLowerCase() === email))
+        const previo = k >= 0 ? usuarios[k] : undefined
+        if (previo && previo.id !== id) reasignar(previo.id, id)
+        let alias = previo?.usuario
+        if (!alias) {
+          const base = email.split('@')[0].replace(/[^a-z0-9._-]/g, '') || 'usuario'
+          alias = base
+          for (let n = 2; usuarios.some((x) => x.usuario.toLowerCase() === alias); n++) alias = `${base}${n}`
+        }
+        const u: Usuario = { ...previo, id, email, usuario: alias, nombre: p.nombre || previo?.nombre || alias, clave: previo?.clave || crypto.randomUUID(),
+          rol: p.esDueno ? 'Gerente General' : p.rol, roles: p.esDueno ? previo?.roles : p.roles }
+        if (k >= 0) usuarios[k] = u; else usuarios.push(u)
+      }
+      // Quien ya no está en el equipo de la nube deja de aparecer
+      usuarios = usuarios.filter((u) => !u.id.startsWith('cuenta:') || personas.some((p) => idCuenta(p.email.toLowerCase()) === u.id))
+      const yo = usuario ? usuarios.find((u) => u.id === usuario!.id) ?? usuario : usuario
+      set({ usuarios, tareas, usuario: yo, temasColor })
     },
     ir: (pagina) => set({ pagina }),
     setTema: (tema) => set({ tema }),

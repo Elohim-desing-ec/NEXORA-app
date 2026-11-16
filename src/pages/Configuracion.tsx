@@ -1,8 +1,10 @@
 import { lazy, Suspense, useRef, useState } from 'react'
 import { CreditCard, Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload, Palette, Check } from 'lucide-react'
-import { useApp, ROLES, type Usuario, type FilaImport, rolesDe, permisosDe, MAX_ROLES, DESCRIPCION_ROL, SOLO_LECTURA, type Rol } from '../store/useApp'
+import { useApp, ROLES, type Usuario, type FilaImport, rolesDe, MAX_ROLES, SOLO_LECTURA, esCuenta, type Rol } from '../store/useApp'
+import { SelectorRoles, seccionesQueVe } from '../components/SelectorRoles'
+import { guardarMiembro, quitarMiembro } from '../lib/cuenta'
+import { refrescarEquipo } from '../lib/nube'
 import { Badge, Button, Campo, Card, Modal, Scroll, Tabs, Titulo, cx } from '../components/ui'
-import { MENU } from '../components/Layout'
 import { descargarPlantilla, leerArchivo } from '../lib/importar'
 import { cargarRespaldo, descargarRespaldo } from '../lib/respaldo'
 import { perfilDe } from '../lib/sectores'
@@ -18,44 +20,62 @@ import { valorInventario } from '../lib/inventario'
 const Globo = lazy(() => import('../components/Globo'))
 const CuentaEquipo = lazy(() => import('./config/CuentaEquipo'))
 
-const ve = (u: Pick<Usuario, 'rol' | 'roles'>) => MENU.filter((m) => permisosDe(u).includes(m.id)).map((m) => m.label)
+const ve = seccionesQueVe
 
 function Usuarios() {
-  const { usuarios, usuario, guardarUsuario, eliminarUsuario } = useApp()
-  const [edit, setEdit] = useState<Usuario | null>(null), [err, setErr] = useState('')
+  const { usuarios, usuario, guardarUsuario, eliminarUsuario, licencia } = useApp()
+  const [edit, setEdit] = useState<Usuario | null>(null), [err, setErr] = useState(''), [ocupado, setOcupado] = useState(false)
+  /** ¿Es el titular de la cuenta (no se le quita ni se le cambia el rol principal desde aquí)? */
+  const esTitular = (u: Usuario) => esCuenta(u) && !!licencia?.esDueno && u.id === usuario?.id
+  const guardar = async (u: Usuario) => {
+    setErr('')
+    if (esCuenta(u) && !esTitular(u)) { // persona del equipo en la nube: el rol se guarda en la nube
+      if (!licencia?.esDueno || !licencia.empresaId) return setErr('Solo el titular de la cuenta puede cambiar los roles del equipo.')
+      setOcupado(true)
+      try { await guardarMiembro(licencia.empresaId, { email: u.email, nombre: u.nombre, rol: u.rol, roles: u.roles ?? [] }) } catch (e) { setOcupado(false); return setErr(String((e as Error).message ?? e)) }
+      setOcupado(false)
+    }
+    const r = guardarUsuario(u)
+    if (r) return setErr(r)
+    setEdit(null)
+    if (esCuenta(u)) refrescarEquipo()
+  }
+  const eliminar = async (u: Usuario) => {
+    if (esTitular(u)) return alert('Usted es el titular de la cuenta: no puede quitarse a sí mismo.')
+    if (!confirm(esCuenta(u) ? `¿Quitar a ${u.nombre} del equipo? Ya no podrá ingresar a NEXORA.` : `¿Eliminar a ${u.nombre}?`)) return
+    if (esCuenta(u)) {
+      if (!licencia?.esDueno || !licencia.empresaId) return alert('Solo el titular de la cuenta puede quitar personas del equipo.')
+      try { await quitarMiembro(licencia.empresaId, u.email) } catch (e) { return alert(String((e as Error).message ?? e)) }
+      await refrescarEquipo()
+      return
+    }
+    const e = eliminarUsuario(u.id); if (e) alert(e)
+  }
   const tono = (r: Rol) => (r === 'Gerente General' ? 'violeta' : SOLO_LECTURA.includes(r) ? 'ambar' : /Financ|Contador/.test(r) ? 'cian' : /Ventas|Vendedor|Cajero|Marketing/.test(r) ? 'verde' : r === 'Ayudante' ? 'gris' : 'azul')
-  /** Marca o desmarca un rol: el primero elegido es el principal; máximo 3. */
-  const alternar = (u: Usuario, r: Rol): Usuario => { const rs = rolesDe(u); const nuevos = rs.includes(r) ? rs.filter((x) => x !== r) : rs.length >= MAX_ROLES ? rs : [...rs, r]; return nuevos.length ? { ...u, rol: nuevos[0], roles: nuevos.slice(1) } : u }
   return <>
     <Card titulo={`Usuarios del sistema (${usuarios.length})`} accion={<Button variante="primario" onClick={() => { setErr(''); setEdit({ id: crypto.randomUUID(), nombre: '', usuario: '', email: '', rol: 'Ayudante', clave: '' }) }}><Plus size={15} />Agregar persona</Button>}>
-      <Scroll><table className="tabla"><thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>Puede ver</th><th /></tr></thead>
+      <Scroll><table className="tabla"><thead><tr><th>Nombre</th><th>Usuario o correo</th><th>Roles</th><th>Puede ver</th><th /></tr></thead>
         <tbody>{usuarios.map((u) => <tr key={u.id}>
-          <td className="font-medium"><div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-[10px] font-bold text-black">{u.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>{u.nombre}{u.id === usuario?.id && <Badge tono="verde">Usted</Badge>}</div></td>
-          <td className="font-mono text-xs">{u.usuario}</td><td><div className="flex flex-wrap gap-1">{rolesDe(u).map((r) => <Badge key={r} tono={tono(r)}>{r}</Badge>)}</div></td>
+          <td className="font-medium"><div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-[10px] font-bold text-black">{u.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>{u.nombre}{esCuenta(u) && <Badge tono="verde">Cuenta</Badge>}{u.id === usuario?.id && <Badge tono="verde">Usted</Badge>}</div></td>
+          <td className="font-mono text-xs">{esCuenta(u) ? u.email : u.usuario}</td><td><div className="flex flex-wrap gap-1">{rolesDe(u).map((r) => <Badge key={r} tono={tono(r)}>{r}</Badge>)}</div></td>
           <td className="whitespace-normal text-xs text-muted">{ve(u).join(' · ')}</td>
           <td><div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setEdit({ ...u }) }}><Pencil size={15} /></Button>
-            <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar a ${u.nombre}?`)) { const e = eliminarUsuario(u.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div></td>
+            <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => eliminar(u)}><Trash2 size={15} /></Button></div></td>
         </tr>)}</tbody></table></Scroll>
-      <p className="mt-3 text-xs text-muted">Cada persona puede tener hasta {MAX_ROLES} roles, según su capacidad: ve la suma de los menús de todos sus roles. Hay {ROLES.length} roles disponibles.</p>
+      <p className="mt-3 text-xs text-muted">Las personas marcadas «Cuenta» entran con su propio correo desde cualquier celular o computadora; se invitan en «Cuenta y equipo». Las demás entran solo en este dispositivo con usuario y contraseña.</p>
+      <p className="mt-1 text-xs text-muted">Cada persona puede tener hasta {MAX_ROLES} roles, según su capacidad: ve la suma de los menús de todos sus roles. Hay {ROLES.length} roles disponibles.</p>
     </Card>
     <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={usuarios.some((x) => x.id === edit?.id) ? 'Editar usuario' : 'Agregar persona'} ancho="max-w-lg">
-      {edit && <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); const r = guardarUsuario({ ...edit, nombre: edit.nombre.trim(), usuario: edit.usuario.trim().toLowerCase(), email: edit.email.trim() }); if (r) setErr(r); else setEdit(null) }}>
+      {edit && <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); guardar({ ...edit, nombre: edit.nombre.trim(), usuario: edit.usuario.trim().toLowerCase(), email: edit.email.trim() }) }}>
         <Campo label="Nombre completo"><input autoFocus className="inp" value={edit.nombre} onChange={(e) => setEdit({ ...edit, nombre: e.target.value, usuario: edit.usuario || '' })} placeholder="Ej.: Ana Mora" /></Campo>
-        <div className="grid grid-cols-2 gap-3">
+        {esCuenta(edit) ? <p className="rounded-lg bg-fg/5 px-3 py-2 text-xs text-muted">Entra con su cuenta NEXORA (<b className="text-fg">{edit.email}</b>), con Google o con correo y contraseña. No necesita usuario aquí.</p> : <div className="grid grid-cols-2 gap-3">
           <Campo label="Usuario (para ingresar)" ayuda="Corto y sin espacios, ej.: ana"><input className="inp" value={edit.usuario} onChange={(e) => setEdit({ ...edit, usuario: e.target.value.replace(/\s/g, '').toLowerCase() })} /></Campo>
           <Campo label="Contraseña" ayuda="Fácil de recordar, ej.: ana2026"><input className="inp" value={edit.clave} onChange={(e) => setEdit({ ...edit, clave: e.target.value })} /></Campo>
-        </div>
-        <div>
-          <div className="mb-1.5 flex items-baseline justify-between"><span className="text-xs font-medium text-muted">Roles (hasta {MAX_ROLES}, según lo que hace la persona)</span><span className="text-[11px] text-muted">{rolesDe(edit).length}/{MAX_ROLES}</span></div>
-          <div className="grid grid-cols-1 max-h-64 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">{ROLES.map((r) => { const si = rolesDe(edit).includes(r), lleno = !si && rolesDe(edit).length >= MAX_ROLES; return (
-            <button key={r} type="button" disabled={lleno} onClick={() => setEdit(alternar(edit, r))} className={cx('rounded-xl border px-3 py-2 text-left transition disabled:opacity-35', si ? 'border-primario/60 bg-primario/10' : 'border-fg/10 hover:bg-fg/5')}>
-              <div className="flex items-center justify-between gap-2 text-sm font-semibold">{r}{si && <span className="rounded-full bg-gradient-to-r from-primario to-violeta px-1.5 text-[9px] font-bold text-black">{edit.rol === r ? 'PRINCIPAL' : 'ADICIONAL'}</span>}</div>
-              <div className="text-[11px] text-muted">{DESCRIPCION_ROL[r]}</div></button>) })}</div>
-        </div>
-        <p className="text-xs text-muted">Con {rolesDe(edit).length > 1 ? 'estos roles' : 'este rol'} verá: {ve(edit).join(', ')}.</p>
-        <Campo label="Correo (opcional)"><input type="email" className="inp" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Campo>
+        </div>}
+        {esTitular(edit) ? <p className="text-xs text-muted">Usted es el titular de la cuenta: siempre es Gerente General y ve todo.</p> : <SelectorRoles valor={edit} onChange={setEdit} />}
+        {!esCuenta(edit) && <Campo label="Correo (opcional)"><input type="email" className="inp" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Campo>}
         {err && <p className="text-sm text-peligro">{err}</p>}
-        <div className="flex justify-end gap-2"><Button type="button" onClick={() => setEdit(null)}>Cancelar</Button><Button variante="primario" type="submit">Guardar</Button></div>
+        <div className="flex justify-end gap-2"><Button type="button" onClick={() => setEdit(null)}>Cancelar</Button><Button variante="primario" type="submit" disabled={ocupado}>{ocupado ? 'Guardando…' : 'Guardar'}</Button></div>
       </form>}
     </Modal>
   </>

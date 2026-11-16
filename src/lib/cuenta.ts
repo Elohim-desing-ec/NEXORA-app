@@ -120,6 +120,12 @@ export async function historialCompras(): Promise<Compra[]> {
 }
 
 // ---------- Equipo ----------
+/** Titular + invitados de la empresa (para mostrarlos en toda la app). */
+export async function equipoEmpresa(empresaId: string): Promise<{ email: string; nombre: string; rol: string; roles: string[]; es_dueno: boolean }[]> {
+  const { data, error } = await supabase.rpc('equipo_empresa', { p_empresa: empresaId })
+  if (error) throw error
+  return data ?? []
+}
 export async function listarMiembros(empresaId: string): Promise<Miembro[]> {
   const { data, error } = await supabase.from('miembros').select('email, nombre, rol, roles, creado').eq('empresa_id', empresaId).order('creado')
   if (error) throw error
