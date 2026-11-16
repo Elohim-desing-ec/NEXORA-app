@@ -52,9 +52,10 @@ export default function CuentaEquipo() {
     setOcupado(true); setError(''); setAviso(null)
     try {
       await guardarMiembro(acceso.empresaId, { ...nuevo, email })
-      setNuevo({ nombre: '', email: '', rol: nuevo.rol })
-      await cargar()
       const m = { email, nombre: nuevo.nombre.trim(), rol: nuevo.rol }
+      // Se muestra al instante (una lectura justo después de guardar a veces aún no lo trae).
+      setMiembros((l) => [...l.filter((x) => x.email !== email), { ...m, roles: [], creado: new Date().toISOString() }])
+      setNuevo({ nombre: '', email: '', rol: nuevo.rol })
       if (await enviarCorreo({ tipo: 'invitacion', email })) setAviso({ texto: `Listo: le enviamos la invitación a ${email}.` })
       else setAviso({ texto: `${email} ya tiene acceso. Avísele con un correo: abra Gmail con la invitación lista y pulse Enviar.`, gmail: invitacionGmail(m, acceso.empresa, cuenta?.user_metadata?.full_name ?? cuenta?.email ?? '') })
     } catch (err) { setError(mensajeError(err, tx)) } finally { setOcupado(false) }
@@ -62,7 +63,7 @@ export default function CuentaEquipo() {
 
   const quitar = async (m: Miembro) => {
     if (!acceso || !confirm(`¿Quitar a ${m.nombre || m.email} del equipo? Ya no podrá ingresar a NEXORA.`)) return
-    try { await quitarMiembro(acceso.empresaId, m.email); await cargar() } catch (err) { setError(mensajeError(err, tx)) }
+    try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)) } catch (err) { setError(mensajeError(err, tx)) }
   }
 
   const cancelar = async () => {
