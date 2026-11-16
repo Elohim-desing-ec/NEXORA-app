@@ -95,7 +95,7 @@ export default function CuentaEquipo() {
       {error && <p role="alert" className="rounded-lg border border-peligro/30 bg-peligro/10 px-3 py-2 text-xs text-peligro">{error}</p>}
 
       <Card titulo={<span className="flex items-center gap-2"><CreditCard size={16} />Su plan</span>}>
-        {acceso ? <div className="grid gap-4 sm:grid-cols-2">
+        {acceso ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1 text-sm">
             <div className="flex flex-wrap items-center gap-2 font-display text-2xl font-bold">{acceso.plan === 'Prueba' ? 'Prueba gratis' : acceso.plan === 'Administrador' ? 'Administrador de NEXORA' : acceso.plan ?? 'Sin plan'}
               {!acceso.vigente ? <Badge tono="rojo">Vencido</Badge> : dias === null ? <Badge tono="verde">Activo</Badge> : dias <= 5 ? <Badge tono="ambar">{dias === 1 ? 'Vence mañana' : `Vence en ${dias} días`}</Badge> : <Badge tono="verde">Hasta el {fecha(acceso.vence!)}</Badge>}</div>

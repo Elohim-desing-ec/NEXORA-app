@@ -6,6 +6,47 @@ import { X } from 'lucide-react'
 const cx = (...c: (string | false | undefined | null)[]) => c.filter(Boolean).join(' ')
 export { cx }
 
+/** ¿Hay contenido oculto a la izquierda o a la derecha? (para difuminar el borde y avisar que se puede deslizar) */
+function useDesbordeX<T extends HTMLElement>() {
+  const ref = useRef<T>(null)
+  const [lados, setLados] = useState({ izq: false, der: false })
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const medir = () => {
+      const izq = el.scrollLeft > 4, der = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+      setLados((l) => (l.izq === izq && l.der === der ? l : { izq, der }))
+    }
+    medir()
+    el.addEventListener('scroll', medir, { passive: true })
+    const ro = new ResizeObserver(medir)
+    ro.observe(el)
+    if (el.firstElementChild) ro.observe(el.firstElementChild)
+    return () => { el.removeEventListener('scroll', medir); ro.disconnect() }
+  }, [])
+  return { ref, clase: cx(lados.izq && 'mas-izquierda', lados.der && 'mas-derecha') }
+}
+
+/** Copia el texto de cada encabezado a las celdas (data-label) para mostrar la tabla como tarjetas en el celular. */
+function etiquetarTablas(raiz: HTMLElement) {
+  for (const tabla of raiz.querySelectorAll('table')) {
+    const filasEnc = tabla.tHead?.rows
+    if (!filasEnc?.length) continue
+    const titulos: string[] = []
+    for (const th of filasEnc[filasEnc.length - 1].cells) for (let k = 0; k < (th.colSpan || 1); k++) titulos.push(th.textContent?.trim() ?? '')
+    for (const cuerpo of [...tabla.tBodies, ...(tabla.tFoot ? [tabla.tFoot] : [])]) {
+      for (const fila of cuerpo.rows) {
+        let i = 0
+        for (const celda of fila.cells) {
+          const t = celda.colSpan > 1 ? '' : titulos[i] ?? ''
+          if (celda.getAttribute('data-label') !== t) celda.setAttribute('data-label', t)
+          i += celda.colSpan || 1
+        }
+      }
+    }
+  }
+}
+
 export function Card({ children, className, hover, titulo, accion }: { children: ReactNode; className?: string; hover?: boolean; titulo?: ReactNode; accion?: ReactNode }) {
   return (
     <motion.section initial={{ opacity: 0, y: 26, scale: 0.985 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true, amount: 0.1 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }} className={cx('glass min-w-0 p-5', hover && 'glass-hover', className)}>
@@ -44,8 +85,11 @@ export type Tono = keyof typeof tonos
 export const Badge = ({ tono = 'gris', children }: { tono?: Tono; children: ReactNode }) => <span className={cx('inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold', tonos[tono])}>{children}</span>
 
 export function Tabs<T extends string>({ items, valor, onChange }: { items: { id: T; label: string; icon?: ReactNode }[]; valor: T; onChange: (v: T) => void }) {
+  const { ref, clase } = useDesbordeX<HTMLDivElement>()
+  // La pestaña elegida siempre a la vista (en el celular las pestañas se deslizan)
+  useEffect(() => { ref.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [valor, ref])
   return (
-    <div className="glass flex gap-1 overflow-x-auto p-1.5" role="tablist">
+    <div ref={ref} className={cx('glass sin-barra flex gap-1 overflow-x-auto p-1.5', clase)} role="tablist">
       {items.map((t) => (
         <button key={t.id} role="tab" aria-selected={valor === t.id} onClick={() => onChange(t.id)} className={cx('relative flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition', valor === t.id ? 'font-semibold text-black' : 'text-muted hover:text-fg')}>
           {valor === t.id && <motion.span layoutId={`tab-${items[0].id}`} className="absolute inset-0 rounded-xl bg-gradient-to-r from-primario to-violeta" transition={{ type: 'spring', duration: 0.4 }} />}
@@ -61,8 +105,8 @@ export function Modal({ abierto, onClose, titulo, children, ancho = 'max-w-3xl' 
   return (
     <AnimatePresence>
       {abierto && (
-        <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 pt-[6vh] backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-          <motion.div role="dialog" aria-modal className={cx('glass w-full p-6', ancho)} style={{ background: 'color-mix(in srgb, var(--bg2) 88%, transparent)' }} initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}>
+        <motion.div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/50 p-3 pt-[4vh] backdrop-blur-sm sm:p-4 sm:pt-[6vh]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+          <motion.div role="dialog" aria-modal className={cx('glass w-full p-5 sm:p-6', ancho)} style={{ background: 'color-mix(in srgb, var(--bg2) 88%, transparent)' }} initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }}>
             <div className="mb-4 flex items-start justify-between gap-4"><h2 className="text-lg font-semibold">{titulo}</h2><button aria-label="Cerrar" onClick={onClose} className="rounded-lg p-1 hover:bg-fg/10"><X size={18} /></button></div>
             {children}
           </motion.div>
@@ -87,10 +131,10 @@ export function Contador({ valor, formato }: { valor: number; formato: (v: numbe
 export function Kpi({ titulo, valor, formato, icono, tono = 'azul', sub }: { titulo: string; valor: number; formato: (v: number) => string; icono: ReactNode; tono?: 'azul' | 'verde' | 'ambar' | 'rojo' | 'violeta' | 'cian'; sub?: ReactNode }) {
   const g = { azul: 'from-primario/30', verde: 'from-exito/30', ambar: 'from-alerta/30', rojo: 'from-peligro/30', violeta: 'from-violeta/30', cian: 'from-cian/30' }[tono]
   return (
-    <Card hover className="relative overflow-hidden">
+    <Card hover className="relative overflow-hidden !p-4 sm:!p-5">
       <div className={cx('pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-gradient-to-br to-transparent blur-2xl', g)} />
-      <div className="flex items-center justify-between text-muted"><span className="text-xs font-medium">{titulo}</span><span className="rounded-lg bg-fg/5 p-1.5">{icono}</span></div>
-      <div className="mt-2 text-2xl font-bold tracking-tight"><Contador valor={valor} formato={formato} /></div>
+      <div className="flex items-start justify-between gap-2 text-muted"><span className="min-w-0 text-[11px] font-medium leading-snug sm:text-xs">{titulo}</span><span className="shrink-0 rounded-lg bg-fg/5 p-1.5">{icono}</span></div>
+      <div className="mt-2 break-words text-xl font-bold tracking-tight sm:text-2xl"><Contador valor={valor} formato={formato} /></div>
       {sub && <div className="mt-1 text-xs text-muted">{sub}</div>}
     </Card>
   )
@@ -110,4 +154,17 @@ export function Titulo({ titulo, sub, children }: { titulo: string; sub?: string
   )
 }
 
-export const Scroll = ({ children }: { children: ReactNode }) => <div className="-mx-2 overflow-x-auto px-2">{children}</div>
+/** Contenedor de tablas: en el celular cada fila se ve como tarjeta; en pantallas anchas se desliza con aviso en el borde. */
+export function Scroll({ children }: { children: ReactNode }) {
+  const { ref, clase } = useDesbordeX<HTMLDivElement>()
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    etiquetarTablas(el)
+    let pendiente = 0
+    const obs = new MutationObserver(() => { cancelAnimationFrame(pendiente); pendiente = requestAnimationFrame(() => etiquetarTablas(el)) })
+    obs.observe(el, { childList: true, subtree: true, characterData: true })
+    return () => { obs.disconnect(); cancelAnimationFrame(pendiente) }
+  }, [ref])
+  return <div ref={ref} className={cx('tabla-movil -mx-2 overflow-x-auto px-2', clase)}>{children}</div>
+}

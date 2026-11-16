@@ -69,7 +69,7 @@ export default function Google() {
       <section className="glass p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h3 className="font-semibold">Espacio de trabajo de su empresa</h3><p className="text-xs text-muted">Conecte las herramientas que ya usa su equipo: aparecen en las fichas de cada persona (por ejemplo, la videollamada por Discord).</p></div>
           {esGerente && <Button variante="primario" className="text-xs" onClick={() => { guardarConexiones(con); avisar('Conexiones guardadas para toda la empresa.') }}>Guardar conexiones</Button>}</div>
-        <div className="grid gap-2 md:grid-cols-2">{CONEXIONES.map((c) => (
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">{CONEXIONES.map((c) => (
           <div key={c.k} className="flex items-center gap-3 rounded-2xl bg-fg/5 p-2.5 ring-1 ring-fg/5">
             <Marca slug={c.slug} tam={36} />
             <div className="min-w-0 flex-1"><div className="text-xs font-semibold">{c.nombre}</div>
@@ -80,7 +80,7 @@ export default function Google() {
       </section>
 
       <div className="flex items-center gap-2 pt-1"><Marca slug="google" tam={28} /><h3 className="font-semibold">Herramientas de Google</h3></div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Herramienta i={0} nombre="Gmail" que="Correos al equipo y a proveedores" slug="gmail" icono={<Mail size={18} />}>
           <Accion onClick={() => abrir(urlGmail(correosEquipo, `Resumen de ${nombrePeriodo(Y, M)}`, `Hola equipo:\n\n${resumenNegocio()}\n\nEnviado desde NEXORA.`))}>Enviar el resumen del mes</Accion>
           <Accion disabled={!proveedores.length} onClick={() => abrir(urlGmail(proveedores.map((p) => p.email), 'Pedido / cotización', `Estimados proveedores:\n\nLes solicitamos cotización de los siguientes productos con stock bajo:\n${productos.filter((p) => enQuiebre(p)).map((p) => `- ${p.nombre} (${p.sku})`).join('\n') || '- (detalle)'}\n\nSaludos,\n${empresa.nombre}`))}>Pedir cotización a proveedores</Accion>

@@ -69,7 +69,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
             <div className={cx('mt-1 font-display text-4xl font-bold sm:text-6xl', a.neta < 0 ? 'text-peligro' : 'texto-oro')}><Contador valor={a.neta} formato={money} /></div>
             <p className="mt-2 text-sm text-muted">Ganancia bruta <b className="text-fg">{money(a.bruta)}</b> menos gastos <b className="text-fg">{money(a.gastos)}</b></p>
           </div>
-          <div className="text-right text-sm text-muted">Margen neto<div className={cx('font-display text-3xl font-bold', a.margen < 0 ? 'text-peligro' : 'text-fg')}>{pct(a.margen, 1)}</div></div>
+          <div className="text-sm text-muted sm:text-right">Margen neto<div className={cx('font-display text-3xl font-bold', a.margen < 0 ? 'text-peligro' : 'text-fg')}>{pct(a.margen, 1)}</div></div>
         </div>
       </Card>
 
@@ -78,7 +78,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
       </div>}
 
       {/* Ventas y ganancia del periodo */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
         <Kpi titulo="Ventas totales" valor={a.ventas} formato={money} icono={<Coins size={15} />} />
         <Kpi titulo="Costo de lo vendido" valor={a.costo} formato={money} icono={<Package size={15} />} tono="ambar" sub="Al costo promedio" />
         <Kpi titulo="Ganancia bruta" valor={a.bruta} formato={money} icono={<TrendingUp size={15} />} tono="verde" sub="Ventas − costo" />
@@ -90,7 +90,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
       {/* Stock hoy */}
       <div>
         <div className="mb-2 flex items-baseline justify-between gap-2"><h2 className="text-sm font-semibold">Stock hoy</h2><span className="text-xs text-muted">No depende del periodo elegido</span></div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
           <Kpi titulo="Unidades en stock" valor={d.stockU} formato={(v) => num(v, 0)} icono={<Boxes size={15} />} sub={plural(productos.length, 'producto registrado', 'productos registrados')} />
           <Kpi titulo="Dinero invertido en stock" valor={d.stockV} formato={money} icono={<Wallet size={15} />} tono="ambar" sub="Stock × costo promedio" />
           <Kpi titulo="Stock bajo o agotados" valor={d.bajos} formato={(v) => num(v, 0)} icono={<AlertTriangle size={15} />} tono="rojo"
@@ -100,12 +100,12 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
 
       {/* Comparación */}
       <Card titulo="Comparación">
-        <div className="grid gap-4 md:grid-cols-2">{d.comparar.map(([t, b]) => (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{d.comparar.map(([t, b]) => (
           <div key={t} className="rounded-xl bg-fg/5 p-4">
             <div className="mb-3 text-xs font-medium text-muted">{t}</div>
             {([['Ventas', a.ventas, b.ventas, money], ['Ganancia neta', a.neta, b.neta, money], ['Unidades vendidas', a.unidades, b.unidades, (v: number) => num(v, 0)]] as const).map(([n, ahora, antes, f]) => (
-              <div key={n} className="flex items-center justify-between gap-3 border-b border-fg/5 py-2 text-sm last:border-0">
-                <span>{n}</span><span className="flex items-center gap-2 tnum"><span className="text-muted">{f(antes)} →</span><b>{f(ahora)}</b><Delta v={variacion(ahora, antes)} /></span>
+              <div key={n} className="flex flex-col gap-1 border-b border-fg/5 py-2 text-sm last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <span>{n}</span><span className="flex flex-wrap items-center gap-x-2 gap-y-1 whitespace-nowrap tnum"><span className="text-muted">{f(antes)} →</span><b>{f(ahora)}</b><Delta v={variacion(ahora, antes)} /></span>
               </div>))}
           </div>))}</div>
       </Card>

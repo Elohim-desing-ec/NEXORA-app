@@ -186,7 +186,7 @@ export default function Notas() {
   if (actual) return <Editor key={actual.id} inicial={actual} carpetas={carpetas} onGuardar={guardarNota} onEliminar={() => { eliminarNota(actual.id); setSel(null) }} onVolver={() => setSel(null)} />
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[230px_1fr]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[230px_1fr]">
       <aside className="glass h-fit space-y-4 p-3">
         <div className="relative">
           <Button variante="primario" className="w-full" onClick={() => setPlantillas(!plantillas)}><Plus size={15} />Nueva nota</Button>
@@ -201,9 +201,9 @@ export default function Notas() {
       </aside>
       <div className="space-y-5">
         {lista.some((n) => n.fijada) && <section><div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Pin size={14} className="text-primario" />Fijadas</div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}</div></section>}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}</div></section>}
         <section><div className="mb-2 text-sm font-semibold">{carpeta ?? 'Todas las notas'}</div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => !n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => !n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}
             {!lista.length && <div className="glass col-span-full grid place-items-center gap-3 p-10 text-center"><span className="text-4xl">📝</span><p className="max-w-sm text-sm text-muted">{notas.length ? 'Ninguna nota coincide.' : 'Cree la primera nota del equipo: actas de reunión, planes, ideas o procesos. Escriba «/» para ver todos los bloques.'}</p><Button variante="primario" onClick={() => setPlantillas(true)}><Plus size={15} />Nueva nota</Button></div>}
           </div></section>
       </div>

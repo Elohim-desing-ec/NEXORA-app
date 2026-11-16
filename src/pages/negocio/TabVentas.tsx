@@ -72,7 +72,7 @@ export default function TabVentas() {
 
   return (
     <div className="space-y-5">
-      {puede && <div className="grid gap-4 xl:grid-cols-5">
+      {puede && <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <Card titulo="Agregar venta" className="xl:col-span-3">
           <div className="space-y-4">
             <div className="space-y-2">
@@ -80,20 +80,20 @@ export default function TabVentas() {
               {lineas.map((l) => {
                 const p = prod.get(l.productoId)
                 return (
-                  <div key={l.k} className="grid grid-cols-[1fr_5rem_6.5rem_auto] items-center gap-2">
-                    <select className="inp" aria-label="Producto" value={l.productoId} onChange={(e) => elegir(l.k, e.target.value)}>
+                  <div key={l.k} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 border-b border-fg/5 pb-2 last:border-0 sm:grid-cols-[1fr_5rem_6.5rem_auto] sm:border-0 sm:pb-0">
+                    <select className="inp col-span-3 sm:col-span-1" aria-label="Producto" value={l.productoId} onChange={(e) => elegir(l.k, e.target.value)}>
                       <option value="">Elija un producto…</option>
                       {productos.map((x) => <option key={x.id} value={x.id} disabled={(x.stock[suc] ?? 0) <= 0}>{x.sku} · {x.nombre} ({x.stock[suc] ?? 0} u)</option>)}
                     </select>
-                    <NumInput min={1} value={l.cantidad} onChange={(v) => set(l.k, { cantidad: Math.max(0, Math.round(v)) })} />
-                    <NumInput step={0.01} min={0} value={l.precio} onChange={(v) => set(l.k, { precio: v })} />
+                    <label className="block min-w-0"><span className="mb-0.5 block text-[10px] text-muted sm:hidden">Cantidad</span><NumInput min={1} value={l.cantidad} onChange={(v) => set(l.k, { cantidad: Math.max(0, Math.round(v)) })} /></label>
+                    <label className="block min-w-0"><span className="mb-0.5 block text-[10px] text-muted sm:hidden">Precio</span><NumInput step={0.01} min={0} value={l.precio} onChange={(v) => set(l.k, { precio: v })} /></label>
                     <button aria-label="Quitar producto" className="rounded-lg p-2 text-muted hover:bg-fg/10 disabled:opacity-30" disabled={lineas.length === 1} onClick={() => setLineas(lineas.filter((x) => x.k !== l.k))}><X size={15} /></button>
-                    {p && <div className="col-span-4 -mt-1 text-[11px] text-muted">Precio de lista {money(p.precio)} · subtotal {money(l.cantidad * l.precio)}</div>}
+                    {p && <div className="col-span-3 -mt-1 text-[11px] text-muted sm:col-span-4">Precio de lista {money(p.precio)} · subtotal {money(l.cantidad * l.precio)}</div>}
                   </div>)
               })}
               <Button className="text-xs" onClick={() => setLineas([...lineas, linea()])}><Plus size={14} />Agregar otro producto</Button>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Campo label="Sucursal"><select className="inp" value={suc} onChange={(e) => setSuc(e.target.value)}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.ciudad}</option>)}</select></Campo>
               <Campo label="Fecha"><input type="date" className="inp" value={dia} max={hoyISO()} onChange={(e) => setDia(e.target.value || hoyISO())} /></Campo>
               <Campo label="Descuento total"><NumInput step={0.01} min={0} value={descuento} onChange={setDescuento} /></Campo>
@@ -125,7 +125,7 @@ export default function TabVentas() {
       </div>}
 
       <Card titulo="Hoy" accion={<span className="text-xs text-muted">{fecha(new Date().toISOString())}</span>}>
-        <div className="grid gap-3 sm:grid-cols-4">{([['Ventas de hoy', money(d.hoy.total)], ['Ganancia de hoy', money(d.hoy.ganancia)], ['Unidades vendidas', num(d.hoy.unidades, 0)], ['Ventas registradas', num(d.hoy.n, 0)]] as const).map(([a, b]) => (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">{([['Ventas de hoy', money(d.hoy.total)], ['Ganancia de hoy', money(d.hoy.ganancia)], ['Unidades vendidas', num(d.hoy.unidades, 0)], ['Ventas registradas', num(d.hoy.n, 0)]] as const).map(([a, b]) => (
           <div key={a} className="rounded-xl bg-fg/5 p-3"><div className="text-xs text-muted">{a}</div><div className="text-xl font-bold tnum">{b}</div></div>))}</div>
       </Card>
 

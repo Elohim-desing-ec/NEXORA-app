@@ -42,7 +42,7 @@ export default function TabDatos() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card titulo={<span className="flex items-center gap-2"><Save size={15} className="text-primario" />Guardado automático</span>}>
         <p className="text-sm text-muted">Todo se guarda solo en este navegador, al instante. Si usa otra computadora o borra los datos del navegador, use el respaldo.</p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-sm">{([['Productos', productos.length], ['Ventas', ventas.length], ['Gastos', gastos.length], ['Cierres', cierres.length], ['Movimientos', movimientos.length], ['Sucursales', sucursales.length]] as const).map(([a, b]) => (

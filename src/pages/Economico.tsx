@@ -48,17 +48,17 @@ function NuevaEvaluacion({ abierto, cerrar, inicial = 'nexora' }: { abierto: boo
   return (
     <Modal abierto={abierto} onClose={cerrar} titulo="Nueva evaluación de inversión" ancho="max-w-4xl">
       <div className="space-y-5">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{(Object.keys(PLANTILLAS) as Plantilla[]).map((x) => (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">{(Object.keys(PLANTILLAS) as Plantilla[]).map((x) => (
           <button key={x} onClick={() => elegir(x)} className={cx('rounded-2xl border p-3 text-left transition', pl === x ? 'border-primario/60 bg-primario/10' : 'border-fg/10 hover:bg-fg/5')}>
             <div className="text-sm font-semibold">{PLANTILLAS[x].titulo}</div><div className="text-xs text-muted">{PLANTILLAS[x].ayuda}</div></button>))}</div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo label="Nombre de la evaluación"><input className="inp" value={et.evaluacion} onChange={(e) => setEt({ ...et, evaluacion: e.target.value })} /></Campo>
           <Campo label="Lo que tiene hoy (defensor)"><input className="inp" value={et.defensor} onChange={(e) => setEt({ ...et, defensor: e.target.value })} /></Campo>
           <Campo label="La alternativa nueva (retador)"><input className="inp" value={et.retador} onChange={(e) => setEt({ ...et, retador: e.target.value })} /></Campo>
         </div>
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-[.18em] text-muted">Inversión en «{et.retador}»</span>{pl === 'nexora' && <Button className="text-xs" onClick={() => setInv([PROYECTO.licencia, PROYECTO.implementacion, PROYECTO.capacitacion])}>Usar el precio de NEXORA Pro ({money(PROYECTO.licencia + PROYECTO.implementacion + PROYECTO.capacitacion, 0)})</Button>}</div>
-          <div className="grid gap-3 sm:grid-cols-3">{et.inversion.map((n, k) => <Campo key={k} label={n}><NumInput step={100} min={0} value={inv[k]} onChange={(v) => setInv(inv.map((x, i) => (i === k ? v : x)) as [number, number, number])} /></Campo>)}</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{et.inversion.map((n, k) => <Campo key={k} label={n}><NumInput step={100} min={0} value={inv[k]} onChange={(v) => setInv(inv.map((x, i) => (i === k ? v : x)) as [number, number, number])} /></Campo>)}</div>
         </div>
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -66,16 +66,18 @@ function NuevaEvaluacion({ abierto, cerrar, inicial = 'nexora' }: { abierto: boo
             {reales.length > 0 && <Button className="text-xs" onClick={() => setConceptos(reales)}>Usar mis gastos reales del último año</Button>}
           </div>
           <div className="space-y-2">
-            <div className="grid grid-cols-[1fr_8rem_8rem_2rem] gap-2 text-[11px] text-muted"><span>Concepto</span><span>Hoy ({et.defensor})</span><span>Con {et.retador}</span><span /></div>
-            {conceptos.map((c, k) => <div key={k} className="grid grid-cols-[1fr_8rem_8rem_2rem] items-center gap-2">
-              <input className="inp" value={c.nombre} onChange={(e) => setC(k, { nombre: e.target.value })} />
-              <NumInput step={100} min={0} value={c.actual} onChange={(v) => setC(k, { actual: v })} /><NumInput step={100} min={0} value={c.nuevo} onChange={(v) => setC(k, { nuevo: v })} />
+            <div className="hidden grid-cols-[1fr_8rem_8rem_2rem] gap-2 text-[11px] text-muted sm:grid"><span>Concepto</span><span>Hoy ({et.defensor})</span><span>Con {et.retador}</span><span /></div>
+            {/* En el celular: el concepto ocupa toda la fila y debajo van los dos montos con su nombre */}
+            {conceptos.map((c, k) => <div key={k} className="grid grid-cols-[1fr_1fr_2rem] items-end gap-2 rounded-xl border border-fg/10 p-2 sm:grid-cols-[1fr_8rem_8rem_2rem] sm:items-center sm:rounded-none sm:border-0 sm:p-0">
+              <input className="inp col-span-3 sm:col-span-1" aria-label="Concepto" placeholder="Concepto" value={c.nombre} onChange={(e) => setC(k, { nombre: e.target.value })} />
+              <label className="block min-w-0"><span className="mb-0.5 block truncate text-[10px] text-muted sm:hidden">Hoy ({et.defensor})</span><NumInput step={100} min={0} value={c.actual} onChange={(v) => setC(k, { actual: v })} /></label>
+              <label className="block min-w-0"><span className="mb-0.5 block truncate text-[10px] text-muted sm:hidden">Con {et.retador}</span><NumInput step={100} min={0} value={c.nuevo} onChange={(v) => setC(k, { nuevo: v })} /></label>
               <button aria-label="Quitar" className="rounded-lg p-1.5 text-muted hover:bg-fg/10" onClick={() => setConceptos(conceptos.filter((_, i) => i !== k))}><X size={14} /></button></div>)}
             <div className="flex items-center justify-between"><Button className="text-xs" onClick={() => setConceptos([...conceptos, { nombre: '', actual: 0, nuevo: 0 }])}><Plus size={13} />Agregar costo</Button>
               <span className="text-xs text-muted">Ahorro anual: <b className={cx('tnum', total('actual') - total('nuevo') >= 0 ? 'text-exito' : 'text-peligro')}>{money(total('actual') - total('nuevo'))}</b></span></div>
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
           <Campo label={`Valor de venta hoy (${et.defensor})`}><NumInput step={100} min={0} value={d.vmHoy} onChange={(v) => setD({ ...d, vmHoy: v })} /></Campo>
           <Campo label="Lo que costó cuando se compró"><NumInput step={100} min={0} value={d.costoOriginal} onChange={(v) => setD({ ...d, costoOriginal: v })} /></Campo>
           <Campo label="Años de uso"><NumInput min={0} value={d.edad} onChange={(v) => setD({ ...d, edad: v })} /></Campo>

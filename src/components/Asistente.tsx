@@ -28,13 +28,13 @@ export function Asistente() {
       <AnimatePresence>
         {abierto && (
           <motion.div initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 20, scale: 0.96 }} transition={{ type: 'spring', duration: 0.4 }}
-            className="glass fixed bottom-24 right-4 z-50 flex h-[min(560px,calc(100vh-8rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden" style={{ background: 'color-mix(in srgb, var(--bg2) 90%, transparent)' }}>
+            className="glass alto-panel fixed bottom-24 right-4 z-50 flex w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden" style={{ background: 'color-mix(in srgb, var(--bg2) 90%, transparent)' }}>
             <header className="flex items-center gap-3 border-b border-fg/10 p-4">
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-primario to-violeta text-black"><Sparkles size={18} /></div>
               <div className="flex-1"><div className="text-sm font-semibold">Asistente NEXORA</div><div className="flex items-center gap-1 text-[11px] text-exito"><span className="h-1.5 w-1.5 rounded-full bg-exito" />En línea · funciona sin internet</div></div>
               <button aria-label="Cerrar asistente" onClick={() => setAbierto(false)} className="rounded-lg p-1 hover:bg-fg/10"><X size={16} /></button>
             </header>
-            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
               {[inicio, ...msgs].map((m, k) => (
                 <div key={k} className={cx('flex', m.de === 'yo' && 'justify-end')}>
                   <div className={cx('max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm', m.de === 'yo' ? 'rounded-br-md bg-gradient-to-r from-primario to-violeta text-black' : 'rounded-bl-md bg-fg/5')}>

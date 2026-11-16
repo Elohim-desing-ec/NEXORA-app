@@ -44,7 +44,7 @@ export default function Compras() {
           </tr>)}</tbody></table></Scroll>
           {!ordenes.length && <p className="py-8 text-center text-sm text-muted">Aún no hay órdenes de compra.</p>}</Card>
       </>}
-      {tab === 'proveedores' && <div className="grid gap-4 xl:grid-cols-3">
+      {tab === 'proveedores' && <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <Card className="xl:col-span-2" titulo={`Proveedores (${proveedores.length})`}><Scroll><table className="tabla">
         <thead><tr><th>Nombre</th><th>RUC</th><th>Ciudad</th><th>Contacto</th><th>Teléfono</th><th>Correo</th><th /></tr></thead>
         <tbody>{proveedores.map((p) => <tr key={p.id}><td className="font-medium">{p.nombre}</td><td className="font-mono text-xs">{p.ruc}</td><td>{p.ciudad}</td><td>{p.contacto}</td><td>{p.telefono}</td><td className="text-muted">{p.email}</td>
@@ -62,7 +62,7 @@ export default function Compras() {
       </div>}
 
       <Modal abierto={!!prov} onClose={() => setProv(null)} titulo={proveedores.some((x) => x.id === prov?.id) ? 'Editar proveedor' : 'Nuevo proveedor'} ancho="max-w-xl">
-        {prov && <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const r = guardarProveedor(prov); if (r) setErr(r); else setProv(null) }}>
+        {prov && <form className="grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const r = guardarProveedor(prov); if (r) setErr(r); else setProv(null) }}>
           <Campo label="Nombre o razón social"><input autoFocus className="inp" value={prov.nombre} onChange={(e) => setProv({ ...prov, nombre: e.target.value })} /></Campo>
           <Campo label="RUC"><input className="inp" inputMode="numeric" maxLength={13} value={prov.ruc} onChange={(e) => setProv({ ...prov, ruc: e.target.value.replace(/\D/g, '') })} /></Campo>
           <Campo label="Ciudad"><input className="inp" value={prov.ciudad} onChange={(e) => setProv({ ...prov, ciudad: e.target.value })} /></Campo>
@@ -78,12 +78,12 @@ export default function Compras() {
 
       <Modal abierto={!!nueva} onClose={() => setNueva(null)} titulo="Nueva orden de compra">
         {nueva && <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label="Proveedor"><select className="inp" value={nueva.proveedorId} onChange={(e) => setNueva({ ...nueva, proveedorId: e.target.value })}>{proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo>
             <Campo label="Sucursal de destino"><select className="inp" value={nueva.sucursal} onChange={(e) => setNueva({ ...nueva, sucursal: e.target.value as SucursalId })}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select></Campo>
           </div>
-          {nueva.items.map((it, k) => <div key={k} className="grid grid-cols-[1fr_90px_110px_auto] items-end gap-2">
-            <Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo>
+          {nueva.items.map((it, k) => <div key={k} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-fg/10 p-2 sm:grid-cols-[1fr_90px_110px_auto] sm:rounded-none sm:border-0 sm:p-0">
+            <div className="col-span-3 sm:col-span-1"><Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo></div>
             <Campo label="Cant."><NumInput value={it.cantidad} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, cantidad: Math.max(1, Math.round(v)) }; setNueva({ ...nueva, items }) }} /></Campo>
             <Campo label="Costo"><NumInput step={0.01} value={it.costo} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, costo: v }; setNueva({ ...nueva, items }) }} /></Campo>
             <Button variante="fantasma" className="text-peligro" onClick={() => setNueva({ ...nueva, items: nueva.items.filter((_, j) => j !== k) })}><Trash2 size={15} /></Button>

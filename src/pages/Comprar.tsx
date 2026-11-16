@@ -106,7 +106,7 @@ export default function Comprar() {
 
   return (
     <MarcoAcceso ancho="max-w-5xl">
-      <div className="grid gap-8 md:grid-cols-[1fr_1.25fr]">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_1.25fr]">
         {/* Resumen del plan */}
         <aside className="md:border-r md:border-fg/10 md:pr-8">
           <div className="text-xs uppercase tracking-[.2em] text-muted">{tx('Su plan', 'Your plan', 'Seu plano')} · {plan.tipo}</div>

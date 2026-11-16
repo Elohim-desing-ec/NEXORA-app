@@ -16,7 +16,7 @@ function Calculadora({ costo, precio, onPrecio }: { costo: number; precio: numbe
   const [m, setM] = useState('')
   const g = precio - costo
   return (
-    <div className="grid gap-3 rounded-xl bg-fg/5 p-3 text-sm sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 rounded-xl bg-fg/5 p-3 text-sm sm:grid-cols-3">
       <div><div className="text-xs text-muted">Ganancia por unidad</div><b className={cx('tnum', g < 0 && 'text-peligro')}>{money(g)}</b></div>
       <div><div className="text-xs text-muted">Margen</div><b className="tnum">{pct(precio ? g / precio : 0, 1)}</b></div>
       <Campo label="Margen que quiere (%)"><input className="inp" inputMode="decimal" placeholder="Ej. 50" value={m}
@@ -123,7 +123,7 @@ export default function TabInventario() {
 
       <Modal abierto={!!nuevo} onClose={() => setNuevo(null)} titulo="Agregar inventario" ancho="max-w-2xl">
         {nuevo && <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Campo label="Código (único)"><input className="inp uppercase" placeholder="CAM-001" value={nuevo.sku} onChange={(e) => setNuevo({ ...nuevo, sku: e.target.value })} /></Campo>
             <div className="sm:col-span-2"><Campo label="Nombre del producto"><input className="inp" placeholder="Camiseta negra talla M" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} /></Campo></div>
             <Campo label="Categoría"><input className="inp" list="categoriasNegocio" placeholder={perfilDe(empresa.sector).categorias[0]} value={nuevo.categoria} onChange={(e) => setNuevo({ ...nuevo, categoria: e.target.value })} /></Campo>
@@ -144,7 +144,7 @@ export default function TabInventario() {
       <Modal abierto={!!precio} onClose={() => setPrecio(null)} titulo="Agregar precio" ancho="max-w-xl">
         {precio && <div className="space-y-4">
           <Campo label="Producto"><select className="inp" value={precio.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value); if (p) setPrecio(p) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.nombre}</option>)}</select></Campo>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Costo unitario"><NumInput step={0.01} min={0} value={precio.costo} onChange={(v) => setPrecio({ ...precio, costo: v })} /></Campo>
             <Campo label="Precio de venta"><NumInput step={0.01} min={0} value={precio.precio} onChange={(v) => setPrecio({ ...precio, precio: v })} /></Campo>
           </div>

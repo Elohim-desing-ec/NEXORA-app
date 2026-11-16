@@ -39,7 +39,48 @@
   --oro: 210 210 220; --oro-viejo: 190 190 200; --bronce: 150 150 162; --champan: 236 236 242; }
 
 html, body, #root { height: 100%; }
-body { @apply font-sans text-fg antialiased; background: linear-gradient(160deg, var(--bg1), var(--bg2)); background-attachment: fixed; }
+/* iPhone en horizontal no agranda el texto por su cuenta */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* El degradado de fondo va en una capa fija: iPhone no soporta bien background-attachment: fixed.
+   overflow-x: clip evita que una animación cree desplazamiento lateral sin romper los encabezados fijos. */
+body { @apply font-sans text-fg antialiased; background: var(--bg2); overflow-x: clip; -webkit-tap-highlight-color: transparent; }
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(160deg, var(--bg1), var(--bg2)); }
+/* Toques inmediatos (sin la espera del doble toque) */
+a, button, [role="button"], [role="tab"], label, summary { touch-action: manipulation; }
+/* Pantallas táctiles: los campos de 16 px evitan que el iPhone haga zoom al escribir */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea { font-size: 16px !important; }
+}
+/* Alto de pantalla que respeta la barra de direcciones del celular (100vh en navegadores antiguos) */
+.alto-pantalla { height: 100vh; height: 100svh; }
+.alto-panel { height: min(560px, calc(100vh - 8rem)); height: min(560px, calc(100dvh - 8rem)); }
+/* Barras de desplazamiento ocultas (pestañas deslizables) y difuminado que indica que hay más contenido */
+.sin-barra { scrollbar-width: none; } .sin-barra::-webkit-scrollbar { display: none; }
+.mas-derecha { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.mas-izquierda { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+.mas-izquierda.mas-derecha { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+
+/* ───────── Tablas en el celular: cada fila se muestra como una tarjeta «Columna: valor» ─────────
+   El componente <Scroll> pone la etiqueta de cada celda (data-label) a partir del encabezado. */
+@media (max-width: 639px) {
+  .tabla-movil { overflow-x: visible !important; margin-inline: 0 !important; padding-inline: 0 !important; }
+  .tabla-movil table, .tabla-movil tbody, .tabla-movil tfoot, .tabla-movil tr, .tabla-movil td, .tabla-movil tbody th { display: block; width: 100%; }
+  .tabla-movil thead { display: none; }
+  .tabla-movil tr { margin-bottom: .625rem; padding: .625rem .75rem; border: 1px solid rgb(var(--fg) / .08); border-radius: .875rem; background: rgb(var(--fg) / .03); }
+  .tabla-movil tr:last-child { margin-bottom: 0; }
+  .tabla-movil td, .tabla-movil tbody th { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; padding: .3rem 0 !important;
+    border: 0 !important; white-space: normal !important; text-align: right !important; overflow-wrap: anywhere; min-height: 1.75rem; }
+  .tabla-movil td::before, .tabla-movil tbody th::before { content: attr(data-label); flex: 0 0 auto; max-width: 48%; text-align: left; font-size: .75rem; font-weight: 500; color: rgb(var(--muted)); }
+  .tabla-movil td[data-label=""]::before, .tabla-movil tbody th[data-label=""]::before { display: none; }
+  .tabla-movil td[data-label=""] { justify-content: flex-end; }
+  .tabla-movil td:first-child, .tabla-movil tbody th:first-child { font-weight: 600; }
+  .tabla-movil td > * { min-width: 0; }
+  .tabla-movil td input, .tabla-movil td select { max-width: 60%; }
+  .tabla-movil tbody tr:hover { background: rgb(var(--fg) / .03); }
+  .tabla-movil td:empty { display: none; }
+  /* Botones de las tablas con tamaño cómodo para el dedo */
+  .tabla-movil td button { padding: .55rem !important; }
+}
 .tnum { font-variant-numeric: tabular-nums; }
 
 @layer components {

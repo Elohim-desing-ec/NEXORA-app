@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeftRight, Barcode, FileSpreadsheet, History, Pencil, Plus, Printer, Search, Trash2, PackageMinus } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import JsBarcode from 'jsbarcode'
@@ -41,6 +41,18 @@ export default function Productos() {
   const exportar = (f: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', 'Costo', 'Precio', ...SUCURSALES.map((x) => x.id), 'Total', 'Valor', 'Lote', 'Vence'], lista.map((p) => [p.sku, p.nombre, p.categoria, money(p.costo), money(p.precio), ...SUCURSALES.map((x) => p.stock[x.id] ?? 0), stockTotal(p), money(stockTotal(p) * p.costo), p.lote, p.vence]), f)
   const set = (k: keyof Producto, v: unknown) => edit && setEdit({ ...edit, [k]: v })
 
+  /** Botones de cada producto (tabla en pantallas anchas y tarjeta en el celular). */
+  const acciones = (p: Producto) => <>
+    <Button variante="fantasma" className="!p-1.5" title="Kardex" onClick={() => setKx({ p, s: 'TODAS' })}><History size={15} /></Button>
+    <Button variante="fantasma" className="!p-1.5" title="Código de barras / QR" onClick={() => setCodigo(p)}><Barcode size={15} /></Button>
+    {!soloLectura && <>
+      <Button variante="fantasma" className="!p-1.5" title="Transferir" onClick={() => setTrans({ p, de: SUCURSALES[0]?.id ?? '', a: SUCURSALES[1]?.id ?? SUCURSALES[0]?.id ?? '', cant: 1 })}><ArrowLeftRight size={15} /></Button>
+      <Button variante="fantasma" className="!p-1.5" title="Registrar venta, compra, ajuste o merma" onClick={() => setAj({ p, s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: p.costo })}><PackageMinus size={15} /></Button>
+      <Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => setEdit(structuredClone(p))}><Pencil size={15} /></Button>
+      <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => confirm(`¿Eliminar ${p.nombre}?`) && eliminarProducto(p.id)}><Trash2 size={15} /></Button>
+    </>}
+  </>
+
   return (
     <div className="space-y-5">
       <Titulo titulo="Productos e inventario" sub={`${productos.length} productos · ${new Set(productos.map((p) => p.categoria)).size} categorías · ${SUCURSALES.length} sucursales${cols.length < SUCURSALES.length ? ' (elija una sucursal arriba para ver su columna)' : ''}`}>
@@ -53,7 +65,25 @@ export default function Productos() {
           <div className="relative min-w-[220px] flex-1"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input className="inp pl-9" placeholder="Buscar por SKU, nombre o lote…" value={q} onChange={(e) => { setQ(e.target.value); setPag(0) }} /></div>
           <select className="inp !w-auto" value={cat} onChange={(e) => { setCat(e.target.value); setPag(0) }}><option>Todas</option>{categorias.map((c) => <option key={c}>{c}</option>)}</select>
         </div>
-        <Scroll><table className="tabla">
+        {/* Celular: cada producto como tarjeta (la tabla completa tiene demasiadas columnas) */}
+        <ul className="space-y-2 sm:hidden">{lista.slice(pag * POR_PAG, (pag + 1) * POR_PAG).map((p) => {
+          const t = stockTotal(p), vence = (new Date(p.vence).getTime() - Date.now()) / 864e5
+          return <li key={p.id} className="rounded-xl border border-fg/10 bg-fg/[.03] p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0"><div className="font-medium leading-snug">{p.nombre}</div><div className="mt-0.5 text-xs text-muted"><span className="font-mono">{p.sku}</span> · {p.categoria}</div></div>
+              {enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}
+            </div>
+            <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
+              <div><div className="text-muted">Stock</div><div className="font-semibold tnum">{num(t, 0)} u</div></div>
+              <div><div className="text-muted">Precio</div><div className="tnum">{money(p.precio)}</div></div>
+              <div><div className="text-muted">Costo</div><div className="tnum">{money(p.costo)}</div></div>
+            </div>
+            {cols.length > 1 && <div className="mt-2 text-[11px] text-muted tnum">{cols.map((s) => <span key={s} className={(p.stock[s] ?? 0) < p.min / 3 ? 'font-semibold text-peligro' : ''}>{s}: {p.stock[s] ?? 0}</span>).reduce<ReactNode[]>((a, x, k) => (k ? [...a, ' · ', x] : [x]), [])}</div>}
+            {p.vence && <div className={`mt-1 text-[11px] ${vence < 60 ? 'text-alerta' : 'text-muted'}`}>Vence: {fecha(p.vence)}</div>}
+            <div className="mt-2 flex flex-wrap justify-end gap-1 border-t border-fg/10 pt-2 [&_button]:!p-2.5">{acciones(p)}</div>
+          </li>
+        })}</ul>
+        <div className="hidden sm:block"><Scroll><table className="tabla">
           <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th className="num">Costo</th><th className="num">Precio</th>{cols.map((s) => <th key={s} className="num">{s}</th>)}<th className="num">Total</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
           <tbody>{lista.slice(pag * POR_PAG, (pag + 1) * POR_PAG).map((p) => {
             const t = stockTotal(p), vence = (new Date(p.vence).getTime() - Date.now()) / 864e5
@@ -63,23 +93,14 @@ export default function Productos() {
               {cols.map((s) => <td key={s} className={`num ${(p.stock[s] ?? 0) < p.min / 3 ? 'text-peligro font-semibold' : ''}`}>{p.stock[s] ?? 0}</td>)}
               <td className="num font-semibold">{t}</td><td className={vence < 60 ? 'text-alerta' : 'text-muted'}>{fecha(p.vence)}</td>
               <td>{enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}</td>
-              <td><div className="flex gap-0.5">
-                <Button variante="fantasma" className="!p-1.5" title="Kardex" onClick={() => setKx({ p, s: 'TODAS' })}><History size={15} /></Button>
-                <Button variante="fantasma" className="!p-1.5" title="Código de barras / QR" onClick={() => setCodigo(p)}><Barcode size={15} /></Button>
-                {!soloLectura && <>
-                  <Button variante="fantasma" className="!p-1.5" title="Transferir" onClick={() => setTrans({ p, de: SUCURSALES[0]?.id ?? '', a: SUCURSALES[1]?.id ?? SUCURSALES[0]?.id ?? '', cant: 1 })}><ArrowLeftRight size={15} /></Button>
-                  <Button variante="fantasma" className="!p-1.5" title="Registrar venta, compra, ajuste o merma" onClick={() => setAj({ p, s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: p.costo })}><PackageMinus size={15} /></Button>
-                  <Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => setEdit(structuredClone(p))}><Pencil size={15} /></Button>
-                  <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => confirm(`¿Eliminar ${p.nombre}?`) && eliminarProducto(p.id)}><Trash2 size={15} /></Button>
-                </>}
-              </div></td>
+              <td><div className="flex gap-0.5">{acciones(p)}</div></td>
             </tr>
           })}</tbody>
-        </table></Scroll>
+        </table></Scroll></div>
         {lista.length > POR_PAG && <div className="mt-3 flex items-center justify-between text-xs text-muted"><span>{pag * POR_PAG + 1}–{Math.min(lista.length, (pag + 1) * POR_PAG)} de {lista.length} productos</span><div className="flex gap-1"><Button className="!py-1" disabled={pag === 0} onClick={() => setPag(pag - 1)}>Anterior</Button><Button className="!py-1" disabled={(pag + 1) * POR_PAG >= lista.length} onClick={() => setPag(pag + 1)}>Siguiente</Button></div></div>}
         {!lista.length && <p className="py-10 text-center text-sm text-muted">{productos.length ? 'Ningún producto coincide con la búsqueda.' : 'Aún no hay productos. Pulse "Nuevo producto" o importe un Excel en Configuración → Mis datos.'}</p>}
       </Card>
-      <div className="grid gap-4 lg:grid-cols-3">{([
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">{([
         ['En quiebre', 'Menos de un tercio del mínimo', productos.filter((p) => enQuiebre(p, sucursal)), 'rojo'],
         ['Sobrestock', 'Más de 3 veces el máximo', productos.filter((p) => stockTotal(p, sucursal) > p.max * 3), 'ambar'],
         ['Por vencer', 'Vence en los próximos 60 días', productos.filter((p) => stockTotal(p, sucursal) > 0 && p.vence && new Date(p.vence + 'T12:00:00').getTime() - Date.now() < 60 * 864e5).sort((a, b) => a.vence.localeCompare(b.vence)), 'violeta'],
@@ -96,7 +117,7 @@ export default function Productos() {
       </Card>
 
       <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={productos.some((x) => x.id === edit?.id) ? 'Editar producto' : 'Nuevo producto'}>
-        {edit && <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!edit.sku || !edit.nombre) return alert('SKU y nombre son obligatorios'); if (edit.min > edit.max) return alert('El mínimo no puede superar al máximo'); guardarProducto(edit); setEdit(null) }}>
+        {edit && <form className="grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!edit.sku || !edit.nombre) return alert('SKU y nombre son obligatorios'); if (edit.min > edit.max) return alert('El mínimo no puede superar al máximo'); guardarProducto(edit); setEdit(null) }}>
           <Campo label="SKU"><input className="inp" value={edit.sku} onChange={(e) => set('sku', e.target.value)} /></Campo>
           <Campo label="Nombre"><input className="inp" value={edit.nombre} onChange={(e) => set('nombre', e.target.value)} /></Campo>
           <Campo label="Categoría" ayuda="Elija una o escriba una nueva"><input className="inp" list="cats" value={edit.categoria} onChange={(e) => set('categoria', e.target.value)} /><datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist></Campo>
@@ -152,8 +173,8 @@ export default function Productos() {
         {kx && <div className="space-y-3">
           <div className="flex flex-wrap gap-2"><select className="inp !w-auto" value={kx.s} onChange={(e) => setKx({ ...kx, s: e.target.value as SucursalId })}><option value="TODAS">Consolidado</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
             <Button onClick={() => exportarTabla(`Kardex_${kx.p.sku}`, ['Fecha', 'Tipo', 'Suc.', 'Entrada', 'Salida', 'Costo unit.', 'Saldo', 'CPP', 'Valor'], filasK.map((f) => [fechaHora(f.fecha), f.tipo, f.sucursal, f.entrada, f.salida, num(f.costoUnit, 4), f.saldo, num(f.cpp, 4), money(f.valor)]), 'xlsx')}><FileSpreadsheet size={15} />Excel</Button></div>
-          <div className="max-h-[60vh] overflow-auto"><table className="tabla"><thead className="sticky top-0 bg-[var(--bg2)]"><tr><th>Fecha</th><th>Tipo</th><th>Suc.</th><th className="num">Entrada</th><th className="num">Salida</th><th className="num">Costo unit.</th><th className="num">Saldo</th><th className="num">Costo prom.</th><th className="num">Valor</th><th>Usuario</th></tr></thead>
-            <tbody>{filasK.slice().reverse().map((f, k) => <tr key={k}><td>{fechaHora(f.fecha)}</td><td>{f.tipo}</td><td>{f.sucursal}</td><td className="num text-exito">{f.entrada || ''}</td><td className="num text-peligro">{f.salida || ''}</td><td className="num">{money(f.costoUnit)}</td><td className="num font-semibold">{f.saldo}</td><td className="num">{num(f.cpp, 4)}</td><td className="num">{money(f.valor)}</td><td className="text-muted">{f.usuario}</td></tr>)}</tbody></table></div>
+          <div className="max-h-[60vh] overflow-auto"><Scroll><table className="tabla"><thead className="sticky top-0 bg-[var(--bg2)]"><tr><th>Fecha</th><th>Tipo</th><th>Suc.</th><th className="num">Entrada</th><th className="num">Salida</th><th className="num">Costo unit.</th><th className="num">Saldo</th><th className="num">Costo prom.</th><th className="num">Valor</th><th>Usuario</th></tr></thead>
+            <tbody>{filasK.slice().reverse().map((f, k) => <tr key={k}><td>{fechaHora(f.fecha)}</td><td>{f.tipo}</td><td>{f.sucursal}</td><td className="num text-exito">{f.entrada || ''}</td><td className="num text-peligro">{f.salida || ''}</td><td className="num">{money(f.costoUnit)}</td><td className="num font-semibold">{f.saldo}</td><td className="num">{num(f.cpp, 4)}</td><td className="num">{money(f.valor)}</td><td className="text-muted">{f.usuario}</td></tr>)}</tbody></table></Scroll></div>
         </div>}
       </Modal>
     </div>

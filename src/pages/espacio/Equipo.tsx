@@ -109,12 +109,12 @@ export default function Equipo() {
           <Avatar u={u} tam={34} /><div className="leading-tight"><div className="text-sm font-semibold">{u.nombre.split(' ').slice(0, 2).join(' ')}</div><div className="text-[10px] text-muted">{u.cargo || u.rol}</div></div>
         </motion.button>))}</div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           {/* Historial de tareas (tarjetas de color) */}
           <section className="glass p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">Tareas de {sel.nombre.split(' ')[0]}</h3><span className="text-xs text-muted">{suyas.length} en total</span></div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <AnimatePresence mode="popLayout">{suyas.slice(0, 6).map((t, k) => { const fondo = COLORES_TAREA[t.color] || '#D9D3BF'; return (
                 <motion.div key={t.id} layout initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94 }} transition={{ delay: k * 0.04, duration: 0.45, ease: suave }} whileHover={{ y: -4, rotate: -0.4 }}
                   className="relative flex min-h-[130px] flex-col rounded-3xl p-4 text-stone-900 shadow-[0_18px_40px_-20px_rgba(0,0,0,.7)]" style={{ background: fondo }}>
@@ -125,7 +125,7 @@ export default function Equipo() {
               {!suyas.length && <p className="col-span-full rounded-2xl border border-dashed border-fg/15 p-6 text-center text-sm text-muted">Sin tareas asignadas. Asígnele una desde el Tablero.</p>}
             </div>
           </section>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {/* Agenda del mes */}
             <section className="glass p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">Agenda de tareas</h3>
@@ -186,7 +186,7 @@ export default function Equipo() {
       <section className="glass p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">Clientes y contactos <span className="text-sm font-normal text-muted">({clientes.length})</span></h3>
           <Button className="text-xs" onClick={() => setCliente({ id: crypto.randomUUID(), nombre: '', email: '', telefono: '', empresa: '', nota: '' })}><Plus size={13} />Nuevo cliente</Button></div>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{clientes.map((c) => (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{clientes.map((c) => (
           <div key={c.id} className="flex items-center gap-3 rounded-2xl bg-fg/5 p-3 ring-1 ring-fg/5"><Avatar u={{ nombre: c.nombre }} tam={36} />
             <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{c.nombre}</div><div className="truncate text-[11px] text-muted">{[c.empresa, c.email || c.telefono].filter(Boolean).join(' · ') || 'Sin datos de contacto'}</div></div>
             <div className="flex gap-1">{c.email && <button title="Gmail" onClick={() => abrir(urlGmail([c.email], '', `Hola ${c.nombre.split(' ')[0]}:\n\n`))} className="rounded-lg p-1.5 hover:bg-fg/10"><Mail size={14} /></button>}
@@ -203,7 +203,7 @@ export default function Equipo() {
           <div className="flex items-center gap-4"><Avatar u={perfil} tam={72} />
             <div className="flex flex-wrap gap-2"><label className="cursor-pointer"><span className="inline-flex items-center gap-2 rounded-xl border border-fg/10 bg-fg/5 px-3.5 py-2 text-sm hover:bg-fg/10"><Upload size={14} />Subir foto</span><input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) setPerfil({ ...perfil, foto: await leerFoto(f) }) }} /></label>
               {perfil.foto && <Button onClick={() => setPerfil({ ...perfil, foto: undefined })}>Quitar foto</Button>}</div></div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label="Nombres"><input className="inp" value={perfil.nombres ?? ''} onChange={(e) => setPerfil({ ...perfil, nombres: e.target.value })} /></Campo>
             <Campo label="Apellidos"><input className="inp" value={perfil.apellidos ?? ''} onChange={(e) => setPerfil({ ...perfil, apellidos: e.target.value })} /></Campo>
             <Campo label="Correo"><input className="inp" type="email" value={perfil.email} onChange={(e) => setPerfil({ ...perfil, email: e.target.value })} /></Campo>
@@ -213,7 +213,7 @@ export default function Equipo() {
           <Campo label="Sucursales donde trabaja (vacío = todas)"><div className="flex flex-wrap gap-2">{sucursales.map((s) => { const si = perfil.sucursales?.includes(s.id); return (
             <button key={s.id} type="button" onClick={() => setPerfil({ ...perfil, sucursales: si ? perfil.sucursales!.filter((x) => x !== s.id) : [...(perfil.sucursales ?? []), s.id] })} className={cx('rounded-full border px-3 py-1 text-xs transition', si ? 'border-primario/60 bg-primario/15' : 'border-fg/10 hover:bg-fg/5')}>{s.id} · {s.ciudad}</button>) })}</div></Campo>
           <div><div className="mb-2 text-xs font-medium text-muted">Redes y mensajería</div>
-            <div className="grid gap-2 sm:grid-cols-2">{REDES.map((r) => <label key={r.k} className="flex items-center gap-2"><Marca slug={r.slug} tam={32} /><input className="inp" placeholder={`${r.nombre}: ${r.ayuda}`} value={perfil.redes?.[r.k] ?? ''} onChange={(e) => setPerfil({ ...perfil, redes: { ...perfil.redes, [r.k]: e.target.value } })} /></label>)}</div></div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{REDES.map((r) => <label key={r.k} className="flex items-center gap-2"><Marca slug={r.slug} tam={32} /><input className="inp" placeholder={`${r.nombre}: ${r.ayuda}`} value={perfil.redes?.[r.k] ?? ''} onChange={(e) => setPerfil({ ...perfil, redes: { ...perfil.redes, [r.k]: e.target.value } })} /></label>)}</div></div>
           {errP && <p className="text-sm text-peligro">{errP}</p>}
           <div className="flex justify-end gap-2"><Button onClick={() => setPerfil(null)}>Cancelar</Button><Button variante="primario" onClick={guardarPerfil}>Guardar perfil</Button></div>
         </div>}

@@ -47,7 +47,7 @@ function Usuarios() {
         </div>
         <div>
           <div className="mb-1.5 flex items-baseline justify-between"><span className="text-xs font-medium text-muted">Roles (hasta {MAX_ROLES}, según lo que hace la persona)</span><span className="text-[11px] text-muted">{rolesDe(edit).length}/{MAX_ROLES}</span></div>
-          <div className="grid max-h-64 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">{ROLES.map((r) => { const si = rolesDe(edit).includes(r), lleno = !si && rolesDe(edit).length >= MAX_ROLES; return (
+          <div className="grid grid-cols-1 max-h-64 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">{ROLES.map((r) => { const si = rolesDe(edit).includes(r), lleno = !si && rolesDe(edit).length >= MAX_ROLES; return (
             <button key={r} type="button" disabled={lleno} onClick={() => setEdit(alternar(edit, r))} className={cx('rounded-xl border px-3 py-2 text-left transition disabled:opacity-35', si ? 'border-primario/60 bg-primario/10' : 'border-fg/10 hover:bg-fg/5')}>
               <div className="flex items-center justify-between gap-2 text-sm font-semibold">{r}{si && <span className="rounded-full bg-gradient-to-r from-primario to-violeta px-1.5 text-[9px] font-bold text-black">{edit.rol === r ? 'PRINCIPAL' : 'ADICIONAL'}</span>}</div>
               <div className="text-[11px] text-muted">{DESCRIPCION_ROL[r]}</div></button>) })}</div>
@@ -63,7 +63,7 @@ function Usuarios() {
 
 export function FormEmpresa({ e, setE }: { e: Empresa; setE: (e: Empresa) => void }) {
   const p = pais(e.pais)
-  return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
     <Campo label="Razón social"><input className="inp" value={e.nombre} onChange={(x) => setE({ ...e, nombre: x.target.value })} placeholder="Ej.: Distribuidora Pacífico S.A." /></Campo>
     <Campo label="País (sede principal)"><select className="inp" value={e.pais} onChange={(x) => { const n = pais(x.target.value); setE({ ...e, pais: x.target.value, moneda: n?.moneda ?? e.moneda }) }}>{PAISES.map((q) => <option key={q.codigo} value={q.codigo}>{bandera(q.codigo)} {q.nombre}</option>)}</select></Campo>
     <Campo label="Moneda de la empresa" ayuda="Costos, precios y reportes"><select className="inp" value={e.moneda} onChange={(x) => setE({ ...e, moneda: x.target.value })}>{MONEDAS.map((m) => <option key={m} value={m}>{m} ({SIMBOLOS[m]})</option>)}</select></Campo>
@@ -87,7 +87,7 @@ function EmpresaTab() {
       <p className="mt-3 text-xs text-muted">El nombre aparece en el menú y en el membrete de los reportes. La moneda se usa en todo el sistema.</p>
     </Card>
     <Card titulo={`Red de sucursales · ${sucursales.length} en ${paises} ${paises === 1 ? 'país' : 'países'}`} accion={<Button variante="primario" onClick={() => { setErr(''); setEd({ v: sucursalVacia(empresa.pais) }) }}><Plus size={15} />Agregar sucursal</Button>}>
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <Suspense fallback={<div className="espacio h-[380px] rounded-xl xl:col-span-2" />}><Globo className="h-[380px] xl:col-span-2" seleccion={sel} onSeleccion={setSel} puntos={sucursales.map((x) => ({ id: x.id, nombre: `${x.id} · ${x.nombre}`, lat: x.lat, lng: x.lng, valor: valorInventario(productos, x.id) + 1, detalle: `${x.tipo} · ${x.ciudad}, ${pais(x.pais)?.nombre ?? x.pais}` }))} /></Suspense>
         <div className="min-w-0 xl:col-span-3"><Scroll><table className="tabla"><thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th className="num">Inventario</th><th /></tr></thead>
           <tbody>{sucursales.map((x) => <tr key={x.id} className={cx(sel === x.id && 'bg-primario/10')} onClick={() => setSel(x.id)}>
@@ -119,9 +119,9 @@ function Datos() {
     else if (r === 'invalido') alert('El archivo no es un respaldo válido de NEXORA.')
   }
   return <>
-    <Card titulo="Estado actual"><div className="grid gap-3 text-sm sm:grid-cols-3">{[['Productos', productos.length], ['Movimientos', movimientos.length], ['Valor del inventario', money(valorInventario(productos), 0)]].map(([a, b]) => <div key={a} className="rounded-xl bg-fg/5 p-3"><div className="text-xs text-muted">{a}</div><div className="text-xl font-bold tnum">{b}</div></div>)}</div>
+    <Card titulo="Estado actual"><div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">{[['Productos', productos.length], ['Movimientos', movimientos.length], ['Valor del inventario', money(valorInventario(productos), 0)]].map(([a, b]) => <div key={a} className="rounded-xl bg-fg/5 p-3"><div className="text-xs text-muted">{a}</div><div className="text-xl font-bold tnum">{b}</div></div>)}</div>
       {msg && <p className="mt-3 rounded-lg bg-exito/10 p-3 text-sm text-exito">{msg}</p>}</Card>
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <Card hover titulo={<span className="flex items-center gap-2"><FileUp size={15} className="text-cian" />Cargar productos desde Excel</span>}>
         <p className="mb-3 text-sm text-muted">Descargue la plantilla, llénela con sus productos (una fila por producto) e impórtela. Acepta .xlsx, .xls y .csv. Si el SKU ya existe, se actualiza.</p>
         <div className="flex flex-wrap gap-2"><Button disabled={!sucursales.length} onClick={() => descargarPlantilla(sucursales)}><Download size={15} />Plantilla</Button><Button variante="primario" onClick={() => archivo.current?.click()}><FileUp size={15} />Importar Excel</Button></div>
@@ -145,8 +145,8 @@ function Datos() {
       {prev && <div className="space-y-3">
         <div className="flex flex-wrap gap-2"><Badge tono="verde">{prev.filas.length} filas válidas</Badge>{prev.errores.length > 0 && <Badge tono="rojo">{prev.errores.length} con errores</Badge>}</div>
         {prev.errores.length > 0 && <ul className="max-h-24 overflow-auto rounded-lg bg-peligro/10 p-2 text-xs text-peligro">{prev.errores.map((e) => <li key={e}>{e}</li>)}</ul>}
-        <div className="max-h-[50vh] overflow-auto"><table className="tabla"><thead><tr><th>SKU</th><th>Nombre</th><th>Categoría</th><th className="num">Costo</th><th className="num">Precio</th>{sucursales.map((x) => <th key={x.id} className="num">{x.id}</th>)}<th>Vence</th><th /></tr></thead>
-          <tbody>{prev.filas.map((f) => <tr key={f.sku}><td className="font-mono text-xs">{f.sku}</td><td>{f.nombre}</td><td>{f.categoria}</td><td className="num">{money(f.costo)}</td><td className="num">{money(f.precio)}</td>{sucursales.map((x) => <td key={x.id} className="num">{f.stock[x.id] ?? 0}</td>)}<td>{f.vence}</td><td>{productos.some((p) => p.sku.toLowerCase() === f.sku.toLowerCase()) ? <Badge tono="ambar">Actualiza</Badge> : <Badge tono="verde">Nuevo</Badge>}</td></tr>)}</tbody></table></div>
+        <div className="max-h-[50vh] overflow-auto"><Scroll><table className="tabla"><thead><tr><th>SKU</th><th>Nombre</th><th>Categoría</th><th className="num">Costo</th><th className="num">Precio</th>{sucursales.map((x) => <th key={x.id} className="num">{x.id}</th>)}<th>Vence</th><th /></tr></thead>
+          <tbody>{prev.filas.map((f) => <tr key={f.sku}><td className="font-mono text-xs">{f.sku}</td><td>{f.nombre}</td><td>{f.categoria}</td><td className="num">{money(f.costo)}</td><td className="num">{money(f.precio)}</td>{sucursales.map((x) => <td key={x.id} className="num">{f.stock[x.id] ?? 0}</td>)}<td>{f.vence}</td><td>{productos.some((p) => p.sku.toLowerCase() === f.sku.toLowerCase()) ? <Badge tono="ambar">Actualiza</Badge> : <Badge tono="verde">Nuevo</Badge>}</td></tr>)}</tbody></table></Scroll></div>
         <div className="flex justify-end gap-2"><Button onClick={() => setPrev(null)}>Cancelar</Button><Button variante="primario" disabled={!prev.filas.length} onClick={() => { const r = importarProductos(prev.filas); setPrev(null); setMsg(`Importación lista: ${r.nuevos} productos nuevos y ${r.actualizados} actualizados. Cada uno quedó con su "Saldo inicial" en el kardex.`) }}>Importar {prev.filas.length} productos</Button></div>
       </div>}
     </Modal>
@@ -175,7 +175,7 @@ function Temas() {
     <Card titulo="Temas de color" accion={<div className="flex rounded-full border border-fg/10 bg-fg/5 p-0.5 text-xs">{(['oscuro', 'claro'] as const).map((m) => <button key={m} onClick={() => setTema(m)} className={cx('rounded-full px-3 py-1 capitalize transition', tema === m ? 'bg-gradient-to-r from-primario to-violeta font-semibold text-black' : 'text-muted hover:text-fg')}>Modo {m}</button>)}</div>}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-fg/5 p-3 text-sm"><span><b>App de escritorio:</b> instale NEXORA en esta computadora para abrirla con su propio ícono, en su propia ventana y sin internet.</span><InstalarApp /></div>
       <p className="mb-4 text-sm text-muted">Solo cambian los colores: el diseño, las letras y las animaciones quedan iguales. El tema se guarda para <b className="text-fg">su usuario</b>: cada persona que ingresa ve el suyo (lo cambia con el botón de paleta de la barra superior).</p>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{TEMAS.map((x) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{TEMAS.map((x) => (
         <button key={x.id} onClick={() => setTemaColor(x.id)} className={cx('glass glass-hover p-3 text-left', actual === x.id && 'ring-2 ring-primario')}>
           <MuestraTema id={x.id} grande />
           <div className="mt-3 flex items-center justify-between gap-2"><span className="font-semibold">{x.nombre}</span>{actual === x.id ? <Badge tono="azul"><Check size={11} />En uso</Badge> : <span className="text-xs text-primario">Usar</span>}</div>

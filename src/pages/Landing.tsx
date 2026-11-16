@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, useInView, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, Bot, Check, Brain, FileBarChart2, Globe2, LineChart, ScanBarcode, ShieldCheck, Sparkles, TrendingDown, Workflow } from 'lucide-react'
+import { ArrowRight, Bot, Check, Brain, Menu, X, FileBarChart2, Globe2, LineChart, ScanBarcode, ShieldCheck, Sparkles, TrendingDown, Workflow } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { Horizonte } from '../components/Horizonte'
 import { Fondo } from '../components/Layout'
@@ -35,7 +35,7 @@ function Maqueta({ K, caue, nOpt }: { K: ReturnType<typeof F.indicadores>; caue:
   return (
     <div className="overflow-hidden rounded-2xl border border-primario/25 bg-[#070604]/95 shadow-[0_40px_120px_-30px_rgb(var(--t-oro)/.45)]">
       <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3"><Logo size={22} /><div className="ml-6 hidden gap-5 text-[11px] text-stone-400 sm:flex">{['Dashboard', tx('Red global', 'Global network', 'Rede global'), tx('Inventario', 'Inventory', 'Estoque'), tx('Compras', 'Purchasing', 'Compras'), tx('Reportes', 'Reports', 'Relatórios')].map((t, k) => <span key={t} className={k === 0 ? 'text-amber-200' : ''}>{t}</span>)}</div><div className="ml-auto h-6 w-6 rounded-full bg-gradient-to-br from-amber-200 to-amber-700" /></div>
-      <div className="grid gap-3 p-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-4">
         {[[tx('Ahorro anual', 'Annual savings', 'Economia anual'), money(K.A, 0)], [tx('VPN (5 años)', 'NPV (5 years)', 'VPL (5 anos)'), money(K.VPN, 0)], [tx('TIR', 'IRR', 'TIR'), `${num(K.TIR * 100, 1)} %`], [tx('Recuperación', 'Payback', 'Retorno'), `${num(K.recSimple)} ${tx('años', 'years', 'anos')}`]].map(([t, v]) => <div key={t} className="rounded-xl border border-white/5 bg-white/[.03] p-3"><div className="text-[10px] text-stone-400">{t}</div><div className="mt-1 font-display text-lg font-semibold text-amber-100">{v}</div></div>)}
         <div className="rounded-xl border border-white/5 bg-white/[.03] p-3 sm:col-span-3"><div className="mb-3 flex justify-between text-[10px] text-stone-400"><span>{tx('CAUE de NEXORA según años de uso', 'NEXORA EUAC by years of use', 'CAUE do NEXORA por anos de uso')}</span><span className="text-amber-200">{tx('Mínimo en', 'Minimum at', 'Mínimo em')} n = {nOpt} → {tx('vida útil económica', 'economic life', 'vida útil econômica')}</span></div>
           <div className="flex h-28 items-end gap-1.5">{caue.map((v, k) => <motion.div key={k} title={money(v)} className={cx('flex-1 rounded-t bg-gradient-to-t', k + 1 === nOpt ? 'from-amber-600 via-amber-200 to-white shadow-[0_0_20px_rgb(var(--t-claro)/.8)]' : 'from-amber-900 via-violeta to-primario')} initial={{ height: 0 }} whileInView={{ height: `${25 + ((v - min) / (max - min || 1)) * 75}%` }} viewport={{ once: true }} transition={{ delay: 0.3 + k * 0.05, duration: 0.8, ease: suave }} />)}</div></div>
@@ -74,6 +74,9 @@ export default function Landing() {
   const p = PROYECTO
   const tx = useTx(), idioma = useIdioma((s) => s.idioma)
   const [periodo, setPeriodo] = useState<Periodo>('mensual')
+  const [menu, setMenu] = useState(false)
+  const secciones = [[tx('Funciones', 'Features', 'Funcionalidades'), '#funciones'], [tx('Objetivos', 'Goals', 'Objetivos'), '#objetivos'], [tx('Inversión', 'Investment', 'Investimento'), '#inversion'], [tx('Economía', 'Economics', 'Economia'), '#economia'], [tx('Cómo empezar', 'Get started', 'Como começar'), '#empezar']]
+  const irA = (h: string) => { setMenu(false); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }) }
   const K = F.indicadores(p), R = F.reemplazo(p)
   const { planes } = usePlanes()
   // #/planes (desde Ingresar o Comprar): baja directo a los planes
@@ -95,17 +98,23 @@ export default function Landing() {
     <div className="relative min-h-full overflow-x-clip"><Fondo />
       {/* Navegación */}
       <motion.nav className="fixed inset-x-0 top-0 z-40 border-b border-primario/10 bg-black/40 backdrop-blur-xl" initial={{ y: -80 }} animate={{ y: 0 }} transition={{ delay: 0.2, duration: 0.8, ease: suave }}>
-        <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3 sm:px-6"><Logo size={30} />
-          <div className="ml-6 hidden gap-6 text-sm text-muted md:flex">{[[tx('Funciones', 'Features', 'Funcionalidades'), '#funciones'], [tx('Objetivos', 'Goals', 'Objetivos'), '#objetivos'], [tx('Inversión', 'Investment', 'Investimento'), '#inversion'], [tx('Economía', 'Economics', 'Economia'), '#economia'], [tx('Cómo empezar', 'Get started', 'Como começar'), '#empezar']].map(([t, h]) => <a key={t} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }) }} className="transition hover:text-fg">{t}</a>)}</div>
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6 sm:px-6"><Logo size={30} />
+          <div className="ml-6 hidden gap-6 text-sm text-muted md:flex">{secciones.map(([t, h]) => <a key={t} href={h} onClick={(e) => { e.preventDefault(); irA(h) }} className="transition hover:text-fg">{t}</a>)}</div>
           <InstalarApp className="ml-auto hidden md:flex" />
-          <SelectorIdioma className="hidden sm:flex" />
-          <button onClick={ingresar} className="flex items-center gap-2 rounded-full max-sm:ml-auto bg-gradient-to-r from-amber-200 via-primario to-violeta px-5 py-2 text-sm font-semibold text-black shadow-[0_8px_30px_-6px_rgb(var(--t-oro)/.6)] transition hover:brightness-110">{tx('Ingresar', 'Sign in', 'Entrar')} <ArrowRight size={15} /></button>
+          <SelectorIdioma className="hidden md:flex" />
+          <button onClick={ingresar} className="flex items-center gap-2 rounded-full max-md:ml-auto bg-gradient-to-r from-amber-200 via-primario to-violeta px-4 py-2 text-sm font-semibold text-black shadow-[0_8px_30px_-6px_rgb(var(--t-oro)/.6)] transition hover:brightness-110 sm:px-5">{tx('Ingresar', 'Sign in', 'Entrar')} <ArrowRight size={15} /></button>
+          <button onClick={() => setMenu(!menu)} aria-label={menu ? tx('Cerrar menú', 'Close menu', 'Fechar menu') : tx('Abrir menú', 'Open menu', 'Abrir menu')} aria-expanded={menu} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-fg/15 bg-fg/5 md:hidden">{menu ? <X size={18} /> : <Menu size={18} />}</button>
         </div>
+        {/* Menú del celular y la tablet: secciones, idioma e instalar la app */}
+        {menu && <div className="border-t border-primario/10 px-4 pb-4 pt-2 md:hidden">
+          <div className="grid">{secciones.map(([t, h]) => <a key={t} href={h} onClick={(e) => { e.preventDefault(); irA(h) }} className="rounded-xl px-3 py-3 text-sm text-fg/90 transition hover:bg-fg/5">{t}</a>)}</div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-fg/10 px-1 pt-3"><SelectorIdioma /><InstalarApp /></div>
+        </div>}
       </motion.nav>
 
       {/* Hero con horizonte y panel que emerge al hacer scroll */}
       <section ref={hero} className="relative h-[200vh]">
-        <div className="sticky top-0 h-screen overflow-hidden">
+        <div className="alto-pantalla sticky top-0 overflow-hidden">
           <motion.div className="absolute inset-x-0 h-[120vh]" style={{ y: arcoY, top: 'max(70vh, 660px)' }} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 2, ease: suave }}><Horizonte tamano={1800} className="top-0" /></motion.div>
           <motion.div style={{ opacity: textoOp, y: textoY }} className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-4 pt-32 text-center sm:pt-36">
             <motion.button onClick={() => document.querySelector('#funciones')?.scrollIntoView({ behavior: 'smooth' })} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.8, ease: suave }} className="flex items-center gap-2 rounded-full border border-primario/30 bg-black/40 p-1 pr-3 text-xs backdrop-blur">
@@ -137,7 +146,7 @@ export default function Landing() {
       {/* Funciones (bento) */}
       <section id="funciones" className="relative mx-auto max-w-7xl scroll-mt-24 px-4 py-20">
         <Revelar className="mx-auto mb-12 max-w-2xl text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">{tx('Todo su negocio,', 'Your whole business,', 'Todo o seu negócio,')} <span className="texto-oro">{tx('en un solo lugar', 'in one place', 'em um só lugar')}</span></h2><p className="mt-4 text-muted">{tx('Diseñado para una tienda o para una red multinacional.', 'Designed for a single store or a multinational network.', 'Feito para uma loja ou para uma rede multinacional.')}</p></Revelar>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Bento className="md:col-span-2" icono={<Globe2 size={20} />} titulo={tx('Red global en 3D', '3D global network', 'Rede global em 3D')} texto={tx('Todas sus sucursales sobre un globo terráqueo real: gírelo, acérquese hasta la calle y vea las transferencias entre países con tipos de cambio del día.', 'All your branches on a real globe: spin it, zoom down to street level and see transfers between countries with today\'s exchange rates.', 'Todas as suas filiais em um globo real: gire, aproxime até a rua e veja as transferências entre países com o câmbio do dia.')}>
             <div className="flex items-center gap-6"><GloboDibujo className="h-36 w-36 shrink-0" /><ul className="space-y-2 text-sm text-muted">{[tx('Sucursales ilimitadas en cualquier país', 'Unlimited branches in any country', 'Filiais ilimitadas em qualquer país'), tx('Direcciones reales de OpenStreetMap', 'Real addresses from OpenStreetMap', 'Endereços reais do OpenStreetMap'), tx('Vista oscura, clara y satélite', 'Dark, light and satellite views', 'Visão escura, clara e satélite')].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primario" />{t}</li>)}</ul></div>
           </Bento>

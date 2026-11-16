@@ -78,7 +78,7 @@ function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
           <motion.div initial={{ y: -10, scale: 0.98 }} animate={{ y: 0, scale: 1 }} className="glass w-full max-w-xl overflow-hidden" style={{ background: 'color-mix(in srgb, var(--bg2) 90%, transparent)' }}>
             <div className="flex items-center gap-2 border-b border-fg/10 px-4"><Search size={16} className="text-muted" />
               <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && res[0]) { res[0].go(); cerrar() } }} placeholder={tx('Buscar páginas, productos y pestañas…', 'Search pages, products and tabs…', 'Buscar páginas, produtos e abas…')} className="w-full bg-transparent py-3.5 text-sm outline-none" />
-              <kbd className="rounded border border-fg/20 px-1.5 text-[10px] text-muted">ESC</kbd></div>
+              <kbd className="rounded border border-fg/20 px-1.5 text-[10px] text-muted [@media(hover:none)]:hidden">ESC</kbd></div>
             <ul className="max-h-80 overflow-y-auto p-2">
               {res.map((r, k) => <li key={k}><button onClick={() => { r.go(); cerrar() }} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-fg/10"><span className="truncate">{r.label}</span><span className="shrink-0 text-[10px] uppercase text-muted">{r.tipo}</span></button></li>)}
               {!res.length && <li className="p-4 text-center text-sm text-muted">{tx('Sin resultados', 'No results', 'Sem resultados')}</li>}
@@ -140,7 +140,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <button aria-label="Cerrar menú" onClick={() => setMovil(false)} className="ml-auto rounded-lg p-1.5 text-muted hover:bg-fg/10 lg:hidden"><ChevronsLeft size={18} /></button>
         </div>
         <div className="my-3 h-px shrink-0 bg-fg/10" />
-        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 px-1', !colapsado && 'overflow-y-auto')}>
+        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 overscroll-contain px-1', !colapsado && 'overflow-y-auto')}>
           {visibles.filter((m) => !m.grupo).map(item)}
           {GRUPOS.map((g) => { const ms = visibles.filter((m) => m.grupo === g); return ms.length > 0 && (
             <div key={g} className="mt-2 flex flex-col gap-1">
@@ -151,6 +151,8 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-3 shrink-0 space-y-1 border-t border-fg/10 pt-3">
           {visibles.filter((m) => m.grupo === 'pie').map(item)}
+          {/* En el celular y la tablet el idioma se cambia desde aquí (en la barra superior no hay espacio) */}
+          <SelectorIdioma className="mx-auto w-fit lg:hidden" />
           <div className={cx('rounded-xl bg-fg/5 px-3 py-2 text-xs', colapsado && 'lg:hidden')}><div className="truncate font-semibold">{empresa.nombre || 'Mi empresa'}</div><div className="truncate text-muted">{plural(SUCURSALES.length, 'sucursal', 'sucursales')} · {plural(new Set(SUCURSALES.map((s) => s.pais)).size, 'país', 'países')}</div></div>
           <button onClick={() => setColapsado(!colapsado)} aria-label={colapsado ? tx('Expandir menú', 'Expand menu', 'Expandir menu') : tx('Contraer menú', 'Collapse menu', 'Recolher menu')} className={cx('group relative hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-muted transition hover:bg-fg/5 hover:text-fg lg:flex', colapsado && 'justify-center px-0')}>
             <ChevronsLeft size={18} className={cx('shrink-0 transition-transform duration-300', colapsado && 'rotate-180')} />{!colapsado && <span className="whitespace-nowrap">{tx('Contraer menú', 'Collapse menu', 'Recolher menu')}</span>}
@@ -161,7 +163,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col lg:pl-3">
         <header className="glass-clear no-print sticky top-3 z-20 mx-3 mt-3 flex items-center gap-2 px-3 py-2 lg:ml-0">
           <button aria-label="Abrir menú" className="rounded-lg p-2 hover:bg-fg/10 lg:hidden" onClick={() => setMovil(true)}><Menu size={18} /></button>
-          <button onClick={() => setPaleta(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left text-sm text-muted hover:bg-fg/10 sm:max-w-md"><Search size={15} /><span className="truncate">{tx('Buscar en NEXORA…', 'Search NEXORA…', 'Buscar no NEXORA…')}</span><kbd className="ml-auto hidden rounded border border-fg/20 px-1.5 text-[10px] sm:block">Ctrl K</kbd></button>
+          <button onClick={() => setPaleta(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left text-sm text-muted hover:bg-fg/10 sm:max-w-md"><Search size={15} /><span className="truncate">{tx('Buscar en NEXORA…', 'Search NEXORA…', 'Buscar no NEXORA…')}</span><kbd className="ml-auto hidden shrink-0 whitespace-nowrap rounded border border-fg/20 px-1.5 text-[10px] sm:block [@media(hover:none)]:!hidden">Ctrl K</kbd></button>
           <select aria-label="Sucursal" value={sucursal} onChange={(e) => setSucursal(e.target.value as typeof sucursal)} className="inp hidden !w-auto shrink-0 md:block"><option value="TODAS">{tx('Todas las sucursales', 'All branches', 'Todas as filiais')}</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
           <button title="Modo presentación" onClick={() => togglePres(true)} aria-label="Modo presentación" className="hidden shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium hover:bg-fg/10 sm:flex"><Maximize2 size={15} /><span className="hidden 2xl:inline">{tx('Presentación', 'Presentation', 'Apresentação')}</span></button>
           <SelectorIdioma className="hidden shrink-0 lg:flex" />
@@ -179,7 +181,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
         {licencia && (licencia.plan === 'Prueba' || (diasRestantes(licencia.vence) ?? 99) <= 5) && <AvisoPlan plan={licencia.plan} vence={licencia.vence} titular={!!licencia.esDueno} />}
-        <main className="mx-3 mt-5 mb-10 min-w-0 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>
+        <main className="mx-3 mt-5 mb-24 min-w-0 lg:mb-10 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>
       </div>
     </div>
   )

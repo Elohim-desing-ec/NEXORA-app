@@ -35,7 +35,7 @@ export default function Reportes() {
         <p className="mb-3 text-sm text-muted">Excel con una hoja por pestaña y FÓRMULAS reales (CAUE, factores, depreciación, FEDI, VPN/TIR con NPV e IRR) enlazadas a la hoja Parametros. PDF con resumen ejecutivo y tablas.</p>
         <div className="flex gap-2"><Button variante="primario" disabled={!hayEval} title={hayEval ? '' : 'Primero cree una evaluación en Análisis económico'} onClick={() => exportarAnalisisExcel(p)}><FileSpreadsheet size={15} />Excel con fórmulas</Button><Button disabled={!hayEval} onClick={() => exportarAnalisisPDF(p)}><FileText size={15} />PDF</Button></div>
       </Card>
-      <div className="grid gap-4 md:grid-cols-2">{reportes.map((r) => <Card key={r.t} hover titulo={r.t}><p className="mb-3 text-sm text-muted">{r.d}</p><div className="flex gap-2"><Button onClick={() => r.f('xlsx')}><FileSpreadsheet size={15} />Excel</Button><Button onClick={() => r.f('pdf')}><FileText size={15} />PDF</Button></div></Card>)}</div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{reportes.map((r) => <Card key={r.t} hover titulo={r.t}><p className="mb-3 text-sm text-muted">{r.d}</p><div className="flex gap-2"><Button onClick={() => r.f('xlsx')}><FileSpreadsheet size={15} />Excel</Button><Button onClick={() => r.f('pdf')}><FileText size={15} />PDF</Button></div></Card>)}</div>
     </div>
   )
 }

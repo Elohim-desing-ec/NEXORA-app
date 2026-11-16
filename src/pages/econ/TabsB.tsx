@@ -26,7 +26,7 @@ export function Depreciacion() {
   const t = tablas[ver]
   return <>
     <Card titulo="Terminología de depreciación">
-      <div className="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">{([
+      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">{([
         ['Costo inicial (P)', `Lo que se paga para poner el activo en uso: ${money(P)}.`],
         ['Valor residual (S)', `Valor estimado al final de la vida útil: ${money(p.S)}.`],
         ['Vida útil (n)', `Años en que se reparte el costo: ${p.n} años.`],
@@ -43,7 +43,7 @@ export function Depreciacion() {
       <div className="flex flex-wrap gap-2">{METODOS.map((m) => <label key={m} className={cx('flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 text-xs', sel.includes(m) ? 'border-primario/50 bg-primario/15' : 'border-fg/10 bg-fg/5')}><input type="checkbox" className="accent-amber-500" checked={sel.includes(m)} onChange={() => setSel(sel.includes(m) ? sel.filter((x) => x !== m) : [...sel, m])} />{F.NOMBRE_DEP[m]}{m === 'SD' && ` (${num(p.factorSD, 1)}/n)`}{m === 'MACRS' && ` ${p.macrsClase} años`}</label>)}</div>
       <p className="mt-3 text-xs text-muted">P = {money(P)} · S = {money(p.S)} · n = {p.n} · T = {pct(p.impuesto, 0)}. Cambie el factor del saldo decreciente (2 = doble, 1,5 = 150 %) o la clase MACRS en Parámetros. {cambio ? `SDD con cambio a LR: el cambio ocurre en el año ${cambio}.` : 'SDD con cambio a LR: con estos datos el cambio NO ocurre (el SDD llega antes al valor residual).'}</p>
     </Card>
-    <div className="grid gap-4 2xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <Card titulo="Tabla de depreciación" accion={<VerProc proc={PR.procDep(p, ver)} />}>
         <select className="inp mb-3" value={ver} onChange={(e) => setVer(e.target.value as F.MetodoDep)}>{METODOS.map((m) => <option key={m} value={m}>{F.NOMBRE_DEP[m]}</option>)}</select>
         <Scroll><table className="tabla"><thead><tr><th>Año</th><th className="num">Tasa / fracción</th><th className="num">Depreciación</th><th className="num">Dep. acumulada</th><th className="num">Valor en libros</th></tr></thead>
@@ -66,7 +66,7 @@ export function Impuestos() {
   const { p, set } = useEcon()
   const r = F.fedi(p, p.depMetodo)
   return <>
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
       <Kpi titulo="VP después de impuestos" valor={r.VP} formato={(v) => money(v)} icono={<Wallet size={15} />} tono="verde" sub={<VerProc proc={PR.procFEDI(p)} />} />
       <Kpi titulo="VA después de impuestos" valor={r.VA} formato={(v) => money(v)} icono={<Wallet size={15} />} tono="cian" />
       <Kpi titulo="TIR después de impuestos" valor={r.TIR * 100} formato={(v) => `${num(v)} %`} icono={<Wallet size={15} />} tono="violeta" />
@@ -85,14 +85,14 @@ export function Indicadores() {
   const perfil = Array.from({ length: 31 }, (_, j) => { const i = j * 0.02; return { i: `${j * 2}%`, VPN: F.vpnProyecto(K.P, K.A, p.S, i, p.n) } })
   const acum = K.flujos.reduce<{ t: number; flujo: number; acum: number }[]>((a, f, t) => [...a, { t, flujo: f, acum: (a[t - 1]?.acum ?? 0) + f * F.PF(p.i, t) }], [])
   return <>
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
       <Kpi titulo="VPN" valor={K.VPN} formato={(v) => money(v)} icono={<CheckCircle2 size={15} />} tono="verde" sub={<VerProc proc={PR.procVPN(p)} />} />
       <Kpi titulo="VAE" valor={K.VAE} formato={(v) => money(v)} icono={<Info size={15} />} tono="cian" sub="VPN × (A/P,i,n)" />
       <Kpi titulo="TIR (bisección)" valor={K.TIR * 100} formato={(v) => `${num(v)} %`} icono={<Info size={15} />} tono="violeta" sub={<VerProc proc={PR.procTIR(p)} />} />
       <Kpi titulo="Beneficio / Costo" valor={K.BC} formato={(v) => num(v, 4)} icono={<Info size={15} />} tono="azul" sub={<VerProc proc={PR.procBC(p)} />} />
       <Kpi titulo="Recuperación descontada" valor={K.recDesc} formato={(v) => `${num(v)} años`} icono={<Info size={15} />} tono="ambar" sub={<VerProc proc={PR.procRecDesc(p)} />} />
     </div>
-    <div className="grid gap-4 2xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <Card titulo="Flujos y VP acumulado"><Grafico><ComposedChart data={acum}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="t" {...ejes} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} labelFormatter={(v) => `Año ${v}`} /><Legend /><ReferenceLine y={0} stroke="#A8A29E" />
         <Bar dataKey="flujo" name="Flujo" radius={[6, 6, 0, 0]}>{acum.map((a, i) => <Cell key={i} fill={a.flujo < 0 ? '#F43F5E' : 'rgb(var(--t-oro))'} fillOpacity={0.75} />)}</Bar><Line dataKey="acum" name="VP acumulado" stroke="#10B981" strokeWidth={2.5} /></ComposedChart></Grafico></Card>
       <Card titulo="Perfil del VPN vs tasa (la TIR es donde corta el eje)"><Grafico><ComposedChart data={perfil}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="i" {...ejes} interval={4} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} /><ReferenceLine y={0} stroke="#F43F5E" />
@@ -113,14 +113,14 @@ export function Sensibilidad() {
         <div className="text-3xl font-extrabold tnum">{num(p.i * 100, 1)} %</div></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">{[['CAUE mín. defensor', money(R.def.caueMin)], ['CAUE mín. retador', money(R.ret.caueMin)], ['VPN', money(K.VPN)], ['Veredicto', R.veredicto]].map(([a, b]) => <div key={a} className="rounded-xl bg-fg/5 p-3"><div className="text-xs text-muted">{a}</div><div className="font-bold tnum">{b}</div></div>)}</div>
     </Card>
-    <div className="grid gap-4 2xl:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
       <Card titulo={`Gráfico tornado: variación del VPN (base ${money(T.base, 0)}) con ±20 %`}><Grafico><BarChart data={datos} layout="vertical" stackOffset="sign" margin={{ left: 30 }}><CartesianGrid {...rejilla} horizontal={false} vertical /><XAxis type="number" {...ejes} tickFormatter={k} /><YAxis type="category" dataKey="variable" {...ejes} width={110} /><Tooltip content={<TooltipVidrio />} cursor={{ fill: 'rgb(var(--fg) / .05)' }} /><Legend /><ReferenceLine x={0} stroke="#A8A29E" />
         <Bar dataKey="−20 %" stackId="a" fill="#FB923C" fillOpacity={0.8} radius={4} /><Bar dataKey="+20 %" stackId="a" fill="rgb(var(--t-oro))" fillOpacity={0.8} radius={4} /></BarChart></Grafico>
         <p className="text-xs text-muted">Variable más sensible: <b className="text-fg">{T.filas[0].variable}</b>. Ordenadas de mayor a menor impacto.</p></Card>
       <Card titulo="CAUE mínimo vs TMAR (5 % – 25 %)"><Grafico><LineChart data={tmars}><CartesianGrid {...rejilla} /><XAxis dataKey="tmar" {...ejes} interval={4} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} /><Legend />
         <Line dataKey="defensor" name="Defensor" stroke="#F43F5E" strokeWidth={2.5} dot={false} /><Line dataKey="retador" name="Retador" stroke="rgb(var(--t-claro))" strokeWidth={2.5} dot={false} /></LineChart></Grafico></Card>
     </div>
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Card titulo="Valor de equilibrio del defensor" accion={<VerProc proc={PR.procEquilibrio(p)} />}><div className="text-3xl font-bold tnum">{money(F.equilibrioDefensor(p))}</div><p className="mt-1 text-sm text-muted">Valor de mercado del sistema actual con el que daría igual conservarlo o reemplazarlo (hoy vale {money(p.defensor.vm0)}).</p></Card>
       <Card titulo="Ahorro mínimo para que sea rentable" accion={<VerProc proc={PR.procAhorroMin(p)} />}><div className="text-3xl font-bold tnum">{money(K.ahorroMinimo)}</div><p className="mt-1 text-sm text-muted">Ahorro actual {money(K.A)} → margen de seguridad de {pct(1 - K.ahorroMinimo / K.A, 1)}.</p></Card>
     </div>
@@ -137,7 +137,7 @@ export function Inflacion() {
       <div className="flex flex-wrap items-center gap-4"><input aria-label="Inflación" type="range" min={0} max={15} step={0.25} value={f * 100} onChange={(e) => set((q) => { q.inflacion = +e.target.value / 100 })} className="h-2 flex-1 accent-amber-400" /><div className="text-3xl font-extrabold tnum">{num(f * 100, 2)} %</div></div>
       <div className="mt-4 rounded-xl bg-fg/5 p-4 text-center text-lg">i<sub>f</sub> = i + f + i·f = {pct(p.i, 0)} + {pct(f, 2)} + ({num(p.i, 2)})({num(f, 4)}) = <b className="text-cian">{pct(iF)}</b></div>
     </Card>
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <Card titulo="Dólares constantes a TMAR real"><div className="text-2xl font-bold tnum">{money(K.VPN)}</div><p className="text-xs text-muted">Flujos sin inflar, descontados al {pct(p.i, 0)}.</p></Card>
       <Card titulo="Dólares corrientes a TMAR inflada"><div className="text-2xl font-bold tnum">{money(vpnNom)}</div><p className="text-xs text-muted">Ahorros inflados al {pct(f, 1)} anual y descontados al {pct(iF)}. ≈ Igual al anterior (salvo el residual, que se asumió nominal).</p></Card>
       <Card titulo="⚠ Error: mezclar ambos"><div className="text-2xl font-bold text-peligro tnum">{money(vpnMal)}</div><p className="text-xs text-muted">Flujos constantes descontados a la tasa inflada: subestima el proyecto.</p></Card>

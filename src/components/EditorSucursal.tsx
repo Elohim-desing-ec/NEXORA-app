@@ -29,7 +29,7 @@ export function EditorSucursal({ v, set }: { v: Sucursal; set: (s: Sucursal) => 
     setVuelo({ lng: l.lng, lat: l.lat, zoom: 15, t: Date.now() }); setRes([])
   }
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Código" ayuda="Corto y único, ej.: GYE-01, BOG, MAD"><input className="inp uppercase" maxLength={12} value={v.id} onChange={(e) => set({ ...v, id: e.target.value.replace(/\s/g, '-').toUpperCase() })} /></Campo>

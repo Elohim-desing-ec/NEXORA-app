@@ -23,27 +23,27 @@ const BURBUJAS = [{ x: 192, y: 112, c: COLORES[0], t: '#0A0907' }, { x: 94, y: 1
 
 /** Insignia de variación (+/− %) frente al periodo anterior. */
 function Cambio({ v, invertir = false, oscuro = false }: { v: number | null; invertir?: boolean; oscuro?: boolean }) {
-  if (v === null || !Number.isFinite(v)) return <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-semibold', oscuro ? 'bg-black/15 text-black/70' : 'bg-fg/10 text-muted')}>sin datos previos</span>
+  if (v === null || !Number.isFinite(v)) return <span className={cx('inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold leading-tight sm:text-[11px]', oscuro ? 'bg-black/15 text-black/70' : 'bg-fg/10 text-muted')}>sin datos previos</span>
   const bueno = invertir ? v <= 0 : v >= 0
-  return <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-bold tnum', oscuro ? 'bg-black/80 text-primario' : bueno ? 'bg-exito/15 text-exito' : 'bg-peligro/15 text-peligro')}>{v >= 0 ? '+' : '−'}{num(Math.abs(v) * 100, 1)} %</span>
+  return <span className={cx('inline-block rounded-full px-2 py-0.5 text-[10px] font-bold tnum sm:text-[11px]', oscuro ? 'bg-black/80 text-primario' : bueno ? 'bg-exito/15 text-exito' : 'bg-peligro/15 text-peligro')}>{v >= 0 ? '+' : '−'}{num(Math.abs(v) * 100, 1)} %</span>
 }
 const Etiqueta = ({ children, tono = 'gris' }: { children: ReactNode; tono?: 'gris' | 'verde' | 'rojo' }) =>
-  <span className={cx('rounded-full px-2 py-0.5 text-[11px] font-semibold', { gris: 'bg-fg/10 text-muted', verde: 'bg-exito/15 text-exito', rojo: 'bg-peligro/15 text-peligro' }[tono])}>{children}</span>
+  <span className={cx('inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold leading-tight sm:text-[11px]', { gris: 'bg-fg/10 text-muted', verde: 'bg-exito/15 text-exito', rojo: 'bg-peligro/15 text-peligro' }[tono])}>{children}</span>
 
 /** Tarjeta de indicador: ícono, variación, título, cifra animada y nota. La destacada va en dorado. */
 function Tarjeta({ titulo, valor, formato, icono, cambio, nota, destacada, compacta, onClick, i = 0 }: { titulo: string; valor: number; formato: (v: number) => string; icono: ReactNode; cambio?: ReactNode; nota?: ReactNode; destacada?: boolean; compacta?: boolean; onClick?: () => void; i?: number }) {
   return (
     <motion.button type="button" onClick={onClick} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07, duration: 0.7, ease: suave }} whileHover={{ y: -4 }} whileTap={{ scale: 0.985 }}
-      className={cx('group relative flex flex-col overflow-hidden rounded-2xl p-5 text-left', compacta ? 'min-h-[132px]' : 'min-h-[172px]', destacada ? 'bg-gradient-to-br from-amber-200 via-primario to-violeta text-black shadow-[0_24px_70px_-24px_rgb(var(--t-oro)/.75)]' : 'glass glass-hover')}>
+      className={cx('group relative flex min-w-0 flex-col overflow-hidden rounded-2xl p-4 text-left sm:p-5', compacta ? 'min-h-[120px] sm:min-h-[132px]' : 'min-h-[150px] sm:min-h-[172px]', destacada ? 'bg-gradient-to-br from-amber-200 via-primario to-violeta text-black shadow-[0_24px_70px_-24px_rgb(var(--t-oro)/.75)]' : 'glass glass-hover')}>
       {destacada && <><span className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-white/30 blur-2xl" /><span className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-black/10 blur-2xl" /></>}
-      <div className="relative flex items-start justify-between gap-2">
-        <span className={cx('grid shrink-0 place-items-center rounded-xl transition group-hover:scale-105', compacta ? 'h-9 w-9' : 'h-11 w-11', destacada ? 'bg-black/85 text-primario' : 'bg-fg/5 text-primario ring-1 ring-fg/10')}>{icono}</span>
+      <div className="relative flex items-start justify-between gap-2 [&>*:last-child]:min-w-0 [&>*:last-child]:text-right">
+        <span className={cx('grid shrink-0 place-items-center rounded-xl transition group-hover:scale-105', compacta ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-9 w-9 sm:h-11 sm:w-11', destacada ? 'bg-black/85 text-primario' : 'bg-fg/5 text-primario ring-1 ring-fg/10')}>{icono}</span>
         {cambio}
       </div>
-      <div className={cx('relative mt-auto pt-4 text-sm font-medium', destacada ? 'text-black/70' : 'text-muted')}>{titulo}</div>
+      <div className={cx('relative mt-auto pt-3 text-xs font-medium leading-snug sm:pt-4 sm:text-sm', destacada ? 'text-black/70' : 'text-muted')}>{titulo}</div>
       <div className="relative mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <span className={cx('font-display font-bold tracking-tight', compacta ? 'text-2xl' : 'text-3xl')}><Contador valor={valor} formato={formato} /></span>
-        {nota && <span className={cx('text-xs leading-tight', destacada ? 'text-black/60' : 'text-muted')}>{nota}</span>}
+        <span className={cx('min-w-0 break-words font-display font-bold tracking-tight', compacta ? 'text-lg sm:text-2xl' : 'text-xl sm:text-3xl')}><Contador valor={valor} formato={formato} /></span>
+        {nota && <span className={cx('text-[11px] leading-tight sm:text-xs', destacada ? 'text-black/60' : 'text-muted')}>{nota}</span>}
       </div>
     </motion.button>
   )
@@ -196,7 +196,7 @@ export default function Dashboard() {
       </Titulo>
 
       {!productos.length && <Card className="border-primario/30" titulo="Primeros pasos con sus datos reales">
-        <div className="grid gap-3 md:grid-cols-4">{([
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">{([
           ['1', 'Datos de la empresa', 'Razón social, RUC y sucursales', 'configuracion', tieneRol(usuario, 'Gerente General')],
           ['2', 'Proveedores', `${proveedores.length} registrados`, 'compras', true],
           ['3', 'Productos', 'Uno por uno o con plantilla Excel', 'productos', true],
@@ -205,10 +205,10 @@ export default function Dashboard() {
         <p className="mt-3 text-xs text-muted">Los indicadores y gráficos se llenan automáticamente a medida que registre productos, ventas y compras. ¿Dudas? Pregúntele al asistente (botón ✦ abajo a la derecha).</p>
       </Card>}
 
-      <div className="grid items-start gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
         {/* Indicadores principales */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Tarjeta i={0} destacada titulo="Ventas del mes" valor={d.mes.ventas} formato={f$} icono={<Coins size={20} />} cambio={<Cambio oscuro v={variacion(d.mes.ventas, d.mesAnt.ventas)} />} nota="vs mes anterior" onClick={() => ir('resumen')} />
           <Tarjeta i={1} titulo="Valor del inventario" valor={d.valor} formato={f$} icono={<DollarSign size={20} />} cambio={<Cambio v={variacion(d.valor, d.valorAntes)} />} nota="vs hace 30 días" onClick={() => ir('productos')} />
           <Tarjeta i={2} titulo="Unidades vendidas" valor={d.mes.unidades} formato={fU} icono={<ShoppingBag size={20} />} cambio={<Cambio v={variacion(d.mes.unidades, d.mesAnt.unidades)} />} nota="este mes vs el anterior" onClick={() => ir('resumen')} />
@@ -234,7 +234,7 @@ export default function Dashboard() {
         </Panel>
 
           {/* Indicadores de gestión */}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <Tarjeta compacta i={4} titulo="Rotación anual" valor={d.rotacion} formato={fX} icono={<RefreshCw size={17} />} cambio={<Etiqueta>últimos 30 días</Etiqueta>} nota="Costo de ventas / inventario" onClick={() => ir('productos')} />
             <Tarjeta compacta i={5} titulo="Exactitud de inventario" valor={d.exactitud * 100} formato={fP} icono={<ShieldCheck size={17} />} cambio={<Etiqueta tono={d.exactitud >= 0.98 ? 'verde' : 'rojo'}>{d.exactitud >= 0.98 ? 'Excelente' : 'Revisar ajustes'}</Etiqueta>} nota="Ajustes y mermas vs movimientos" onClick={() => ir('auditoria')} />
             <Tarjeta compacta i={6} titulo="Ahorro anual de su inversión" valor={ahorro} formato={f$} icono={<PiggyBank size={17} />} cambio={hayEval ? <Etiqueta tono={ahorro >= 0 ? 'verde' : 'rojo'}>{F.etq(p).retador}</Etiqueta> : <Etiqueta>sin evaluar</Etiqueta>} nota={hayEval ? F.etq(p).evaluacion : 'Cree una evaluación en Análisis económico'} onClick={() => ir('economico')} />
@@ -287,7 +287,7 @@ export default function Dashboard() {
       {/* Salud del negocio: rendimiento bajo, medio o alto, y qué hacer */}
       <Panel titulo={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-primario" />Salud del negocio</span>} sub={`${empresa.tamano || 'Emprendimientos y empresas de cualquier tamaño'}${empresa.sector ? ` · ${empresa.sector}` : ''} · qué tan bien rinde y qué hacer para mejorar (toda la empresa)`}
         accion={<button onClick={() => ir('reportes')} className="text-xs text-primario hover:underline">Ver reporte completo</button>}>
-        <div className="grid items-center gap-6 lg:grid-cols-[250px_1fr_1fr]">
+        <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[250px_1fr_1fr]">
           <Medidor puntaje={d.salud.puntaje} nivel={d.salud.nivel} />
           <ul className="space-y-3">{d.salud.factores.map((f, k) => (
             <li key={f.nombre}>
@@ -309,8 +309,8 @@ export default function Dashboard() {
       <Panel titulo={<span className="flex items-center gap-2"><Briefcase size={16} className="text-primario" />Para su sector · {perfil.nombre}</span>} sub={perfil.foco}
         accion={<button onClick={() => ir('configuracion')} className="text-xs text-primario hover:underline">{empresa.sector ? 'Cambiar sector' : 'Elegir mi sector'}</button>}>
         {!empresa.sector && <p className="mb-4 rounded-xl border border-primario/25 bg-primario/10 px-3 py-2 text-xs">Aún no eligió su sector: se muestra el perfil general. En Configuración → Empresa elija el suyo (salud, construcción, restaurantes, moda…) y NEXORA se adapta.</p>}
-        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-          <div className="grid gap-3 sm:grid-cols-2">{d.sector.map((x, k) => (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{d.sector.map((x, k) => (
             <motion.div key={x.titulo} initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.07 * k, duration: 0.6, ease: suave }} className="rounded-2xl bg-fg/5 p-4 ring-1 ring-fg/5">
               <div className="flex items-start justify-between gap-2"><span className="text-xs font-medium text-muted">{x.titulo}</span><span className={cx('mt-1 h-2.5 w-2.5 shrink-0 rounded-full', { verde: 'bg-exito', ambar: 'bg-alerta', rojo: 'bg-peligro', gris: 'bg-fg/30' }[x.tono])} /></div>
               <div className="mt-1 truncate font-display text-2xl font-bold tracking-tight">{x.valor}</div>
@@ -325,7 +325,7 @@ export default function Dashboard() {
       </Panel>
 
       {/* Alertas y actividad */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Panel titulo={<span className="flex items-center gap-2"><AlertTriangle size={16} className="text-peligro" />Quiebres de stock</span>} sub="Productos que hay que reponer">
           <ul className="space-y-2 text-sm">{d.quiebres.slice(0, 6).map((x) => <li key={x.id}><button onClick={() => ir('productos')} className="flex w-full items-center justify-between gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="truncate">{x.nombre}</span><Badge tono="rojo">{stockTotal(x, sucursal)} u</Badge></button></li>)}{!d.quiebres.length && <li className="text-muted">Sin quiebres 🎉</li>}</ul>
         </Panel>

@@ -53,10 +53,10 @@ export default function Asesor() {
           </div>
         </div>}
       </Card>
-      <div className="grid gap-4 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-5">
         <Card className="xl:col-span-3" titulo={<span className="flex items-center gap-2"><MessageCircleQuestion size={15} />Banco de preguntas</span>}>
           <div className="mb-3 flex flex-wrap gap-1.5">{cats.map((c) => <button key={c} onClick={() => setCat(c)} className={cx('rounded-full px-3 py-1 text-xs font-medium transition', cat === c ? 'bg-gradient-to-r from-primario to-violeta text-black' : 'bg-fg/5 text-muted hover:text-fg')}>{c} ({PREGUNTAS.filter((x) => x.cat === c).length})</button>)}</div>
-          <ul className="grid gap-1.5 sm:grid-cols-2">{PREGUNTAS.filter((x) => x.cat === cat).map((x) => <li key={x.id}><button onClick={() => preguntar(x)} className="w-full rounded-lg bg-fg/5 px-3 py-2 text-left text-sm transition hover:bg-primario/15">{x.pregunta}</button></li>)}</ul>
+          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">{PREGUNTAS.filter((x) => x.cat === cat).map((x) => <li key={x.id}><button onClick={() => preguntar(x)} className="w-full rounded-lg bg-fg/5 px-3 py-2 text-left text-sm transition hover:bg-primario/15">{x.pregunta}</button></li>)}</ul>
         </Card>
         <div className="space-y-4 xl:col-span-2"><Calculadora /></div>
       </div>

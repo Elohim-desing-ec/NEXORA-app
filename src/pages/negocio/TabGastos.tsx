@@ -45,7 +45,7 @@ export default function TabGastos() {
         <select className="inp w-auto" aria-label="Categoría" value={cat} onChange={(e) => setCat(e.target.value)}><option value="">Todas las categorías</option>{CATEGORIAS_GASTO.map((c) => <option key={c}>{c}</option>)}</select>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card titulo="Por categoría" accion={<span className="text-xs text-muted">{anio ? nombrePeriodo(anio, mes) : 'Todos los años'}</span>}>
           <div className="mb-4"><div className="text-xs text-muted">Total</div><div className="texto-oro font-display text-3xl font-bold tnum">{money(total)}</div><div className="text-xs text-muted">{plural(lista.length, 'gasto', 'gastos')}</div></div>
           <ul className="space-y-3 text-sm">{porCategoria.map(({ c, v }) => (
@@ -69,7 +69,7 @@ export default function TabGastos() {
 
       <Modal abierto={!!form} onClose={() => setForm(null)} titulo={form && gastos.some((g) => g.id === form.id) ? 'Editar gasto' : 'Agregar gasto'} ancho="max-w-xl">
         {form && <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Fecha"><input type="date" className="inp" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} /></Campo>
             <Campo label="Monto"><NumInput step={0.01} min={0} value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} /></Campo>
             <div className="sm:col-span-2"><Campo label="Concepto"><input className="inp" placeholder="Arriendo del local" value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} /></Campo></div>

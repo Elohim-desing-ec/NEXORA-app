@@ -122,13 +122,13 @@ export default function Tablero() {
         })}
       </div>
       {fiesta && <div className="pointer-events-none fixed z-50" style={{ left: fiesta.x, top: fiesta.y }} key={fiesta.k}>{Array.from({ length: 16 }, (_, i) => { const a = (i / 16) * Math.PI * 2, r = 50 + (i % 3) * 18; return <motion.span key={i} className="absolute h-2 w-2 rounded-full" style={{ background: Object.values(COLORES_TAREA).filter(Boolean)[i % 5] }} initial={{ x: 0, y: 0, opacity: 1, scale: 1 }} animate={{ x: Math.cos(a) * r, y: Math.sin(a) * r, opacity: 0, scale: 0.4 }} transition={{ duration: 0.9, ease: 'easeOut' }} /> })}</div>}
-      <p className="text-[11px] text-muted">Arrastre las tarjetas entre columnas. Las tareas son del equipo: quien tenga una asignada la ve en «Mis tareas» y en la campana de avisos al ingresar.</p>
+      <p className="text-[11px] text-muted">Arrastre las tarjetas entre columnas (en el celular, toque la flecha → de cada tarjeta para pasarla a la siguiente). Las tareas son del equipo: quien tenga una asignada la ve en «Mis tareas» y en la campana de avisos al ingresar.</p>
 
       <Modal abierto={!!form} onClose={() => setForm(null)} titulo={form && tareas.some((x) => x.id === form.id) ? 'Editar tarea' : 'Nueva tarea'} ancho="max-w-2xl">
         {form && <div className="space-y-4">
           <input autoFocus className="inp !text-lg font-semibold" placeholder="¿Qué hay que hacer?" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
           <textarea className="inp min-h-[80px]" placeholder="Detalles (opcional)" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Campo label="Columna"><select className="inp" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value as EstadoTarea })}>{COLUMNAS.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></Campo>
             <Campo label="Prioridad"><select className="inp" value={form.prioridad} onChange={(e) => setForm({ ...form, prioridad: e.target.value as Prioridad })}><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select></Campo>
             <Campo label="Fecha límite"><input type="date" className="inp" value={form.vence} onChange={(e) => setForm({ ...form, vence: e.target.value })} /></Campo>
@@ -139,7 +139,7 @@ export default function Tablero() {
                 className={cx('flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs transition', si ? 'border-primario/60 bg-primario/15' : 'border-fg/10 hover:bg-fg/5')}>
                 <span className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-amber-200 via-primario to-violeta text-[8px] font-bold text-black">{iniciales(u.nombre)}</span>{u.nombre.split(' ')[0]}<span className="text-muted">· {u.rol}</span></button>) })}</div>
           </Campo>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Etiquetas (separadas por coma)"><input className="inp" placeholder="Inventario, Urgente" value={form.etiquetas.join(', ')} onChange={(e) => setForm({ ...form, etiquetas: e.target.value.split(',') })} /></Campo>
             <Campo label="Color"><div className="flex gap-2 pt-1">{Object.entries(COLORES_TAREA).map(([k, c]) => <button key={k} type="button" title={k} onClick={() => setForm({ ...form, color: k })} className={cx('h-7 w-7 rounded-full ring-offset-2 ring-offset-[color:var(--bg2)] transition', form.color === k ? 'ring-2 ring-primario' : 'ring-1 ring-fg/15')} style={{ background: c || 'rgb(var(--fg) / .08)' }} />)}</div></Campo>
           </div>

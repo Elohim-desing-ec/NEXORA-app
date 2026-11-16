@@ -48,21 +48,21 @@ export default function RedGlobal() {
       <Titulo titulo="Red global" sub={`${empresa.nombre || 'Su empresa'} · operación nacional e internacional en tiempo real`}>
         {usuario?.rol === 'Gerente General' && <Button onClick={() => ir('configuracion')}><Plus size={15} />Sucursal</Button>}
       </Titulo>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
         <Kpi titulo="Países" valor={d.porPais.length} formato={(v) => num(v, 0)} icono={<Globe2 size={15} />} tono="cian" />
         <Kpi titulo="Ciudades" valor={d.ciudades} formato={(v) => num(v, 0)} icono={<MapPin size={15} />} tono="violeta" />
         <Kpi titulo="Sucursales" valor={sucursales.length} formato={(v) => num(v, 0)} icono={<Building2 size={15} />} />
         <Kpi titulo="Inventario global" valor={d.total} formato={(v) => money(v, 0)} icono={<Landmark size={15} />} tono="verde" sub={empresa.moneda} />
         <Kpi titulo="Ventas 30 días" valor={d.ventas} formato={(v) => money(v, 0)} icono={<TrendingUp size={15} />} tono="ambar" />
       </div>
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="!p-3 xl:col-span-2">
           <div className="relative">
             <Suspense fallback={<div className="espacio h-[560px] rounded-xl" />}>
               <Globo className="h-[460px] sm:h-[560px]" puntos={d.filas.map((f) => ({ id: f.s.id, nombre: `${bandera(f.s.pais)} ${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` }))}
                 arcos={d.arcos} seleccion={sel} onSeleccion={setSel} estilo={estilo} autoRotar={rotar} volarA={vuelo} />
             </Suspense>
-            <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+            <div className="absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">
               <div className="flex overflow-hidden rounded-xl border border-white/15 bg-black/70 text-xs text-white backdrop-blur">{(['oscuro', 'satelite', 'claro'] as const).map((e) => <button key={e} onClick={() => setEstilo(e)} className={cx('px-3 py-1.5 capitalize transition', estilo === e ? 'bg-gradient-to-r from-primario to-violeta font-semibold text-black' : 'hover:bg-white/10')}>{e === 'satelite' ? 'Satélite' : e}</button>)}</div>
               <button onClick={() => setRotar(!rotar)} className={cx('flex items-center gap-1 rounded-xl border border-white/15 px-3 py-1.5 text-xs text-white backdrop-blur', rotar ? 'bg-primario/30' : 'bg-black/70')}><Rotate3d size={13} />Rotación</button>
               <button onClick={() => { setSel(null); setVuelo({ lng: sucursales[0].lng, lat: sucursales[0].lat, zoom: 1.6, t: Date.now() }) }} className="flex items-center gap-1 rounded-xl border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-white backdrop-blur"><Globe2 size={13} />Vista mundial</button>
