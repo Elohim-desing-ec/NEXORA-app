@@ -7,3 +7,4 @@ GUIA_PRESENTACION.md
 .DS_Store
 .env*
 PROMPT_GUIONES.md
+__pycache__

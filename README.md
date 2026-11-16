@@ -53,6 +53,27 @@ No forma parte del menú del sistema. Se abre desde el botón de la pantalla de 
 
 **https://elohim-desing-ec.github.io/NEXORA-app/** — se actualiza con `npm run publicar` (solo publica si todas las pruebas pasan).
 
+## Cuentas, planes y datos en la nube (Supabase)
+
+- **Nadie entra sin plan.** Se compra en la portada (*Elija su plan*) o se activa la **prueba gratis de 14 días** (sin tarjeta). El pago es **simulado**: valida la tarjeta (prueba con `4242 4242 4242 4242`) pero no cobra.
+- **Ingreso:** correo y contraseña, Google o Facebook; *¿Olvidó su contraseña?* envía un enlace por correo.
+- **Datos en la nube:** productos, ventas, compras, sucursales, etc. se guardan en Supabase (`datos`) y se ven en vivo en todos los equipos de la empresa.
+- **Equipo:** *Configuración → Cuenta y equipo → Invitar*. La persona entra con ese mismo correo (o Google) y ve lo que permite su rol.
+- **Facturación:** en la misma sección: plan, días de prueba, historial, comprobante en PDF, cambiar o cancelar.
+- **Precios:** los planes de empresa (Nube y Pro) salen del análisis económico; los de emprendimiento ($29, $59/mes y $590) son precios de mercado para tiendas pequeñas (`src/lib/planes.ts`).
+
+Proyecto Supabase: `nexora` (`loldipdbreouzvdciuic`). Función de correo: `supabase/functions/correo`.
+
+### Correo (Gmail de la empresa)
+
+1. En el Gmail de la empresa active la **verificación en dos pasos** y cree una **contraseña de aplicación** en https://myaccount.google.com/apppasswords.
+2. Pruébela: `python3 scripts/probar_correo.py` (envía un correo de prueba a sí mismo; no guarda la contraseña).
+3. Supabase → **Authentication → Emails → SMTP Settings**: host `smtp.gmail.com`, puerto `465`, usuario y remitente = el Gmail, contraseña = la de aplicación, nombre `NEXORA`.
+4. Supabase → **Edge Functions → Secrets**: `GMAIL_USER` = el Gmail y `GMAIL_APP_PASSWORD` = la contraseña de aplicación (bienvenida, comprobantes e invitaciones).
+5. Supabase → **Authentication → URL Configuration**: Site URL y Redirect URL = `https://elohim-desing-ec.github.io/NEXORA-app/`.
+
+Mientras el correo no esté conectado, todo funciona igual: el comprobante se descarga en PDF y la invitación se abre lista en Gmail.
+
 ## 2. Estructura
 
 ```

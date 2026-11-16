@@ -14,6 +14,11 @@ export interface Redes { linkedin?: string; whatsapp?: string; discord?: string;
 /** Cliente o contacto de la empresa (también se puede importar desde Google Contactos). */
 export interface Cliente { id: string; nombre: string; email: string; telefono: string; empresa: string; nota: string }
 
+/** Plan con el que se ingresó en este dispositivo (sin él nadie entra, ni el equipo local). */
+export interface Licencia { plan: string; vence: string | null; empresaId?: string; esDueno?: boolean }
+/** ¿El plan sigue vigente? (la prueba gratis vence; los planes pagados no). */
+export const licenciaVigente = (l: Licencia | null | undefined) => !!l && (!l.vence || new Date(l.vence).getTime() > Date.now())
+
 /** Equipo del proyecto. Usuario = primer nombre; contraseña = nombre + 2026. Se cambian en Configuración. */
 const equipo = (id: string, nombre: string, usuario: string, rol: Rol): Usuario => ({ id, nombre, usuario, rol, email: '', clave: `${usuario}2026` })
 export const USUARIOS: Usuario[] = [
@@ -86,9 +91,9 @@ interface AppState extends Datos {
   login: (u: Usuario) => void
   logout: () => void
   /** Plan comprado en este equipo: sin él nadie puede ingresar (ni el equipo con usuario y contraseña). */
-  licencia: { plan: string; desde: string } | null
-  /** Ingreso con una cuenta NEXORA que tiene licencia activa: usa o crea su usuario (Gerente General). */
-  entrarConCuenta: (c: { id: string; email: string; nombre: string; foto?: string }, licencia: { plan: string; desde: string }) => void
+  licencia: Licencia | null
+  /** Ingreso con una cuenta NEXORA con plan vigente: usa o crea su usuario. El titular es Gerente General; un invitado, el rol que le dieron. */
+  entrarConCuenta: (c: { id: string; email: string; nombre: string; foto?: string }, licencia: Licencia, permiso?: { rol: Rol; roles: Rol[] }) => void
   ir: (p: Pagina) => void
   setTema: (t: 'oscuro' | 'claro') => void
   /** Tema de color de cada usuario (id de usuario → tema) */
@@ -165,17 +170,17 @@ export const useApp = create<AppState>()(persist((set, get) => {
     login: (usuario) => { set({ usuario, pagina: 'dashboard' }); log('Inicio de sesión', `${usuario.nombre} (${rolesDe(usuario).join(', ')})`) },
     logout: () => { log('Cierre de sesión', get().usuario?.nombre ?? ''); set({ usuario: null }) },
     licencia: null,
-    entrarConCuenta: (c, licencia) => {
+    entrarConCuenta: (c, licencia, permiso) => {
       const email = c.email.toLowerCase()
       const lista = get().usuarios
       const previo = lista.find((x) => !!x.email && x.email.toLowerCase() === email)
       let u: Usuario
-      if (previo) u = { ...previo, foto: previo.foto ?? c.foto }
+      if (previo) u = { ...previo, foto: previo.foto ?? c.foto, ...(permiso ? { rol: permiso.rol, roles: permiso.roles } : {}) }
       else {
         const base = email.split('@')[0].replace(/[^a-z0-9._-]/g, '') || 'usuario'
         let usuario = base, n = 2
         while (lista.some((x) => x.usuario.toLowerCase() === usuario)) usuario = `${base}${n++}`
-        u = { id: c.id, nombre: c.nombre, usuario, rol: 'Gerente General', email: c.email, clave: crypto.randomUUID(), foto: c.foto }
+        u = { id: c.id, nombre: c.nombre, usuario, rol: permiso?.rol ?? 'Gerente General', roles: permiso?.roles, email: c.email, clave: crypto.randomUUID(), foto: c.foto }
       }
       set({ licencia, usuarios: previo ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u] })
       if (!previo) log('Usuario creado', `${u.nombre} (cuenta ${c.email}, plan ${licencia.plan})`)

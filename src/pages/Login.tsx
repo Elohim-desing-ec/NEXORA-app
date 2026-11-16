@@ -3,14 +3,15 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, KeyRound, Lock, Mail, ShieldCheck, User as IconoUsuario, Users } from 'lucide-react'
 import type { User } from '@supabase/supabase-js'
 import { Horizonte } from '../components/Horizonte'
-import { useApp } from '../store/useApp'
+import { useApp, licenciaVigente } from '../store/useApp'
 import { Fondo } from '../components/Layout'
 import { Logo } from '../components/Logo'
 import { Button } from '../components/ui'
 import { useTx } from '../lib/idioma'
 import { SelectorIdioma } from '../components/SelectorIdioma'
 import { AccesoSocial } from '../components/Acceso'
-import { enviarRecuperacion, fotoDe, licenciaActiva, mensajeError, nombreDe, supabase, terminarRecuperacion, tomarContinuar, tomarErrorRetorno } from '../lib/cuenta'
+import { enviarRecuperacion, mensajeError, pruebaUsada, supabase, terminarRecuperacion, tomarContinuar, tomarErrorRetorno, type Acceso } from '../lib/cuenta'
+import { entrarConAcceso } from '../lib/nube'
 
 /** Marco común de las pantallas de acceso (fondo, volver, idioma y tarjeta). */
 export function MarcoAcceso({ children, ancho = 'max-w-md' }: { children: ReactNode; ancho?: string }) {
@@ -40,13 +41,7 @@ const Encabezado = ({ titulo, sub }: { titulo: ReactNode; sub: ReactNode }) => (
 
 const verPlanes = () => { location.hash = '#/planes' }
 
-/** Si la cuenta tiene licencia activa, entra a NEXORA. Devuelve false si aún no compró un plan. */
-export async function entrarSiTieneLicencia(u: User) {
-  const l = await licenciaActiva()
-  if (!l) return false
-  useApp.getState().entrarConCuenta({ id: u.id, email: u.email ?? '', nombre: nombreDe(u), foto: fotoDe(u) }, { plan: l.plan, desde: l.creada })
-  return true
-}
+const probarGratis = () => { location.hash = '#/comprar?plan=Prueba' }
 
 type Modo = 'entrar' | 'recuperar' | 'enviado' | 'equipo'
 
@@ -55,7 +50,8 @@ export default function Login() {
   const { login, usuarios, licencia } = useApp()
   const [modo, setModo] = useState<Modo>('entrar')
   const [cuenta, setCuenta] = useState<User | null>(null)
-  const [sinLicencia, setSinLicencia] = useState(false)
+  // Sin plan vigente: por qué (nunca compró / se venció) y si aún puede usar la prueba gratis.
+  const [bloqueo, setBloqueo] = useState<{ motivo: 'sin-plan' | 'vencida'; acceso: Acceso | null; prueba: boolean } | null>(null)
   const [email, setEmail] = useState('')
   const [clave, setClave] = useState('')
   const [error, setError] = useState(() => tomarErrorRetorno())
@@ -66,7 +62,8 @@ export default function Login() {
     try {
       // La sesión pudo cerrarse en otra pestaña: sin ella no se ve ninguna licencia.
       if (!(await supabase.auth.getSession()).data.session) { setCuenta(null); return }
-      if (!(await entrarSiTieneLicencia(u))) setSinLicencia(true)
+      const r = await entrarConAcceso(u)
+      if (r.estado !== 'ok') setBloqueo({ motivo: r.estado, acceso: r.acceso, prueba: (r.estado === 'sin-plan' || !!r.acceso?.esDueno) && !(await pruebaUsada()) })
     } catch (e) { setError(mensajeError(e, tx)) } finally { setOcupado(false) }
   }
 
@@ -83,7 +80,7 @@ export default function Login() {
     return () => { vivo = false }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const otraCuenta = async () => { await supabase.auth.signOut(); setCuenta(null); setSinLicencia(false); setError('') }
+  const otraCuenta = async () => { await supabase.auth.signOut(); setCuenta(null); setBloqueo(null); setError('') }
 
   const entrar = async (e: FormEvent) => {
     e.preventDefault(); setOcupado(true); setError('')
@@ -103,7 +100,7 @@ export default function Login() {
 
   const entrarEquipo = (e: FormEvent) => {
     e.preventDefault()
-    if (!licencia) return setError(tx('Este equipo aún no tiene un plan activo. El titular de la cuenta debe comprar NEXORA e ingresar aquí primero.', 'This device has no active plan yet. The account owner must buy NEXORA and sign in here first.', 'Este dispositivo ainda não tem um plano ativo. O titular deve comprar o NEXORA e entrar aqui primeiro.'))
+    if (!licenciaVigente(licencia)) return setError(tx('Este equipo aún no tiene un plan activo. El titular de la cuenta debe comprar NEXORA e ingresar aquí primero.', 'This device has no active plan yet. The account owner must buy NEXORA and sign in here first.', 'Este dispositivo ainda não tem um plano ativo. O titular deve comprar o NEXORA e entrar aqui primeiro.'))
     const q = email.trim().toLowerCase()
     const u = usuarios.find((x) => x.usuario.toLowerCase() === q || (!!x.email && x.email.toLowerCase() === q))
     if (!u || u.clave !== clave) return setError(tx('Usuario o contraseña incorrectos', 'Wrong username or password', 'Usuário ou senha incorretos'))
@@ -115,12 +112,17 @@ export default function Login() {
   // Cuenta abierta: continuar o, si no tiene plan, invitar a comprarlo.
   if (cuenta && modo === 'entrar') return (
     <MarcoAcceso>
-      <Encabezado titulo={sinLicencia ? tx('Active su plan', 'Activate your plan', 'Ative seu plano') : <>{tx('Bienvenido de', 'Welcome', 'Bem-vindo de')} <span className="texto-oro">{tx('nuevo', 'back', 'volta')}</span></>} sub={cuenta.email} />
+      <Encabezado titulo={bloqueo ? tx('Active su plan', 'Activate your plan', 'Ative seu plano') : <>{tx('Bienvenido de', 'Welcome', 'Bem-vindo de')} <span className="texto-oro">{tx('nuevo', 'back', 'volta')}</span></>} sub={cuenta.email} />
       <div className="mt-6 space-y-3">
-        {sinLicencia
+        {bloqueo
           ? <>
-              <p className="text-center text-sm text-muted">{tx('Su cuenta está creada, pero aún no tiene un plan. Elija uno para habilitar el ingreso a NEXORA.', 'Your account exists but has no plan yet. Choose one to unlock NEXORA.', 'Sua conta existe, mas ainda não tem plano. Escolha um para liberar o NEXORA.')}</p>
-              <Button variante="primario" className="w-full !py-2.5" onClick={verPlanes}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>
+              <p className="text-center text-sm text-muted">{bloqueo.motivo === 'sin-plan'
+                ? tx('Su cuenta está creada, pero aún no tiene un plan. Pruebe NEXORA gratis o elija un plan para habilitar el ingreso.', 'Your account exists but has no plan yet. Try NEXORA free or choose a plan to unlock it.', 'Sua conta existe, mas ainda não tem plano. Teste o NEXORA grátis ou escolha um plano.')
+                : !bloqueo.acceso?.esDueno
+                  ? tx(`El plan de ${bloqueo.acceso?.empresa || 'su empresa'} no está activo. Pida al titular de la cuenta que lo renueve.`, `${bloqueo.acceso?.empresa || 'Your company'}'s plan is not active. Ask the account owner to renew it.`, `O plano de ${bloqueo.acceso?.empresa || 'sua empresa'} não está ativo. Peça ao titular que o renove.`)
+                  : tx('Su prueba gratis o su plan terminó. Elija un plan para seguir: sus datos se conservan.', 'Your free trial or plan ended. Choose a plan to continue: your data is kept.', 'Seu teste ou plano terminou. Escolha um plano para continuar: seus dados são mantidos.')}</p>
+              {bloqueo.prueba && <Button variante="primario" className="w-full !py-2.5" onClick={probarGratis}>{tx('Probar gratis 14 días', 'Try free for 14 days', 'Testar grátis por 14 dias')} <ArrowRight size={16} /></Button>}
+              {(bloqueo.motivo === 'sin-plan' || bloqueo.acceso?.esDueno) && <Button variante={bloqueo.prueba ? 'vidrio' : 'primario'} className="w-full !py-2.5" onClick={verPlanes}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>}
             </>
           : <Button variante="primario" className="w-full !py-2.5" disabled={ocupado} onClick={() => continuar(cuenta)}>{ocupado ? tx('Verificando su plan…', 'Checking your plan…', 'Verificando seu plano…') : <>{tx('Continuar a NEXORA', 'Continue to NEXORA', 'Continuar para o NEXORA')} <ArrowRight size={16} /></>}</Button>}
         {error && <Aviso>{error}</Aviso>}
@@ -174,7 +176,7 @@ export default function Login() {
           <Button variante="primario" type="submit" disabled={ocupado} className="w-full !py-2.5">{ocupado ? tx('Ingresando…', 'Signing in…', 'Entrando…') : <>{tx('Ingresar', 'Sign in', 'Entrar')} <ArrowRight size={16} /></>}</Button>
         </form>
         <div className="mt-6 space-y-2 border-t border-fg/10 pt-5 text-center text-xs text-muted">
-          <p>{tx('¿Aún no tiene NEXORA?', 'Don\'t have NEXORA yet?', 'Ainda não tem o NEXORA?')} <button onClick={verPlanes} className="font-semibold text-primario hover:underline">{tx('Elija un plan', 'Choose a plan', 'Escolha um plano')}</button></p>
+          <p>{tx('¿Aún no tiene NEXORA?', 'Don\'t have NEXORA yet?', 'Ainda não tem o NEXORA?')} <button onClick={probarGratis} className="font-semibold text-primario hover:underline">{tx('Pruébelo gratis 14 días', 'Try it free for 14 days', 'Teste grátis por 14 dias')}</button> {tx('o', 'or', 'ou')} <button onClick={verPlanes} className="font-semibold text-primario hover:underline">{tx('elija un plan', 'choose a plan', 'escolha um plano')}</button></p>
           <button onClick={() => cambiar('equipo')} className="inline-flex items-center gap-1.5 hover:text-fg"><Users size={13} />{tx('Soy parte del equipo de una empresa', 'I\'m part of a company team', 'Faço parte da equipe de uma empresa')}</button>
         </div>
       </div>
@@ -196,7 +198,7 @@ export function NuevaClave() {
     setOcupado(true); setError('')
     const { data, error } = await supabase.auth.updateUser({ password: clave })
     if (error) { setOcupado(false); return setError(mensajeError(error, tx)) }
-    try { await entrarSiTieneLicencia(data.user) } catch { /* sin plan: queda en la pantalla de ingreso */ }
+    try { await entrarConAcceso(data.user) } catch { /* sin plan: queda en la pantalla de ingreso */ }
     location.hash = '#/login'
     terminarRecuperacion()
   }

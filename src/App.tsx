@@ -1,6 +1,6 @@
 import { useEffect, useState, lazy, Suspense, useCallback, useSyncExternalStore, createElement, type ComponentType } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { useApp, permisosDe, tieneRol, hidratado } from './store/useApp'
+import { useApp, permisosDe, tieneRol, hidratado, licenciaVigente } from './store/useApp'
 import { setMoneda } from './lib/format'
 import { SIMBOLOS } from './data/paises'
 import { Layout } from './components/Layout'
@@ -10,6 +10,7 @@ import { useIdioma } from './lib/idioma'
 import { recordarTema, temaGuardado } from './lib/temas'
 import Login, { NuevaClave } from './pages/Login'
 import { useRecuperando } from './lib/cuenta'
+import { reanudar } from './lib/nube'
 import Dashboard from './pages/Dashboard'
 
 /**
@@ -43,7 +44,7 @@ const Cargando = () => <div className="p-10 text-center text-muted">Cargando…<
 export default function App() {
   const { usuario: sesion, pagina, tema, empresa, licencia } = useApp()
   // Sin un plan comprado nadie entra (ni sesiones guardadas de antes de exigir la licencia).
-  const usuario = licencia ? sesion : null
+  const usuario = licenciaVigente(licencia) ? sesion : null
   // IndexedDB carga de forma asíncrona: se espera antes de mostrar datos
   const listo = useSyncExternalStore((cb) => useApp.persist.onFinishHydration(cb), hidratado)
   setMoneda(SIMBOLOS[empresa.moneda] ?? empresa.moneda)
@@ -59,11 +60,16 @@ export default function App() {
   useEffect(() => { const t = temaColor ?? temaGuardado(); document.documentElement.dataset.tema = t; if (temaColor) recordarTema(temaColor) }, [temaColor])
   useEffect(() => { document.documentElement.lang = idioma }, [idioma])
   useEffect(() => { const h = () => setHash(location.hash); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
+  // Con una sesión guardada: revisa que el plan siga vigente y reconecta los datos de la nube.
+  useEffect(() => { if (listo) reanudar() }, [listo])
 
   let vista
   if (!listo) vista = null
   else if (recuperando) vista = <NuevaClave />
-  else if (!usuario) vista = hash.startsWith('#/login') ? <Login /> : hash.startsWith('#/comprar') ? <Suspense fallback={null}><Comprar /></Suspense> : <Suspense fallback={null}><Landing /></Suspense>
+  // Planes y compra se abren también con la sesión iniciada (para cambiar de plan desde "Cuenta y equipo").
+  else if (hash.startsWith('#/comprar')) vista = <Suspense fallback={null}><Comprar /></Suspense>
+  else if (hash === '#/planes') vista = <Suspense fallback={null}><Landing /></Suspense>
+  else if (!usuario) vista = hash.startsWith('#/login') ? <Login /> : <Suspense fallback={null}><Landing /></Suspense>
   else {
     const p = permisosDe(usuario).includes(pagina) ? pagina : 'dashboard'
     const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]

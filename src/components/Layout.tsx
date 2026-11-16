@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { supabase } from '../lib/cuenta'
+import { diasRestantes } from '../lib/cuenta'
+import { salir, useEstadoNube } from '../lib/nube'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
+import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Logo } from './Logo'
@@ -92,7 +93,7 @@ function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
 export function Layout({ children }: { children: ReactNode }) {
   const tx = useTx()
   const nombre = (id: string, es: string) => (TRAD[id] ? tx(es, TRAD[id][0], TRAD[id][1]) : es)
-  const { usuario, pagina, ir, logout, tema, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, tareas, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
+  const { usuario, pagina, ir, tema, licencia, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, tareas, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
   const [movil, setMovil] = useState(false)
   const [paleta, setPaleta] = useState(false)
   const [notif, setNotif] = useState(false)
@@ -170,14 +171,38 @@ export function Layout({ children }: { children: ReactNode }) {
             <button aria-label="Notificaciones" onClick={() => setNotif(!notif)} className="relative rounded-xl p-2 hover:bg-fg/10"><Bell size={17} />{alertas.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-peligro" />}</button>
             {notif && <div className="glass absolute right-0 top-11 w-72 p-2" style={{ background: 'color-mix(in srgb, var(--bg2) 92%, transparent)' }}>{alertas.length ? alertas.map((a, k) => <div key={k} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-fg/5"><span className={cx('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', a.t === 'rojo' ? 'bg-peligro' : 'bg-alerta')} />{a.m}</div>) : <div className="p-2 text-xs text-muted">{tx('Sin alertas', 'No alerts', 'Sem alertas')}</div>}</div>}
           </div>
+          <IconoNube />
           <div className="flex items-center gap-2 border-l border-fg/10 pl-2">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-xs font-bold text-black">{usuario.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
             <div className="hidden leading-tight xl:block"><div className="text-xs font-semibold">{usuario.nombre}</div><div className="max-w-[16rem] truncate text-[10px] text-muted">{rolesDe(usuario).join(' · ')}</div></div>
-            <button aria-label="Cerrar sesión" onClick={() => { supabase.auth.signOut().finally(logout) }} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
+            <button aria-label="Cerrar sesión" onClick={() => { salir() }} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
           </div>
         </header>
+        {licencia?.plan === 'Prueba' && <AvisoPrueba vence={licencia.vence} titular={!!licencia.esDueno} />}
         <main className="mx-3 mt-5 mb-10 min-w-0 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>
       </div>
+    </div>
+  )
+}
+
+/** Estado de los datos en la nube (solo cuando se ingresó con una cuenta NEXORA). */
+function IconoNube() {
+  const tx = useTx()
+  const e = useEstadoNube()
+  if (e === 'apagada') return null
+  const texto = { conectando: tx('Conectando con la nube…', 'Connecting to the cloud…', 'Conectando à nuvem…'), 'al-dia': tx('Datos guardados en la nube', 'Data saved in the cloud', 'Dados salvos na nuvem'), guardando: tx('Guardando en la nube…', 'Saving to the cloud…', 'Salvando na nuvem…'), 'sin-conexion': tx('Sin conexión: se guardará al volver internet', 'Offline: will save when back online', 'Sem conexão: será salvo quando voltar') }[e]
+  return <span title={texto} aria-label={texto} role="status" className={cx('hidden shrink-0 rounded-xl p-2 sm:block', e === 'sin-conexion' ? 'text-peligro' : e === 'al-dia' ? 'text-exito' : 'animate-pulse text-muted')}>{e === 'sin-conexion' ? <CloudOff size={17} /> : <Cloud size={17} />}</span>
+}
+
+/** Franja con los días que quedan de la prueba gratis. */
+function AvisoPrueba({ vence, titular }: { vence: string | null; titular: boolean }) {
+  const tx = useTx()
+  const d = diasRestantes(vence) ?? 0
+  return (
+    <div className="no-print mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-primario/30 bg-primario/10 px-3 py-2 text-xs lg:ml-0">
+      <Gift size={15} className="shrink-0 text-primario" />
+      <span className="flex-1">{d === 1 ? tx('Prueba gratis: queda 1 día.', 'Free trial: 1 day left.', 'Teste grátis: resta 1 dia.') : tx(`Prueba gratis: quedan ${d} días.`, `Free trial: ${d} days left.`, `Teste grátis: restam ${d} dias.`)} {tx('Sus datos se conservan al elegir un plan.', 'Your data is kept when you choose a plan.', 'Seus dados são mantidos ao escolher um plano.')}</span>
+      {titular && <a href="#/planes" className="rounded-lg bg-primario px-3 py-1 font-semibold text-black hover:brightness-110">{tx('Elegir plan', 'Choose plan', 'Escolher plano')}</a>}
     </div>
   )
 }

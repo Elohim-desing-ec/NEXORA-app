@@ -1,6 +1,6 @@
 /**
  * Cuentas de NEXORA (Supabase Auth): correo + contraseña, Google, Facebook y recuperación de contraseña.
- * Sin una licencia activa (tabla `licencias`) no se puede ingresar. El pago es simulado: no cobra dinero.
+ * Sin un plan vigente del titular (licencia o prueba de 14 días) no se puede ingresar. El pago es simulado: no cobra dinero.
  */
 import { useSyncExternalStore } from 'react'
 import { createClient, type User } from '@supabase/supabase-js'
@@ -18,7 +18,17 @@ export const PLANES_COMPRABLES = ['Emprende', 'Emprende Plus', 'Emprende Propio'
 export type PlanComprable = (typeof PLANES_COMPRABLES)[number]
 export const esComprable = (p: string): p is PlanComprable => (PLANES_COMPRABLES as readonly string[]).includes(p)
 
-export interface Licencia { plan: string; precio: string; empresa: string; creada: string }
+/** Correo de la empresa NEXORA (Elohim): contacto y remitente de los correos. */
+export const CORREO_NEXORA = 'modacristiana2025@gmail.com'
+export const DIAS_PRUEBA = 14
+
+export interface Licencia { id?: string; plan: string; precio: string; empresa: string; creada: string; vence?: string | null }
+/** Lo que puede hacer la cuenta: su empresa, su rol en ella y el plan del titular. */
+export interface Acceso { empresaId: string; empresa: string; esDueno: boolean; rol: string; roles: string[]; plan: string | null; vence: string | null; vigente: boolean }
+export interface Compra { id: string; plan: string; precio: string; empresa: string; titular: string; tarjeta_ultimos: string; estado: string; creada: string }
+export interface Miembro { email: string; nombre: string; rol: string; roles: string[]; creado: string }
+
+export const diasRestantes = (vence: string | null | undefined) => (vence ? Math.max(0, Math.ceil((new Date(vence).getTime() - Date.now()) / 86400000)) : null)
 
 /** Dirección a la que vuelven Google, Facebook y los correos (sin # ni parámetros). */
 export const urlRetorno = () => location.origin + location.pathname
@@ -49,18 +59,59 @@ export async function entrarCon(proveedor: 'google' | 'facebook', destino: Desti
 
 export const enviarRecuperacion = (email: string) => supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: urlRetorno() })
 
-export async function licenciaActiva(): Promise<Licencia | null> {
-  const { data, error } = await supabase.from('licencias').select('plan, precio, empresa, creada').eq('estado', 'activa').order('creada', { ascending: false }).limit(1)
+export async function miAcceso(): Promise<Acceso | null> {
+  const { data, error } = await supabase.rpc('mi_acceso')
   if (error) throw error
-  return data?.[0] ?? null
+  const r = data?.[0]
+  return r ? { empresaId: r.empresa_id, empresa: r.empresa, esDueno: r.es_dueno, rol: r.rol, roles: r.roles ?? [], plan: r.plan, vence: r.vence, vigente: r.vigente } : null
 }
 
+/** Pago simulado: registra el plan, crea la empresa si no existe y reemplaza el plan anterior. */
 export async function registrarCompra(c: { plan: PlanComprable; precio: string; empresa: string; titular: string; tarjeta: string }): Promise<Licencia> {
-  const { data, error } = await supabase.from('licencias')
-    .insert({ plan: c.plan, precio: c.precio, empresa: c.empresa.trim(), titular: c.titular.trim(), tarjeta_ultimos: soloDigitos(c.tarjeta).slice(-4) })
-    .select('plan, precio, empresa, creada').single()
+  const { data, error } = await supabase.rpc('comprar_plan', { p_plan: c.plan, p_precio: c.precio, p_empresa: c.empresa, p_titular: c.titular, p_ultimos: soloDigitos(c.tarjeta).slice(-4) })
   if (error) throw error
-  return data
+  return data[0]
+}
+
+export async function iniciarPrueba(empresa: string): Promise<Licencia> {
+  const { data, error } = await supabase.rpc('iniciar_prueba', { p_empresa: empresa })
+  if (error) throw error
+  const r = data[0]
+  return { plan: 'Prueba', precio: '$ 0', empresa: r.empresa, creada: r.inicio, vence: r.vence }
+}
+
+export async function pruebaUsada(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('prueba_usada')
+  if (error) throw error
+  return !!data
+}
+
+export async function cancelarPlan() { const { error } = await supabase.rpc('cancelar_plan'); if (error) throw error }
+
+export async function historialCompras(): Promise<Compra[]> {
+  const { data, error } = await supabase.from('licencias').select('id, plan, precio, empresa, titular, tarjeta_ultimos, estado, creada').order('creada', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+// ---------- Equipo ----------
+export async function listarMiembros(empresaId: string): Promise<Miembro[]> {
+  const { data, error } = await supabase.from('miembros').select('email, nombre, rol, roles, creado').eq('empresa_id', empresaId).order('creado')
+  if (error) throw error
+  return data ?? []
+}
+export async function guardarMiembro(empresaId: string, m: { email: string; nombre: string; rol: string; roles?: string[] }) {
+  const { error } = await supabase.from('miembros').upsert({ empresa_id: empresaId, email: m.email.trim().toLowerCase(), nombre: m.nombre.trim(), rol: m.rol, roles: m.roles ?? [] })
+  if (error) throw error
+}
+export async function quitarMiembro(empresaId: string, email: string) {
+  const { error } = await supabase.from('miembros').delete().eq('empresa_id', empresaId).eq('email', email)
+  if (error) throw error
+}
+
+/** Correo desde el Gmail de NEXORA (función `correo` en Supabase). false si aún no está configurado. */
+export async function enviarCorreo(pedido: { tipo: 'recibo' } | { tipo: 'invitacion'; email: string }): Promise<boolean> {
+  try { const { data, error } = await supabase.functions.invoke('correo', { body: pedido }); return !error && !!data?.enviado } catch { return false }
 }
 
 /** Nombre visible de la cuenta (Google y Facebook lo envían en los metadatos). */
@@ -76,6 +127,9 @@ export function mensajeError(e: unknown, tx: (es: string, en: string, pt: string
   if (/password should be at least|weak/i.test(m)) return tx('La contraseña debe tener al menos 8 caracteres', 'Password must be at least 8 characters', 'A senha deve ter pelo menos 8 caracteres')
   if (/email address .* is invalid|invalid email/i.test(m)) return tx('Ese correo no es válido', 'That email is not valid', 'Esse e-mail não é válido')
   if (/not authorized/i.test(m)) return tx('Por ahora no podemos enviar correos a esa dirección. Escríbanos para ayudarle.', 'We can\'t send email to that address yet. Contact us for help.', 'Ainda não podemos enviar e-mails para esse endereço. Fale conosco.')
+  if (/ya usó su prueba/i.test(m)) return tx('Esta cuenta ya usó su prueba gratis. Elija un plan para continuar.', 'This account already used its free trial. Choose a plan to continue.', 'Esta conta já usou o teste grátis. Escolha um plano para continuar.')
+  if (/ya tiene un plan activo/i.test(m)) return tx('Esta cuenta ya tiene un plan activo', 'This account already has an active plan', 'Esta conta já tem um plano ativo')
+  if (/duplicate key|already exists/i.test(m)) return tx('Esa persona ya está en su equipo', 'That person is already on your team', 'Essa pessoa já está na sua equipe')
   if (/rate limit|too many/i.test(m)) return tx('Demasiados intentos. Espere unos minutos.', 'Too many attempts. Wait a few minutes.', 'Muitas tentativas. Aguarde alguns minutos.')
   if (/provider is not enabled|unsupported provider/i.test(m)) return tx('Este método de ingreso aún no está activado', 'This sign-in method is not enabled yet', 'Este método de login ainda não está ativado')
   return m

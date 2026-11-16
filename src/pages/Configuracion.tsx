@@ -1,5 +1,5 @@
 import { lazy, Suspense, useRef, useState } from 'react'
-import { Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload, Palette, Check } from 'lucide-react'
+import { CreditCard, Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload, Palette, Check } from 'lucide-react'
 import { useApp, ROLES, type Usuario, type FilaImport, rolesDe, permisosDe, MAX_ROLES, DESCRIPCION_ROL, SOLO_LECTURA, type Rol } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, Scroll, Tabs, Titulo, cx } from '../components/ui'
 import { MENU } from '../components/Layout'
@@ -16,6 +16,7 @@ import { EditorSucursal, sucursalVacia } from '../components/EditorSucursal'
 import { valorInventario } from '../lib/inventario'
 
 const Globo = lazy(() => import('../components/Globo'))
+const CuentaEquipo = lazy(() => import('./config/CuentaEquipo'))
 
 const ve = (u: Pick<Usuario, 'rol' | 'roles'>) => MENU.filter((m) => permisosDe(u).includes(m.id)).map((m) => m.label)
 
@@ -186,10 +187,10 @@ function Temas() {
 }
 
 export default function Configuracion() {
-  const [t, setT] = useState<'usuarios' | 'empresa' | 'datos' | 'temas' | 'guia'>('usuarios')
+  const [t, setT] = useState<'cuenta' | 'usuarios' | 'empresa' | 'datos' | 'temas' | 'guia'>('cuenta')
   return <div className="space-y-4">
-    <Titulo titulo="Configuración" sub="Empresa, usuarios del sistema y carga de datos reales" />
-    <Tabs items={[{ id: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> }, { id: 'empresa', label: 'Empresa', icon: <Building2 size={14} /> }, { id: 'datos', label: 'Mis datos', icon: <Database size={14} /> }, { id: 'temas', label: 'Temas', icon: <Palette size={14} /> }, { id: 'guia', label: 'Guía', icon: <BookOpen size={14} /> }]} valor={t} onChange={setT} />
-    {t === 'usuarios' ? <Usuarios /> : t === 'empresa' ? <EmpresaTab /> : t === 'datos' ? <Datos /> : t === 'temas' ? <Temas /> : <Guia />}
+    <Titulo titulo="Configuración" sub="Su plan, su equipo, la empresa y la carga de datos reales" />
+    <Tabs items={[{ id: 'cuenta', label: 'Cuenta y equipo', icon: <CreditCard size={14} /> }, { id: 'usuarios', label: 'Usuarios de este equipo', icon: <Users size={14} /> }, { id: 'empresa', label: 'Empresa', icon: <Building2 size={14} /> }, { id: 'datos', label: 'Mis datos', icon: <Database size={14} /> }, { id: 'temas', label: 'Temas', icon: <Palette size={14} /> }, { id: 'guia', label: 'Guía', icon: <BookOpen size={14} /> }]} valor={t} onChange={setT} />
+    {t === 'cuenta' ? <Suspense fallback={null}><CuentaEquipo /></Suspense> : t === 'usuarios' ? <Usuarios /> : t === 'empresa' ? <EmpresaTab /> : t === 'datos' ? <Datos /> : t === 'temas' ? <Temas /> : <Guia />}
   </div>
 }
