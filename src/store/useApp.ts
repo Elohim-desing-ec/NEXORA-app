@@ -1,13 +1,18 @@
 import { create } from 'zustand'
+import type { TemaColor } from '../lib/temas'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
-import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC } from '../data/base'
+import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC, type Gasto, type Cierre, type Venta, type EstadoVenta, type Tarea, type Nota, type EstadoTarea } from '../data/base'
 
-export type Rol = 'Gerente General' | 'Analista Financiero' | 'Contador' | 'Jefe de Compras' | 'Jefe de Bodega' | 'Auditor' | 'Ayudante'
-export const ROLES: Rol[] = ['Gerente General', 'Analista Financiero', 'Contador', 'Jefe de Compras', 'Jefe de Bodega', 'Auditor', 'Ayudante']
-export type Pagina = 'dashboard' | 'red' | 'productos' | 'compras' | 'ia' | 'auditoria' | 'reportes' | 'economico' | 'configuracion'
-/** usuario = nombre corto para iniciar sesión (ej. "eduardo"). */
-export interface Usuario { id: string; nombre: string; usuario: string; rol: Rol; email: string; clave: string }
+export type Rol = 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
+  | 'Jefe de Compras' | 'Jefe de Bodega' | 'Jefe de Logística' | 'Jefe de Marketing' | 'Recursos Humanos' | 'Administrador de Sistemas' | 'Asistente Administrativo' | 'Auditor' | 'Socio o Inversionista' | 'Ayudante'
+export const ROLES: Rol[] = ['Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Contador', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Jefe de Compras', 'Jefe de Bodega', 'Jefe de Logística', 'Jefe de Marketing', 'Recursos Humanos', 'Administrador de Sistemas', 'Asistente Administrativo', 'Auditor', 'Socio o Inversionista', 'Ayudante']
+export type Pagina = 'dashboard' | 'espacio' | 'resumen' | 'red' | 'productos' | 'compras' | 'ia' | 'auditoria' | 'reportes' | 'economico' | 'configuracion'
+/** Persona del equipo. nombre = nombre completo para mostrar; el resto es su ficha (opcional). */
+export interface Usuario { id: string; nombre: string; usuario: string; rol: Rol; email: string; clave: string; /** Roles adicionales (máximo 2; en total 3) */ roles?: Rol[]; nombres?: string; apellidos?: string; telefono?: string; cargo?: string; sucursales?: string[]; redes?: Redes; foto?: string }
+export interface Redes { linkedin?: string; whatsapp?: string; discord?: string; slack?: string; instagram?: string }
+/** Cliente o contacto de la empresa (también se puede importar desde Google Contactos). */
+export interface Cliente { id: string; nombre: string; email: string; telefono: string; empresa: string; nota: string }
 
 /** Equipo del proyecto. Usuario = primer nombre; contraseña = nombre + 2026. Se cambian en Configuración. */
 const equipo = (id: string, nombre: string, usuario: string, rol: Rol): Usuario => ({ id, nombre, usuario, rol, email: '', clave: `${usuario}2026` })
@@ -22,21 +27,53 @@ export const USUARIOS: Usuario[] = [
 /** Rol de cada integrante del equipo (para actualizar datos ya guardados que aún dicen "Ayudante"). */
 const ROL_EQUIPO: Record<string, Rol> = Object.fromEntries(USUARIOS.map((u) => [u.id, u.rol]))
 
+/** Secciones que ve cada rol. Una persona puede tener hasta 3 roles: ve la suma de todos. */
 export const PERMISOS: Record<Rol, Pagina[]> = {
-  'Gerente General': ['dashboard', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
-  'Jefe de Bodega': ['dashboard', 'red', 'productos', 'compras', 'ia', 'reportes'],
-  'Analista Financiero': ['dashboard', 'red', 'compras', 'ia', 'reportes', 'economico'],
-  Contador: ['dashboard', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
-  'Jefe de Compras': ['dashboard', 'red', 'productos', 'compras', 'ia', 'reportes'],
-  Auditor: ['dashboard', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
-  Ayudante: ['dashboard', 'red', 'productos', 'reportes'],
+  'Gerente General': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
+  'Gerente Financiero': ['dashboard', 'espacio', 'resumen', 'red', 'compras', 'ia', 'auditoria', 'reportes', 'economico'],
+  'Analista Financiero': ['dashboard', 'espacio', 'resumen', 'red', 'compras', 'ia', 'reportes', 'economico'],
+  Contador: ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
+  'Gerente de Sucursal': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'compras', 'ia', 'reportes'],
+  'Gerente de Ventas': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'ia', 'reportes'],
+  Vendedor: ['dashboard', 'espacio', 'resumen', 'productos'],
+  Cajero: ['dashboard', 'espacio', 'resumen'],
+  'Jefe de Compras': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'ia', 'reportes'],
+  'Jefe de Bodega': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'ia', 'reportes'],
+  'Jefe de Logística': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'reportes'],
+  'Jefe de Marketing': ['dashboard', 'espacio', 'resumen', 'red', 'ia', 'reportes'],
+  'Recursos Humanos': ['dashboard', 'espacio', 'reportes'],
+  'Administrador de Sistemas': ['dashboard', 'espacio', 'auditoria', 'reportes', 'configuracion'],
+  'Asistente Administrativo': ['dashboard', 'espacio', 'resumen', 'productos', 'compras', 'reportes'],
+  Auditor: ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
+  'Socio o Inversionista': ['dashboard', 'resumen', 'red', 'reportes', 'economico'],
+  Ayudante: ['dashboard', 'espacio', 'red', 'productos', 'reportes'],
 }
+/** Qué hace cada rol (se muestra al asignar roles). */
+export const DESCRIPCION_ROL: Record<Rol, string> = {
+  'Gerente General': 'Todo el sistema, usuarios y configuración', 'Gerente Financiero': 'Finanzas, análisis económico, aprobar compras y auditoría',
+  'Analista Financiero': 'Indicadores, análisis económico y aprobar compras', Contador: 'Resumen, gastos, cierres, auditoría y reportes',
+  'Gerente de Sucursal': 'Su sucursal: ventas, inventario, compras y recepciones', 'Gerente de Ventas': 'Ventas, clientes, metas e inventario',
+  Vendedor: 'Registrar ventas y consultar productos', Cajero: 'Registrar ventas y cobros del día', 'Jefe de Compras': 'Proveedores y órdenes de compra',
+  'Jefe de Bodega': 'Inventario, transferencias y recepción de compras', 'Jefe de Logística': 'Envíos entre sucursales, recepciones y la red global',
+  'Jefe de Marketing': 'Canales de venta, clientes y reportes', 'Recursos Humanos': 'Equipo, perfiles y tareas del personal',
+  'Administrador de Sistemas': 'Usuarios, configuración, respaldos y trazabilidad', 'Asistente Administrativo': 'Apoyo en ventas, gastos, compras e inventario',
+  Auditor: 'Solo consulta: trazabilidad, resumen y reportes', 'Socio o Inversionista': 'Solo consulta: resultados, red y análisis económico', Ayudante: 'Consulta de inventario y tareas',
+}
+/** Roles que solo consultan (no editan inventario ni compras). */
+export const SOLO_LECTURA: Rol[] = ['Auditor', 'Socio o Inversionista']
+export const MAX_ROLES = 3
+/** Roles de una persona: el principal y hasta 2 adicionales. */
+export const rolesDe = (u?: Pick<Usuario, 'rol' | 'roles'> | null): Rol[] => (!u ? [] : [u.rol, ...(u.roles ?? []).filter((r) => r !== u.rol)].slice(0, MAX_ROLES))
+export const tieneRol = (u: Pick<Usuario, 'rol' | 'roles'> | null | undefined, ...rs: Rol[]) => rolesDe(u).some((r) => rs.includes(r))
+/** Secciones que ve la persona: la suma de los permisos de todos sus roles. */
+export const permisosDe = (u?: Pick<Usuario, 'rol' | 'roles'> | null): Pagina[] => [...new Set(rolesDe(u).flatMap((r) => PERMISOS[r]))]
+export const soloLectura = (u?: Pick<Usuario, 'rol' | 'roles'> | null) => rolesDe(u).every((r) => SOLO_LECTURA.includes(r))
 
 /** Fila de producto para importar desde Excel/CSV. */
 export interface FilaImport { sku: string; nombre: string; categoria: string; costo: number; precio: number; stock: Record<SucursalId, number>; min: number; max: number; lote: string; vence: string }
 export type TipoOperacion = 'Venta' | 'Compra' | 'Ajuste' | 'Merma'
 
-interface Datos { empresa: Empresa; sucursales: Sucursal[]; proveedores: Proveedor[]; productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; auditoria: Evento[]; usuarios: Usuario[] }
+interface Datos { empresa: Empresa; sucursales: Sucursal[]; proveedores: Proveedor[]; productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; auditoria: Evento[]; usuarios: Usuario[]; gastos: Gasto[]; cierres: Cierre[]; ventas: Venta[]; tareas: Tarea[]; notas: Nota[]; clientes: Cliente[] }
 
 interface AppState extends Datos {
   usuario: Usuario | null
@@ -50,6 +87,9 @@ interface AppState extends Datos {
   logout: () => void
   ir: (p: Pagina) => void
   setTema: (t: 'oscuro' | 'claro') => void
+  /** Tema de color de cada usuario (id de usuario → tema) */
+  temasColor: Record<string, TemaColor>
+  setTemaColor: (t: TemaColor) => void
   setPresentacion: (v: boolean) => void
   setSucursal: (s: SucursalId | 'TODAS') => void
   guardarEmpresa: (e: Empresa) => void
@@ -67,6 +107,23 @@ interface AppState extends Datos {
   importarProductos: (filas: FilaImport[]) => { nuevos: number; actualizados: number }
   guardarUsuario: (u: Usuario) => string | null
   eliminarUsuario: (id: string) => string | null
+  registrarVenta: (v: { fecha: string; sucursal: SucursalId; lineas: { productoId: string; cantidad: number; precio: number }[]; descuento: number; cliente: string; canal: string; estado: EstadoVenta }) => string | null
+  cambiarEstadoVenta: (id: string, estado: Exclude<EstadoVenta, 'Anulada'>) => void
+  anularVenta: (id: string) => string | null
+  guardarCliente: (c: Cliente) => void
+  eliminarCliente: (id: string) => void
+  guardarConexiones: (c: Record<string, string>) => void
+  /** Importa personas ya clasificadas por quien ingresó (equipo, cliente o proveedor). */
+  importarPersonas: (lista: { nombre: string; email: string; telefono: string; empresa: string; cargo: string; tipo: 'equipo' | 'cliente' | 'proveedor' }[], usuarioDe: (nombre: string, existentes: string[]) => string) => { equipo: number; clientes: number; proveedores: number }
+  guardarTarea: (t: Tarea) => void
+  moverTarea: (id: string, estado: EstadoTarea, antesDe?: string) => void
+  eliminarTarea: (id: string) => void
+  guardarNota: (n: Nota) => void
+  eliminarNota: (id: string) => void
+  guardarGasto: (g: Gasto) => void
+  eliminarGasto: (id: string) => void
+  cerrarPeriodo: (c: Cierre) => void
+  quitarCierre: (id: string) => void
   respaldo: () => Datos
   restaurar: (d: Datos) => void
 }
@@ -83,7 +140,7 @@ const almacen: StateStorage = {
   removeItem: async (n) => { await idbDel(n); localStorage.removeItem(n) },
 }
 const total = (p: Producto) => Object.values(p.stock).reduce((a, b) => a + (b || 0), 0)
-const VACIO = { productos: [], movimientos: [], ordenes: [], auditoria: [] }
+const VACIO = { productos: [], movimientos: [], ordenes: [], auditoria: [], ventas: [], gastos: [], cierres: [] }
 
 export const useApp = create<AppState>()(persist((set, get) => {
   const log = (accion: string, detalle: string, sucursal: SucursalId | '—' = '—') =>
@@ -100,11 +157,13 @@ export const useApp = create<AppState>()(persist((set, get) => {
     // En laptops pequeñas el menú arranca contraído para dar más espacio al contenido.
     menuColapsado: typeof window !== 'undefined' && window.innerWidth < 1440,
     setMenuColapsado: (menuColapsado) => set({ menuColapsado }),
-    empresa: EMPRESA_BASE, sucursales: [], proveedores: [], ...VACIO,
-    login: (usuario) => { set({ usuario, pagina: 'dashboard' }); log('Inicio de sesión', `${usuario.nombre} (${usuario.rol})`) },
+    empresa: EMPRESA_BASE, sucursales: [], proveedores: [], tareas: [], notas: [], clientes: [], ...VACIO,
+    login: (usuario) => { set({ usuario, pagina: 'dashboard' }); log('Inicio de sesión', `${usuario.nombre} (${rolesDe(usuario).join(', ')})`) },
     logout: () => { log('Cierre de sesión', get().usuario?.nombre ?? ''); set({ usuario: null }) },
     ir: (pagina) => set({ pagina }),
     setTema: (tema) => set({ tema }),
+    temasColor: {},
+    setTemaColor: (t) => { const u = get().usuario; if (u) set({ temasColor: { ...get().temasColor, [u.id]: t } }) },
     setPresentacion: (presentacion) => set({ presentacion }),
     setSucursal: (sucursal) => set({ sucursal }),
     guardarEmpresa: (empresa) => { set({ empresa }); log('Datos de empresa actualizados', `${empresa.nombre} · ${empresa.pais} · ${empresa.moneda}`) },
@@ -170,7 +229,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const cu = tipo === 'Compra' && costoUnit ? costoUnit : p.costo
       // Compra: el costo del producto pasa a ser el promedio ponderado.
       const costo = tipo === 'Compra' ? (total(p) * p.costo + q * cu) / (total(p) + q) : p.costo
-      set({ productos: get().productos.map((x) => (x.id === p.id ? { ...p, costo: Math.round(costo * 10000) / 10000, stock: { ...p.stock, [s]: (p.stock[s] ?? 0) + q } } : x)), movimientos: [...get().movimientos, mov({ productoId, sucursal: s, tipo, cantidad: q, costoUnit: cu, nota })] })
+      set({ productos: get().productos.map((x) => (x.id === p.id ? { ...p, costo: Math.round(costo * 10000) / 10000, stock: { ...p.stock, [s]: (p.stock[s] ?? 0) + q } } : x)), movimientos: [...get().movimientos, mov({ productoId, sucursal: s, tipo, cantidad: q, costoUnit: cu, ...(tipo === 'Venta' ? { precioUnit: p.precio } : {}), nota })] })
       log(tipo, `${q > 0 ? '+' : ''}${q} u de ${p.nombre}${nota ? ' · ' + nota : ''}`, s)
       return null
     },
@@ -190,7 +249,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       set({ ordenes: get().ordenes.map((x) => (x.id === id ? { ...x, estado: sig } : x)), productos, movimientos })
       log(`Orden ${sig.toLowerCase()}`, id, o.sucursal)
     },
-    vaciarDatos: () => { set({ ...VACIO }); log('Inventario vaciado', 'Se eliminaron productos, movimientos y órdenes') },
+    vaciarDatos: () => { set({ ...VACIO }); log('Datos vaciados', 'Se eliminaron productos, movimientos, órdenes, ventas, gastos y cierres') },
     importarProductos: (filas) => {
       let productos = [...get().productos]
       const movs: Movimiento[] = []
@@ -211,21 +270,114 @@ export const useApp = create<AppState>()(persist((set, get) => {
       if (lista.some((x) => x.id !== u.id && x.usuario.toLowerCase() === u.usuario.toLowerCase())) return 'Ese nombre de usuario ya existe'
       const existe = lista.some((x) => x.id === u.id)
       const nueva = existe ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u]
-      if (!nueva.some((x) => x.rol === 'Gerente General')) return 'Debe quedar al menos un Gerente General'
+      if (!nueva.some((x) => rolesDe(x).includes('Gerente General'))) return 'Debe quedar al menos un Gerente General'
       set({ usuarios: nueva, usuario: get().usuario?.id === u.id ? u : get().usuario })
-      log(existe ? 'Usuario editado' : 'Usuario creado', `${u.nombre} (${u.rol})`)
+      log(existe ? 'Usuario editado' : 'Usuario creado', `${u.nombre} (${rolesDe(u).join(', ')})`)
       return null
     },
     eliminarUsuario: (id) => {
       if (get().usuario?.id === id) return 'No puede eliminar su propio usuario'
       const u = get().usuarios.find((x) => x.id === id)
       const nueva = get().usuarios.filter((x) => x.id !== id)
-      if (!nueva.some((x) => x.rol === 'Gerente General')) return 'Debe quedar al menos un Gerente General'
+      if (!nueva.some((x) => rolesDe(x).includes('Gerente General'))) return 'Debe quedar al menos un Gerente General'
       set({ usuarios: nueva }); log('Usuario eliminado', `${u?.nombre}`)
       return null
     },
-    respaldo: () => { const s = get(); return { empresa: s.empresa, sucursales: s.sucursales, proveedores: s.proveedores, productos: s.productos, movimientos: s.movimientos, ordenes: s.ordenes, auditoria: s.auditoria, usuarios: s.usuarios } },
-    restaurar: (d) => { set({ ...d }); log('Respaldo restaurado', `${d.productos.length} productos`) },
+    respaldo: () => { const s = get(); return { empresa: s.empresa, sucursales: s.sucursales, proveedores: s.proveedores, productos: s.productos, movimientos: s.movimientos, ordenes: s.ordenes, auditoria: s.auditoria, usuarios: s.usuarios, gastos: s.gastos, cierres: s.cierres, ventas: s.ventas, tareas: s.tareas, notas: s.notas, clientes: s.clientes } },
+    registrarVenta: (v) => {
+      const { productos } = get()
+      const lineas = v.lineas.filter((l) => l.productoId && l.cantidad > 0)
+      if (!lineas.length) return 'Agregue al menos un producto con cantidad'
+      const pide = new Map<string, number>() // unidades por producto (puede repetirse en varias líneas)
+      for (const l of lineas) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
+      for (const [pid, q] of pide) {
+        const p = productos.find((x) => x.id === pid)
+        if (!p) return 'Producto no encontrado'
+        if ((p.stock[v.sucursal] ?? 0) < q) return `Stock insuficiente de ${p.nombre} en ${v.sucursal} (hay ${p.stock[v.sucursal] ?? 0} u)`
+      }
+      const subtotal = lineas.reduce((a, l) => a + l.cantidad * l.precio, 0)
+      const descuento = Math.min(Math.max(0, v.descuento), subtotal)
+      const factor = subtotal ? 1 - descuento / subtotal : 1 // el descuento se reparte entre las líneas
+      const id = `V-${1001 + get().ventas.length}`, usuario = get().usuario?.nombre ?? 'Sistema'
+      const lin = lineas.map((l) => ({ ...l, costo: productos.find((x) => x.id === l.productoId)!.costo }))
+      const movs: Movimiento[] = lin.map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: -l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `${id}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}` }))
+      set({
+        productos: productos.map((p) => (pide.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) - pide.get(p.id)! } } : p)),
+        movimientos: [...get().movimientos, ...movs],
+        ventas: [...get().ventas, { id, fecha: v.fecha, sucursal: v.sucursal, lineas: lin, descuento, total: subtotal - descuento, costoTotal: lin.reduce((a, l) => a + l.cantidad * l.costo, 0), cliente: v.cliente.trim(), canal: v.canal, estado: v.estado, usuario }],
+      })
+      log('Venta registrada', `${id} · ${lin.reduce((a, l) => a + l.cantidad, 0)} u · ${(subtotal - descuento).toFixed(2)}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}`, v.sucursal)
+      return null
+    },
+    cambiarEstadoVenta: (id, estado) => { set({ ventas: get().ventas.map((x) => (x.id === id && x.estado !== 'Anulada' ? { ...x, estado } : x)) }); log('Venta actualizada', `${id} · ${estado}`) },
+    anularVenta: (id) => {
+      const v = get().ventas.find((x) => x.id === id)
+      if (!v || v.estado === 'Anulada') return 'La venta ya está anulada'
+      const factor = v.total + v.descuento ? v.total / (v.total + v.descuento) : 1, usuario = get().usuario?.nombre ?? 'Sistema'
+      // Devolución con la misma fecha de la venta: el stock regresa y la venta deja de contar en ese periodo.
+      const movs: Movimiento[] = v.lineas.map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `Anulación ${id}` }))
+      const vuelve = new Map<string, number>()
+      for (const l of v.lineas) vuelve.set(l.productoId, (vuelve.get(l.productoId) ?? 0) + l.cantidad)
+      set({
+        productos: get().productos.map((p) => (vuelve.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) + vuelve.get(p.id)! } } : p)),
+        movimientos: [...get().movimientos, ...movs.filter((m) => get().productos.some((p) => p.id === m.productoId))],
+        ventas: get().ventas.map((x) => (x.id === id ? { ...x, estado: 'Anulada' } : x)),
+      })
+      log('Venta anulada', `${id} · el stock regresó a ${v.sucursal}`, v.sucursal)
+      return null
+    },
+    guardarCliente: (c) => { const existe = get().clientes.some((x) => x.id === c.id); set({ clientes: existe ? get().clientes.map((x) => (x.id === c.id ? c : x)) : [...get().clientes, c] }); log(existe ? 'Cliente editado' : 'Cliente creado', c.nombre) },
+    eliminarCliente: (id) => { const c = get().clientes.find((x) => x.id === id); set({ clientes: get().clientes.filter((x) => x.id !== id) }); log('Cliente eliminado', c?.nombre ?? id) },
+    guardarConexiones: (c) => { set({ empresa: { ...get().empresa, conexiones: c } }); log('Conexiones actualizadas', Object.keys(c).filter((k) => c[k]).join(', ') || 'ninguna') },
+    importarPersonas: (lista, usuarioDe) => {
+      let equipo = 0, clientes = 0, proveedores = 0
+      const usuarios = [...get().usuarios], provs = [...get().proveedores], clis = [...get().clientes]
+      for (const x of lista) {
+        if (x.tipo === 'equipo') {
+          const usuario = usuarioDe(x.nombre, usuarios.map((u) => u.usuario))
+          const partes = x.nombre.split(' ')
+          usuarios.push({ id: crypto.randomUUID(), nombre: x.nombre, nombres: partes.slice(0, Math.ceil(partes.length / 2)).join(' '), apellidos: partes.slice(Math.ceil(partes.length / 2)).join(' '), usuario, clave: `${usuario}2026`, rol: 'Ayudante', email: x.email, telefono: x.telefono, cargo: x.cargo })
+          equipo++
+        } else if (x.tipo === 'proveedor') {
+          provs.push({ id: crypto.randomUUID(), nombre: x.empresa || x.nombre, ruc: '', ciudad: '', contacto: x.empresa ? x.nombre : '', telefono: x.telefono, email: x.email, cumplimiento: 100, indicePrecio: 1 }); proveedores++
+        } else { clis.push({ id: crypto.randomUUID(), nombre: x.nombre, email: x.email, telefono: x.telefono, empresa: x.empresa, nota: x.cargo }); clientes++ }
+      }
+      set({ usuarios, proveedores: provs, clientes: clis })
+      log('Contactos importados', `${equipo} al equipo · ${clientes} clientes · ${proveedores} proveedores`)
+      return { equipo, clientes, proveedores }
+    },
+    guardarTarea: (t) => {
+      const prev = get().tareas.find((x) => x.id === t.id), ahora = sello()
+      set({ tareas: prev ? get().tareas.map((x) => (x.id === t.id ? { ...t, actualizada: ahora } : x)) : [...get().tareas, { ...t, creada: ahora, actualizada: ahora }] })
+      const nombres = t.asignados.map((id) => get().usuarios.find((u) => u.id === id)?.nombre.split(' ')[0]).filter(Boolean).join(', ')
+      log(prev ? 'Tarea editada' : 'Tarea creada', `${t.titulo}${nombres ? ' → ' + nombres : ''}`)
+    },
+    moverTarea: (id, estado, antesDe) => {
+      const t = get().tareas.find((x) => x.id === id); if (!t) return
+      // Orden dentro de la columna: se coloca antes de "antesDe" o al final
+      const col = get().tareas.filter((x) => x.estado === estado && x.id !== id).sort((a, b) => a.orden - b.orden)
+      const i = antesDe ? col.findIndex((x) => x.id === antesDe) : -1
+      const orden = i < 0 ? (col[col.length - 1]?.orden ?? 0) + 1 : i === 0 ? col[0].orden - 1 : (col[i - 1].orden + col[i].orden) / 2
+      set({ tareas: get().tareas.map((x) => (x.id === id ? { ...x, estado, orden, actualizada: sello() } : x)) })
+      if (t.estado !== estado) log('Tarea movida', `${t.titulo} → ${{ pendiente: 'Pendiente', progreso: 'En progreso', hecho: 'Hecho', archivado: 'Archivado' }[estado]}`)
+    },
+    eliminarTarea: (id) => { const t = get().tareas.find((x) => x.id === id); set({ tareas: get().tareas.filter((x) => x.id !== id) }); log('Tarea eliminada', t?.titulo ?? id) },
+    guardarNota: (n) => set({ notas: get().notas.some((x) => x.id === n.id) ? get().notas.map((x) => (x.id === n.id ? { ...n, actualizada: sello() } : x)) : [{ ...n, actualizada: sello() }, ...get().notas] }),
+    eliminarNota: (id) => { const n = get().notas.find((x) => x.id === id); set({ notas: get().notas.filter((x) => x.id !== id) }); log('Nota eliminada', n?.titulo || 'Sin título') },
+    guardarGasto: (g) => {
+      const existe = get().gastos.some((x) => x.id === g.id)
+      set({ gastos: existe ? get().gastos.map((x) => (x.id === g.id ? g : x)) : [...get().gastos, g] })
+      log(existe ? 'Gasto editado' : 'Gasto registrado', `${g.concepto} · ${g.categoria} · ${g.monto.toFixed(2)}`, g.sucursal || '—')
+    },
+    eliminarGasto: (id) => { const g = get().gastos.find((x) => x.id === id); set({ gastos: get().gastos.filter((x) => x.id !== id) }); log('Gasto eliminado', g ? `${g.concepto} · ${g.monto.toFixed(2)}` : id) },
+    cerrarPeriodo: (c) => {
+      const existe = get().cierres.some((x) => x.id === c.id)
+      set({ cierres: [...get().cierres.filter((x) => x.id !== c.id), c] })
+      log(existe ? 'Cierre actualizado' : 'Cierre de periodo', `${c.id} · ganancia neta ${c.neta.toFixed(2)}`)
+    },
+    quitarCierre: (id) => { set({ cierres: get().cierres.filter((x) => x.id !== id) }); log('Cierre quitado', id) },
+    // Respaldos anteriores no traen gastos ni cierres: se dejan vacíos.
+    restaurar: (d) => { set({ ...d, gastos: d.gastos ?? [], cierres: d.cierres ?? [], ventas: d.ventas ?? [], tareas: d.tareas ?? [], notas: d.notas ?? [], clientes: d.clientes ?? [] }); log('Respaldo restaurado', `${d.productos.length} productos`) },
   }
 }, {
   name: 'nexora-app', version: 5,

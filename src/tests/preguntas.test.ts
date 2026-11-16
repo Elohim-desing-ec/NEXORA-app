@@ -4,7 +4,7 @@ import { PROYECTO } from '../data/proyecto'
 
 const top = (q: string) => buscar(q)[0]?.pregunta.id
 
-describe('Motor de preguntas del Modo Defensa', () => {
+describe('Motor de preguntas del Asesor económico', () => {
   it('tiene al menos 60 preguntas con ids únicos', () => {
     expect(PREGUNTAS.length).toBeGreaterThanOrEqual(60)
     expect(new Set(PREGUNTAS.map((p) => p.id)).size).toBe(PREGUNTAS.length)

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight, Send, Sparkles, X } from 'lucide-react'
-import { useApp, PERMISOS } from '../store/useApp'
+import { useApp, permisosDe } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { asistente, SUGERENCIAS, type Resp } from '../lib/asistente'
 import { cx } from './ui'
@@ -19,7 +19,7 @@ export function Asistente() {
   const u = app.usuario
   const enviar = (texto: string) => {
     if (!texto.trim()) return
-    const r = asistente(texto, { productos: app.productos, movimientos: app.movimientos, ordenes: app.ordenes, proveedores: app.proveedores, sucursales: app.sucursales, empresa: app.empresa, rol: u.rol, nombre: u.nombre, p: econ.p })
+    const r = asistente(texto, { productos: app.productos, movimientos: app.movimientos, ordenes: app.ordenes, proveedores: app.proveedores, sucursales: app.sucursales, empresa: app.empresa, rol: u.rol, nombre: u.nombre, p: econ.p, hayEval: !!econ.activa })
     setMsgs((m) => [...m, { de: 'yo', r: { texto } }, { de: 'ia', r }]); setQ('')
   }
   const inicio: Msg = { de: 'ia', r: { texto: `Hola, ${u.nombre.split(' ')[0]} 👋 Pregúnteme cómo usar NEXORA o consulte sus datos.`, sugerencias: SUGERENCIAS } }
@@ -39,7 +39,7 @@ export function Asistente() {
                 <div key={k} className={cx('flex', m.de === 'yo' && 'justify-end')}>
                   <div className={cx('max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm', m.de === 'yo' ? 'rounded-br-md bg-gradient-to-r from-primario to-violeta text-black' : 'rounded-bl-md bg-fg/5')}>
                     <p className="whitespace-pre-line leading-relaxed">{m.r.texto}</p>
-                    {m.r.ir && PERMISOS[u.rol].includes(m.r.ir.pagina) && <button onClick={() => { if (m.r.ir!.tab) econ.setTab(m.r.ir!.tab); app.ir(m.r.ir!.pagina); setAbierto(false) }} className="mt-2 flex items-center gap-1 text-xs font-semibold text-cian hover:underline">{m.r.ir.label}<ArrowRight size={12} /></button>}
+                    {m.r.ir && permisosDe(u).includes(m.r.ir.pagina) && <button onClick={() => { if (m.r.ir!.tab) econ.setTab(m.r.ir!.tab); app.ir(m.r.ir!.pagina); setAbierto(false) }} className="mt-2 flex items-center gap-1 text-xs font-semibold text-cian hover:underline">{m.r.ir.label}<ArrowRight size={12} /></button>}
                     {m.r.sugerencias && k === msgs.length && <div className="mt-2 flex flex-wrap gap-1.5">{m.r.sugerencias.map((s) => <button key={s} onClick={() => enviar(s)} className="rounded-full border border-fg/15 px-2.5 py-1 text-xs hover:bg-fg/10">{s}</button>)}</div>}
                   </div>
                 </div>
@@ -54,7 +54,7 @@ export function Asistente() {
         )}
       </AnimatePresence>
       <motion.button aria-label="Abrir asistente" onClick={() => setAbierto(!abierto)} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.95 }}
-        className="fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primario via-secundario to-violeta text-black shadow-[0_10px_40px_-5px_rgba(212,175,55,.55)]">
+        className="fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-primario via-secundario to-violeta text-black shadow-[0_10px_40px_-5px_rgb(var(--t-oro)/.55)]">
         <span className="absolute inset-0 animate-ping rounded-2xl bg-violeta/30 [animation-duration:3s]" />
         {abierto ? <X size={22} /> : <Sparkles size={22} />}
       </motion.button>

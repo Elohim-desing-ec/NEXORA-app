@@ -1,13 +1,16 @@
-import { useRef, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { motion, useInView, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, Bot, Brain, FileBarChart2, Globe2, LineChart, ScanBarcode, ShieldCheck, Sparkles, TrendingDown, Workflow } from 'lucide-react'
+import { ArrowRight, Bot, Check, Brain, FileBarChart2, Globe2, LineChart, ScanBarcode, ShieldCheck, Sparkles, TrendingDown, Workflow } from 'lucide-react'
 import { Logo } from '../components/Logo'
 import { Horizonte } from '../components/Horizonte'
 import { Fondo } from '../components/Layout'
 import { Contador, cx } from '../components/ui'
-import { useEcon } from '../store/useEcon'
+import { PROYECTO } from '../data/proyecto'
 import * as F from '../lib/finance'
 import { money, num } from '../lib/format'
+import { useIdioma, useTx } from '../lib/idioma'
+import { SelectorIdioma } from '../components/SelectorIdioma'
+import { InstalarApp } from '../components/InstalarApp'
 
 const suave = [0.16, 1, 0.3, 1] as const
 const ingresar = () => { location.hash = '#/login' }
@@ -24,14 +27,15 @@ function Cifra({ valor, formato, titulo }: { valor: number; formato: (v: number)
 /** Maqueta del panel de NEXORA (ilustración en HTML, no una captura). */
 function Maqueta({ K, caue, nOpt }: { K: ReturnType<typeof F.indicadores>; caue: number[]; nOpt: number }) {
   const max = Math.max(...caue), min = Math.min(...caue)
+  const tx = useTx()
   return (
-    <div className="overflow-hidden rounded-2xl border border-primario/25 bg-[#070604]/95 shadow-[0_40px_120px_-30px_rgba(212,175,55,.45)]">
-      <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3"><Logo size={22} /><div className="ml-6 hidden gap-5 text-[11px] text-stone-400 sm:flex">{['Dashboard', 'Red global', 'Inventario', 'Compras', 'Reportes'].map((t, k) => <span key={t} className={k === 0 ? 'text-amber-200' : ''}>{t}</span>)}</div><div className="ml-auto h-6 w-6 rounded-full bg-gradient-to-br from-amber-200 to-amber-700" /></div>
+    <div className="overflow-hidden rounded-2xl border border-primario/25 bg-[#070604]/95 shadow-[0_40px_120px_-30px_rgb(var(--t-oro)/.45)]">
+      <div className="flex items-center gap-3 border-b border-white/5 px-4 py-3"><Logo size={22} /><div className="ml-6 hidden gap-5 text-[11px] text-stone-400 sm:flex">{['Dashboard', tx('Red global', 'Global network', 'Rede global'), tx('Inventario', 'Inventory', 'Estoque'), tx('Compras', 'Purchasing', 'Compras'), tx('Reportes', 'Reports', 'Relatórios')].map((t, k) => <span key={t} className={k === 0 ? 'text-amber-200' : ''}>{t}</span>)}</div><div className="ml-auto h-6 w-6 rounded-full bg-gradient-to-br from-amber-200 to-amber-700" /></div>
       <div className="grid gap-3 p-4 sm:grid-cols-4">
-        {[['Ahorro anual', money(K.A, 0)], ['VPN (5 años)', money(K.VPN, 0)], ['TIR', `${num(K.TIR * 100, 1)} %`], ['Recuperación', `${num(K.recSimple)} años`]].map(([t, v]) => <div key={t} className="rounded-xl border border-white/5 bg-white/[.03] p-3"><div className="text-[10px] text-stone-400">{t}</div><div className="mt-1 font-display text-lg font-semibold text-amber-100">{v}</div></div>)}
-        <div className="rounded-xl border border-white/5 bg-white/[.03] p-3 sm:col-span-3"><div className="mb-3 flex justify-between text-[10px] text-stone-400"><span>CAUE de NEXORA según años de uso</span><span className="text-amber-200">Mínimo en n = {nOpt} → vida útil económica</span></div>
-          <div className="flex h-28 items-end gap-1.5">{caue.map((v, k) => <motion.div key={k} title={money(v)} className={cx('flex-1 rounded-t bg-gradient-to-t', k + 1 === nOpt ? 'from-amber-600 via-amber-200 to-white shadow-[0_0_20px_rgba(255,214,120,.8)]' : 'from-amber-900 via-violeta to-primario')} initial={{ height: 0 }} whileInView={{ height: `${25 + ((v - min) / (max - min || 1)) * 75}%` }} viewport={{ once: true }} transition={{ delay: 0.3 + k * 0.05, duration: 0.8, ease: suave }} />)}</div></div>
-        <div className="rounded-xl border border-white/5 bg-white/[.03] p-3"><div className="text-[10px] text-stone-400">Red global</div><GloboDibujo className="mx-auto mt-1 h-28 w-28" /></div>
+        {[[tx('Ahorro anual', 'Annual savings', 'Economia anual'), money(K.A, 0)], [tx('VPN (5 años)', 'NPV (5 years)', 'VPL (5 anos)'), money(K.VPN, 0)], [tx('TIR', 'IRR', 'TIR'), `${num(K.TIR * 100, 1)} %`], [tx('Recuperación', 'Payback', 'Retorno'), `${num(K.recSimple)} ${tx('años', 'years', 'anos')}`]].map(([t, v]) => <div key={t} className="rounded-xl border border-white/5 bg-white/[.03] p-3"><div className="text-[10px] text-stone-400">{t}</div><div className="mt-1 font-display text-lg font-semibold text-amber-100">{v}</div></div>)}
+        <div className="rounded-xl border border-white/5 bg-white/[.03] p-3 sm:col-span-3"><div className="mb-3 flex justify-between text-[10px] text-stone-400"><span>{tx('CAUE de NEXORA según años de uso', 'NEXORA EUAC by years of use', 'CAUE do NEXORA por anos de uso')}</span><span className="text-amber-200">{tx('Mínimo en', 'Minimum at', 'Mínimo em')} n = {nOpt} → {tx('vida útil económica', 'economic life', 'vida útil econômica')}</span></div>
+          <div className="flex h-28 items-end gap-1.5">{caue.map((v, k) => <motion.div key={k} title={money(v)} className={cx('flex-1 rounded-t bg-gradient-to-t', k + 1 === nOpt ? 'from-amber-600 via-amber-200 to-white shadow-[0_0_20px_rgb(var(--t-claro)/.8)]' : 'from-amber-900 via-violeta to-primario')} initial={{ height: 0 }} whileInView={{ height: `${25 + ((v - min) / (max - min || 1)) * 75}%` }} viewport={{ once: true }} transition={{ delay: 0.3 + k * 0.05, duration: 0.8, ease: suave }} />)}</div></div>
+        <div className="rounded-xl border border-white/5 bg-white/[.03] p-3"><div className="text-[10px] text-stone-400">{tx('Red global', 'Global network', 'Rede global')}</div><GloboDibujo className="mx-auto mt-1 h-28 w-28" /></div>
       </div>
     </div>
   )
@@ -41,12 +45,12 @@ function Maqueta({ K, caue, nOpt }: { K: ReturnType<typeof F.indicadores>; caue:
 function GloboDibujo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 120" className={className} aria-hidden>
-      <defs><radialGradient id="gl" cx=".35" cy=".3"><stop offset="0" stopColor="#3a2a08" /><stop offset="1" stopColor="#050403" /></radialGradient></defs>
-      <circle cx="60" cy="60" r="52" fill="url(#gl)" stroke="#D4AF37" strokeOpacity=".6" />
-      {[-30, 0, 30].map((y) => <ellipse key={y} cx="60" cy={60 + y} rx={Math.sqrt(52 * 52 - y * y)} ry={5} fill="none" stroke="#D4AF37" strokeOpacity=".25" />)}
-      {[0, 1, 2, 3].map((k) => <ellipse key={k} cx="60" cy="60" rx="52" ry="52" fill="none" stroke="#F3D58A" strokeOpacity=".35" className="meridiano" style={{ animationDelay: `${-k * 2}s` }} />)}
-      <motion.path d="M38 70 Q60 20 86 46" fill="none" stroke="#FFF0C2" strokeWidth="1.6" strokeLinecap="round" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.6, delay: 0.5 }} />
-      {[[38, 70], [86, 46], [70, 84]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="3.2" fill="#F3D58A" className="animate-destello" />)}
+      <defs><radialGradient id="gl" cx=".35" cy=".3"><stop offset="0" stopColor="rgb(var(--t-sombra))" /><stop offset="1" stopColor="#050403" /></radialGradient></defs>
+      <circle cx="60" cy="60" r="52" fill="url(#gl)" stroke="rgb(var(--t-oro))" strokeOpacity=".6" />
+      {[-30, 0, 30].map((y) => <ellipse key={y} cx="60" cy={60 + y} rx={Math.sqrt(52 * 52 - y * y)} ry={5} fill="none" stroke="rgb(var(--t-oro))" strokeOpacity=".25" />)}
+      {[0, 1, 2, 3].map((k) => <ellipse key={k} cx="60" cy="60" rx="52" ry="52" fill="none" stroke="rgb(var(--t-claro))" strokeOpacity=".35" className="meridiano" style={{ animationDelay: `${-k * 2}s` }} />)}
+      <motion.path d="M38 70 Q60 20 86 46" fill="none" stroke="rgb(var(--t-palido))" strokeWidth="1.6" strokeLinecap="round" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.6, delay: 0.5 }} />
+      {[[38, 70], [86, 46], [70, 84]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="3.2" fill="rgb(var(--t-claro))" className="animate-destello" />)}
     </svg>
   )
 }
@@ -63,8 +67,32 @@ function Bento({ icono, titulo, texto, children, className }: { icono: ReactNode
 }
 
 export default function Landing() {
-  const p = useEcon((s) => s.p)
+  const p = PROYECTO
+  const tx = useTx(), idioma = useIdioma((s) => s.idioma)
+  const [grupo, setGrupo] = useState<'empresas' | 'emprendimientos'>('empresas')
   const K = F.indicadores(p), R = F.reemplazo(p)
+  // Planes: licencia = caso analizado; SaaS = inversión + soporte repartidos en cuotas (A/P a n años con la TMAR).
+  const soporte = p.conceptos.find((c) => /soporte/i.test(c.nombre))?.nuevo ?? 0
+  const cuotaMes = (F.inversion(p) * F.AP(p.i, p.n) + soporte) / 12
+  // Emprendimientos: autoservicio, sin implementación; cuotas = A/P a n años con la TMAR.
+  const cuota = (monto: number) => (monto * F.AP(p.i, p.n)) / 12
+  const emprendimientos = [
+    { tipo: tx('Mensual', 'Monthly', 'Mensal'), nombre: 'Emprende', precio: money(cuota(p.licencia), 0), unidad: tx('/ mes', '/ month', '/ mês'), nota: tx(`Solo la licencia en cuotas a ${p.n} años. Usted mismo lo configura.`, `License only, in installments over ${p.n} years. You set it up yourself.`, `Só a licença, em parcelas por ${p.n} anos. Você mesmo configura.`), boton: tx('Empezar', 'Get started', 'Começar'),
+      incluye: [tx('1 sucursal', '1 branch', '1 filial'), tx('Inventario, ventas y compras', 'Inventory, sales and purchasing', 'Estoque, vendas e compras'), tx('Carga con plantilla de Excel', 'Upload with an Excel template', 'Carga com modelo do Excel'), tx('Ayuda del asistente con IA', 'Help from the AI assistant', 'Ajuda do assistente com IA')] },
+    { tipo: tx('Mensual', 'Monthly', 'Mensal'), nombre: 'Emprende Plus', precio: money(cuota(p.licencia + p.capacitacion), 0), unidad: tx('/ mes', '/ month', '/ mês'), nota: tx(`Licencia + capacitación (${money(p.capacitacion, 0)}) en cuotas a ${p.n} años.`, `License + training (${money(p.capacitacion, 0)}) in installments over ${p.n} years.`, `Licença + treinamento (${money(p.capacitacion, 0)}) em parcelas por ${p.n} anos.`), boton: tx('Empezar', 'Get started', 'Começar'), destacado: true,
+      incluye: [tx('Hasta 2 sucursales', 'Up to 2 branches', 'Até 2 filiais'), tx('Capacitación para su equipo', 'Training for your team', 'Treinamento para sua equipe'), tx('Roles para sus empleados', 'Roles for your employees', 'Funções para seus funcionários'), tx('Reportes en Excel y PDF', 'Excel and PDF reports', 'Relatórios em Excel e PDF')] },
+    { tipo: tx('Pago único', 'One-time payment', 'Pagamento único'), nombre: 'Emprende Propio', precio: money(p.licencia, 0), unidad: tx('pago único', 'one-time', 'pagamento único'), nota: tx('Solo la licencia: el software queda para usted, sin cuotas.', 'License only: the software is yours, no installments.', 'Só a licença: o software é seu, sem parcelas.'), boton: tx('Empezar', 'Get started', 'Começar'),
+      incluye: [tx('1 sucursal', '1 branch', '1 filial'), tx('El software es suyo', 'The software is yours', 'O software é seu'), tx('Sin pagos mensuales', 'No monthly payments', 'Sem mensalidades'), tx('Ayuda del asistente con IA', 'Help from the AI assistant', 'Ajuda do assistente com IA')] },
+  ]
+  const empresas = [
+    { tipo: tx('Suscripción', 'Subscription', 'Assinatura'), nombre: 'NEXORA Nube', precio: money(cuotaMes, 0), unidad: tx('/ mes', '/ month', '/ mês'), nota: tx(`Sin inversión inicial: la inversión y el soporte en cuotas a ${p.n} años (TMAR ${num(p.i * 100, 0)} %).`, `No upfront investment: investment and support in installments over ${p.n} years (MARR ${num(p.i * 100, 0)} %).`, `Sem investimento inicial: investimento e suporte em parcelas por ${p.n} anos (TMA ${num(p.i * 100, 0)} %).`), boton: tx('Empezar', 'Get started', 'Começar'),
+      incluye: [tx('Implementación y capacitación incluidas', 'Implementation and training included', 'Implantação e treinamento incluídos'), tx('Soporte y actualizaciones', 'Support and updates', 'Suporte e atualizações'), tx('Se paga como gasto operativo', 'Paid as an operating expense', 'Pago como despesa operacional'), tx('Cancele cuando quiera', 'Cancel anytime', 'Cancele quando quiser')] },
+    { tipo: tx('Licencia perpetua', 'Perpetual license', 'Licença perpétua'), nombre: 'NEXORA Pro', precio: money(F.inversion(p), 0), unidad: tx('pago único', 'one-time', 'pagamento único'), nota: tx(`Licencia ${money(p.licencia, 0)} + implementación ${money(p.implementacion, 0)} + capacitación ${money(p.capacitacion, 0)}. Soporte ${money(soporte, 0)} / año.`, `License ${money(p.licencia, 0)} + implementation ${money(p.implementacion, 0)} + training ${money(p.capacitacion, 0)}. Support ${money(soporte, 0)} / year.`, `Licença ${money(p.licencia, 0)} + implantação ${money(p.implementacion, 0)} + treinamento ${money(p.capacitacion, 0)}. Suporte ${money(soporte, 0)} / ano.`), boton: tx('Empezar', 'Get started', 'Começar'), destacado: true,
+      incluye: [tx('El software es de su empresa', 'The software belongs to your company', 'O software é da sua empresa'), tx('Es el caso del análisis económico', 'It is the economic analysis case', 'É o caso da análise econômica'), tx(`Se recupera en ${num(K.recSimple)} años`, `Pays back in ${num(K.recSimple)} years`, `Retorna em ${num(K.recSimple)} anos`), tx(`Ahorro de ${money(K.A, 0)} por año`, `Saves ${money(K.A, 0)} per year`, `Economia de ${money(K.A, 0)} por ano`)] },
+    { tipo: tx('A medida', 'Custom', 'Sob medida'), nombre: 'NEXORA Global', precio: tx('Cotización', 'Quote', 'Cotação'), unidad: '', nota: tx('Para redes con muchas sucursales y países (fase 2 del proyecto).', 'For networks with many branches and countries (project phase 2).', 'Para redes com muitas filiais e países (fase 2 do projeto).'), boton: tx('Conversemos', 'Let\'s talk', 'Vamos conversar'),
+      incluye: [tx('Sucursales y países ilimitados', 'Unlimited branches and countries', 'Filiais e países ilimitados'), tx('Base de datos en la nube en tiempo real', 'Real-time cloud database', 'Banco de dados na nuvem em tempo real'), tx('Facturación electrónica por país', 'E-invoicing for each country', 'Faturamento eletrônico por país'), tx('Integración con ERP y tiendas en línea', 'ERP and online store integration', 'Integração com ERP e lojas online')] },
+  ]
+  const planes = grupo === 'empresas' ? empresas : emprendimientos
   const hero = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: hero, offset: ['start start', 'end start'] })
   const panelY = useTransform(scrollYProgress, [0, 0.5], [0, -440])
@@ -83,8 +111,10 @@ export default function Landing() {
       {/* Navegación */}
       <motion.nav className="fixed inset-x-0 top-0 z-40 border-b border-primario/10 bg-black/40 backdrop-blur-xl" initial={{ y: -80 }} animate={{ y: 0 }} transition={{ delay: 0.2, duration: 0.8, ease: suave }}>
         <div className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3 sm:px-6"><Logo size={30} />
-          <div className="ml-6 hidden gap-6 text-sm text-muted md:flex">{[['Funciones', '#funciones'], ['Objetivos', '#objetivos'], ['Inversión', '#inversion'], ['Economía', '#economia'], ['Cómo empezar', '#empezar']].map(([t, h]) => <a key={t} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }) }} className="transition hover:text-fg">{t}</a>)}</div>
-          <button onClick={ingresar} className="ml-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-5 py-2 text-sm font-semibold text-black shadow-[0_8px_30px_-6px_rgba(212,175,55,.6)] transition hover:brightness-110">Ingresar <ArrowRight size={15} /></button>
+          <div className="ml-6 hidden gap-6 text-sm text-muted md:flex">{[[tx('Funciones', 'Features', 'Funcionalidades'), '#funciones'], [tx('Objetivos', 'Goals', 'Objetivos'), '#objetivos'], [tx('Inversión', 'Investment', 'Investimento'), '#inversion'], [tx('Economía', 'Economics', 'Economia'), '#economia'], [tx('Cómo empezar', 'Get started', 'Como começar'), '#empezar']].map(([t, h]) => <a key={t} href={h} onClick={(e) => { e.preventDefault(); document.querySelector(h)?.scrollIntoView({ behavior: 'smooth' }) }} className="transition hover:text-fg">{t}</a>)}</div>
+          <InstalarApp className="ml-auto hidden md:flex" />
+          <SelectorIdioma className="hidden sm:flex" />
+          <button onClick={ingresar} className="flex items-center gap-2 rounded-full max-sm:ml-auto bg-gradient-to-r from-amber-200 via-primario to-violeta px-5 py-2 text-sm font-semibold text-black shadow-[0_8px_30px_-6px_rgb(var(--t-oro)/.6)] transition hover:brightness-110">{tx('Ingresar', 'Sign in', 'Entrar')} <ArrowRight size={15} /></button>
         </div>
       </motion.nav>
 
@@ -94,14 +124,14 @@ export default function Landing() {
           <motion.div className="absolute inset-x-0 h-[120vh]" style={{ y: arcoY, top: 'max(70vh, 660px)' }} initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 2, ease: suave }}><Horizonte tamano={1800} className="top-0" /></motion.div>
           <motion.div style={{ opacity: textoOp, y: textoY }} className="relative z-10 mx-auto flex max-w-4xl flex-col items-center px-4 pt-32 text-center sm:pt-36">
             <motion.button onClick={() => document.querySelector('#funciones')?.scrollIntoView({ behavior: 'smooth' })} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.8, ease: suave }} className="flex items-center gap-2 rounded-full border border-primario/30 bg-black/40 p-1 pr-3 text-xs backdrop-blur">
-              <span className="rounded-full bg-gradient-to-r from-amber-200 to-primario px-2.5 py-1 font-semibold text-black">Nuevo</span>Red global 3D y reportes inteligentes <ArrowRight size={13} /></motion.button>
+              <span className="rounded-full bg-gradient-to-r from-amber-200 to-primario px-2.5 py-1 font-semibold text-black">{tx('Nuevo', 'New', 'Novo')}</span>{tx('Red global 3D y reportes inteligentes', '3D global network and smart reports', 'Rede global 3D e relatórios inteligentes')} <ArrowRight size={13} /></motion.button>
             <h1 className="mt-7 font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-              {['Inventario inteligente', 'para empresas', 'sin fronteras.'].map((l, k) => <motion.span key={l} className={cx('block', k === 2 && 'texto-oro')} initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ delay: 0.7 + k * 0.15, duration: 0.9, ease: suave }}>{l}</motion.span>)}
+              {[tx('Inventario inteligente', 'Smart inventory', 'Estoque inteligente'), tx('para empresas', 'for businesses', 'para empresas'), tx('sin fronteras.', 'without borders.', 'sem fronteiras.')].map((l, k) => <motion.span key={l} className={cx('block', k === 2 && 'texto-oro')} initial={{ opacity: 0, y: 40, filter: 'blur(12px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} transition={{ delay: 0.7 + k * 0.15, duration: 0.9, ease: suave }}>{l}</motion.span>)}
             </h1>
-            <motion.p className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3, duration: 1 }}>NEXORA conecta todas sus sucursales, en cualquier país, en una sola plataforma: reduce pérdidas, automatiza las compras con IA y entrega reportes que dicen qué hacer.</motion.p>
+            <motion.p className="mt-6 max-w-2xl text-base leading-relaxed text-muted sm:text-lg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.3, duration: 1 }}>{tx('NEXORA conecta todas sus sucursales, en cualquier país, en una sola plataforma: reduce pérdidas, automatiza las compras con IA y entrega reportes que dicen qué hacer.', 'NEXORA connects all your branches, in any country, on a single platform: it cuts losses, automates purchasing with AI and delivers reports that tell you what to do.', 'O NEXORA conecta todas as suas filiais, em qualquer país, em uma única plataforma: reduz perdas, automatiza as compras com IA e entrega relatórios que dizem o que fazer.')}</motion.p>
             <motion.div className="mt-8 flex flex-wrap justify-center gap-3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.5, duration: 0.8, ease: suave }}>
-              <button onClick={ingresar} className="flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-6 py-3 text-sm font-semibold text-black shadow-[0_10px_40px_-8px_rgba(212,175,55,.7)] transition hover:brightness-110">Ingresar a NEXORA <ArrowRight size={16} /></button>
-              <button onClick={() => document.querySelector('#funciones')?.scrollIntoView({ behavior: 'smooth' })} className="rounded-full border border-fg/15 bg-fg/5 px-6 py-3 text-sm font-medium backdrop-blur transition hover:bg-fg/10">Ver cómo funciona</button>
+              <button onClick={ingresar} className="flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-6 py-3 text-sm font-semibold text-black shadow-[0_10px_40px_-8px_rgb(var(--t-oro)/.7)] transition hover:brightness-110">{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></button>
+              <button onClick={() => document.querySelector('#funciones')?.scrollIntoView({ behavior: 'smooth' })} className="rounded-full border border-fg/15 bg-fg/5 px-6 py-3 text-sm font-medium backdrop-blur transition hover:bg-fg/10">{tx('Ver cómo funciona', 'See how it works', 'Veja como funciona')}</button>
             </motion.div>
           </motion.div>
           <motion.div style={{ y: panelY, rotateX: panelRot, scale: panelEsc, transformPerspective: 1400, top: 'max(80vh, 760px)' }} className="absolute inset-x-0 z-20 mx-auto max-w-5xl origin-top px-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6, duration: 1.2 }}><Maqueta K={K} caue={R.ret.filas.map((f) => f.caue)} nOpt={R.ret.nOpt} /></motion.div>
@@ -110,46 +140,46 @@ export default function Landing() {
 
       {/* Cifras */}
       <section className="relative mx-auto max-w-6xl px-4 py-20">
-        <Revelar><p className="mb-10 text-center text-xs uppercase tracking-[.3em] text-muted">Resultados del caso base del análisis económico</p></Revelar>
+        <Revelar><p className="mb-10 text-center text-xs uppercase tracking-[.3em] text-muted">{tx('Resultados del caso base del análisis económico', 'Base-case results of the economic analysis', 'Resultados do caso base da análise econômica')}</p></Revelar>
         <div className="grid grid-cols-2 gap-10 md:grid-cols-4">
-          <Cifra valor={(K.A / F.totalActual(p)) * 100} formato={(v) => `−${num(v, 0)} %`} titulo="Costos operativos" />
-          <Cifra valor={K.recSimple} formato={(v) => `${num(v, 2)} años`} titulo="Recuperación" />
-          <Cifra valor={K.TIR * 100} formato={(v) => `${num(v, 1)} %`} titulo="Tasa interna de retorno" />
-          <Cifra valor={47} formato={(v) => num(v, 0)} titulo="Países soportados" />
+          <Cifra valor={(K.A / F.totalActual(p)) * 100} formato={(v) => `−${num(v, 0)} %`} titulo={tx('Costos operativos', 'Operating costs', 'Custos operacionais')} />
+          <Cifra valor={K.recSimple} formato={(v) => `${num(v, 2)} ${tx('años', 'years', 'anos')}`} titulo={tx('Recuperación', 'Payback', 'Retorno')} />
+          <Cifra valor={K.TIR * 100} formato={(v) => `${num(v, 1)} %`} titulo={tx('Tasa interna de retorno', 'Internal rate of return', 'Taxa interna de retorno')} />
+          <Cifra valor={47} formato={(v) => num(v, 0)} titulo={tx('Países soportados', 'Supported countries', 'Países atendidos')} />
         </div>
       </section>
 
       {/* Funciones (bento) */}
       <section id="funciones" className="relative mx-auto max-w-7xl scroll-mt-24 px-4 py-20">
-        <Revelar className="mx-auto mb-12 max-w-2xl text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">Todo su negocio, <span className="texto-oro">en un solo lugar</span></h2><p className="mt-4 text-muted">Diseñado para una tienda o para una red multinacional.</p></Revelar>
+        <Revelar className="mx-auto mb-12 max-w-2xl text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">{tx('Todo su negocio,', 'Your whole business,', 'Todo o seu negócio,')} <span className="texto-oro">{tx('en un solo lugar', 'in one place', 'em um só lugar')}</span></h2><p className="mt-4 text-muted">{tx('Diseñado para una tienda o para una red multinacional.', 'Designed for a single store or a multinational network.', 'Feito para uma loja ou para uma rede multinacional.')}</p></Revelar>
         <div className="grid gap-4 md:grid-cols-3">
-          <Bento className="md:col-span-2" icono={<Globe2 size={20} />} titulo="Red global en 3D" texto="Todas sus sucursales sobre un globo terráqueo real: gírelo, acérquese hasta la calle y vea las transferencias entre países con tipos de cambio del día.">
-            <div className="flex items-center gap-6"><GloboDibujo className="h-36 w-36 shrink-0" /><ul className="space-y-2 text-sm text-muted">{['Sucursales ilimitadas en cualquier país', 'Direcciones reales de OpenStreetMap', 'Vista oscura, clara y satélite'].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primario" />{t}</li>)}</ul></div>
+          <Bento className="md:col-span-2" icono={<Globe2 size={20} />} titulo={tx('Red global en 3D', '3D global network', 'Rede global em 3D')} texto={tx('Todas sus sucursales sobre un globo terráqueo real: gírelo, acérquese hasta la calle y vea las transferencias entre países con tipos de cambio del día.', 'All your branches on a real globe: spin it, zoom down to street level and see transfers between countries with today\'s exchange rates.', 'Todas as suas filiais em um globo real: gire, aproxime até a rua e veja as transferências entre países com o câmbio do dia.')}>
+            <div className="flex items-center gap-6"><GloboDibujo className="h-36 w-36 shrink-0" /><ul className="space-y-2 text-sm text-muted">{[tx('Sucursales ilimitadas en cualquier país', 'Unlimited branches in any country', 'Filiais ilimitadas em qualquer país'), tx('Direcciones reales de OpenStreetMap', 'Real addresses from OpenStreetMap', 'Endereços reais do OpenStreetMap'), tx('Vista oscura, clara y satélite', 'Dark, light and satellite views', 'Visão escura, clara e satélite')].map((t) => <li key={t} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-primario" />{t}</li>)}</ul></div>
           </Bento>
-          <Bento icono={<Brain size={20} />} titulo="IA predictiva" texto="Pronóstico de demanda a 30 días, punto de reorden y compras sugeridas en un clic.">
-            <svg viewBox="0 0 200 60" className="w-full"><motion.path d="M0 50 C30 45 40 20 70 28 S110 50 130 30 S170 8 200 12" fill="none" stroke="#D4AF37" strokeWidth="2.5" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.8 }} /><path d="M130 30 S170 8 200 12" fill="none" stroke="#F3D58A" strokeWidth="2.5" strokeDasharray="4 5" /></svg>
+          <Bento icono={<Brain size={20} />} titulo={tx('IA predictiva', 'Predictive AI', 'IA preditiva')} texto={tx('Pronóstico de demanda a 30 días, punto de reorden y compras sugeridas en un clic.', '30-day demand forecast, reorder point and suggested purchases in one click.', 'Previsão de demanda de 30 dias, ponto de reposição e compras sugeridas em um clique.')}>
+            <svg viewBox="0 0 200 60" className="w-full"><motion.path d="M0 50 C30 45 40 20 70 28 S110 50 130 30 S170 8 200 12" fill="none" stroke="rgb(var(--t-oro))" strokeWidth="2.5" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.8 }} /><path d="M130 30 S170 8 200 12" fill="none" stroke="rgb(var(--t-claro))" strokeWidth="2.5" strokeDasharray="4 5" /></svg>
           </Bento>
-          <Bento icono={<FileBarChart2 size={20} />} titulo="Reportes inteligentes" texto="El sistema analiza sus datos y le dice qué hacer: quiebres, mermas, sobrestock y productos por vencer.">
-            <div className="space-y-1.5 text-xs">{[['Crítico', 'bg-peligro'], ['Alerta', 'bg-alerta'], ['Oportunidad', 'bg-primario']].map(([t, c], k) => <motion.div key={t} className="flex items-center gap-2 rounded-lg bg-fg/5 px-2.5 py-1.5" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + k * 0.15 }}><span className={cx('h-2 w-2 rounded-full', c)} />{t}</motion.div>)}</div>
+          <Bento icono={<FileBarChart2 size={20} />} titulo={tx('Reportes inteligentes', 'Smart reports', 'Relatórios inteligentes')} texto={tx('El sistema analiza sus datos y le dice qué hacer: quiebres, mermas, sobrestock y productos por vencer.', 'The system analyzes your data and tells you what to do: stockouts, shrinkage, overstock and expiring products.', 'O sistema analisa seus dados e diz o que fazer: rupturas, perdas, excesso de estoque e produtos a vencer.')}>
+            <div className="space-y-1.5 text-xs">{[[tx('Crítico', 'Critical', 'Crítico'), 'bg-peligro'], [tx('Alerta', 'Warning', 'Alerta'), 'bg-alerta'], [tx('Oportunidad', 'Opportunity', 'Oportunidade'), 'bg-primario']].map(([t, c], k) => <motion.div key={t} className="flex items-center gap-2 rounded-lg bg-fg/5 px-2.5 py-1.5" initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + k * 0.15 }}><span className={cx('h-2 w-2 rounded-full', c)} />{t}</motion.div>)}</div>
           </Bento>
-          <Bento icono={<ScanBarcode size={20} />} titulo="Inventario y kardex" texto="Stock por sucursal, costo promedio ponderado, lotes, vencimientos, códigos de barras y QR." />
-          <Bento icono={<Bot size={20} />} titulo="Asistente NEXORA" texto="Pregunte en lenguaje natural: «¿cuánto stock hay de café?», «¿cómo registro una venta?»." />
+          <Bento icono={<ScanBarcode size={20} />} titulo={tx('Inventario y kardex', 'Inventory and stock cards', 'Estoque e kardex')} texto={tx('Stock por sucursal, costo promedio ponderado, lotes, vencimientos, códigos de barras y QR.', 'Stock per branch, weighted average cost, batches, expiry dates, barcodes and QR codes.', 'Estoque por filial, custo médio ponderado, lotes, validades, códigos de barras e QR.')} />
+          <Bento icono={<Bot size={20} />} titulo={tx('Asistente NEXORA', 'NEXORA assistant', 'Assistente NEXORA')} texto={tx('Pregunte en lenguaje natural: «¿cuánto stock hay de café?», «¿cómo registro una venta?».', 'Ask in plain language: “how much coffee is in stock?”, “how do I record a sale?”.', 'Pergunte em linguagem natural: “quanto café tem em estoque?”, “como registro uma venda?”.')} />
         </div>
       </section>
 
       {/* Objetivos + tarjeta dorada 3D */}
       <section id="objetivos" className="relative mx-auto grid max-w-7xl scroll-mt-24 items-center gap-12 px-4 py-24 lg:grid-cols-2">
         <div>
-          <Revelar><h2 className="font-display text-3xl font-bold sm:text-5xl">Tres objetivos.<br /><span className="texto-oro">Un sistema.</span></h2></Revelar>
-          <div className="mt-8 space-y-4">{([[<TrendingDown key="a" size={18} />, 'Reducir las pérdidas', 'Kardex, control de mermas y vencimientos, y detección de anomalías con IA.'], [<Workflow key="b" size={18} />, 'Automatizar los procesos', 'Reorden automático, órdenes con aprobación y carga masiva desde Excel.'], [<LineChart key="c" size={18} />, 'Generar reportes inteligentes', 'Hallazgos con acciones recomendadas, en PDF y Excel con fórmulas reales.']] as const).map(([i, t, d], k) => (
+          <Revelar><h2 className="font-display text-3xl font-bold sm:text-5xl">{tx('Tres objetivos.', 'Three goals.', 'Três objetivos.')}<br /><span className="texto-oro">{tx('Un sistema.', 'One system.', 'Um sistema.')}</span></h2></Revelar>
+          <div className="mt-8 space-y-4">{([[<TrendingDown key="a" size={18} />, tx('Reducir las pérdidas', 'Reduce losses', 'Reduzir as perdas'), tx('Kardex, control de mermas y vencimientos, y detección de anomalías con IA.', 'Stock cards, shrinkage and expiry control, and AI anomaly detection.', 'Kardex, controle de perdas e validades, e detecção de anomalias com IA.')], [<Workflow key="b" size={18} />, tx('Automatizar los procesos', 'Automate processes', 'Automatizar os processos'), tx('Reorden automático, órdenes con aprobación y carga masiva desde Excel.', 'Automatic reordering, purchase orders with approval and bulk upload from Excel.', 'Reposição automática, pedidos com aprovação e carga em massa pelo Excel.')], [<LineChart key="c" size={18} />, tx('Generar reportes inteligentes', 'Generate smart reports', 'Gerar relatórios inteligentes'), tx('Hallazgos con acciones recomendadas, en PDF y Excel con fórmulas reales.', 'Findings with recommended actions, in PDF and Excel with real formulas.', 'Descobertas com ações recomendadas, em PDF e Excel com fórmulas reais.')]] as const).map(([i, t, d], k) => (
             <Revelar key={t} retraso={k * 0.12}><div className="flex gap-4 rounded-2xl border border-primario/15 bg-fg/[.03] p-4"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-amber-200 to-violeta text-black">{i}</div><div><div className="font-semibold">{t}</div><p className="text-sm text-muted">{d}</p></div></div></Revelar>))}</div>
         </div>
         <div ref={tarjeta} className="relative flex justify-center [perspective:1200px]">
-          <motion.div style={{ rotateY: tarjetaRot, rotateX: tarjetaRotX }} className="relative aspect-[1.6] w-full max-w-md rounded-3xl bg-gradient-to-br from-amber-100 via-primario to-violeta p-[1px] shadow-[0_50px_120px_-30px_rgba(212,175,55,.6)]">
-            <div className="flex h-full flex-col justify-between rounded-3xl bg-gradient-to-br from-[#2b1f07] via-[#120d04] to-black p-7">
+          <motion.div style={{ rotateY: tarjetaRot, rotateX: tarjetaRotX }} className="relative aspect-[1.6] w-full max-w-md rounded-3xl bg-gradient-to-br from-amber-100 via-primario to-violeta p-[1px] shadow-[0_50px_120px_-30px_rgb(var(--t-oro)/.6)]">
+            <div className="flex h-full flex-col justify-between rounded-3xl bg-gradient-to-br from-[rgb(var(--t-sombra))] via-[rgb(var(--t-sombra)/.45)] to-black p-7">
               <div className="flex items-center justify-between"><Logo size={26} /><Sparkles className="text-cian" size={20} /></div>
-              <div><div className="text-xs uppercase tracking-[.25em] text-amber-100/60">Ahorro anual con NEXORA</div><div className="texto-oro mt-1 font-display text-5xl font-bold">{money(K.A, 0)}</div></div>
-              <div className="flex justify-between text-xs text-amber-100/70"><span>VPN {money(K.VPN, 0)}</span><span>TIR {num(K.TIR * 100, 1)} %</span><span>{num(K.recSimple)} años</span></div>
+              <div><div className="text-xs uppercase tracking-[.25em] text-amber-100/60">{tx('Ahorro anual con NEXORA', 'Annual savings with NEXORA', 'Economia anual com o NEXORA')}</div><div className="texto-oro mt-1 font-display text-5xl font-bold">{money(K.A, 0)}</div></div>
+              <div className="flex justify-between text-xs text-amber-100/70"><span>VPN {money(K.VPN, 0)}</span><span>TIR {num(K.TIR * 100, 1)} %</span><span>{num(K.recSimple)} {tx('años', 'years', 'anos')}</span></div>
             </div>
           </motion.div>
         </div>
@@ -158,34 +188,49 @@ export default function Landing() {
       {/* Inversión y clientes potenciales */}
       <section id="inversion" className="relative mx-auto grid max-w-6xl scroll-mt-24 gap-6 px-4 py-20 lg:grid-cols-2">
         <Revelar><div className="glass h-full p-6 sm:p-8">
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">Costo de <span className="texto-oro">adquisición</span></h2>
-          <ul className="mt-6 space-y-3 text-sm">{[['Licencia', p.licencia], ['Implementación', p.implementacion], ['Capacitación', p.capacitacion]].map(([t, v]) => <li key={t as string} className="flex justify-between border-b border-fg/10 pb-2"><span className="text-muted">{t}</span><span className="tnum">{money(v as number, 0)}</span></li>)}
-            <li className="flex justify-between pt-1 text-base font-semibold"><span>Inversión total</span><span className="texto-oro font-display text-2xl tnum">{money(F.inversion(p), 0)}</span></li></ul>
-          <p className="mt-4 text-xs text-muted">Se recupera en {num(K.recSimple)} años con un ahorro de {money(K.A, 0)} por año.</p>
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">{tx('Costo de', 'Acquisition', 'Custo de')} <span className="texto-oro">{tx('adquisición', 'cost', 'aquisição')}</span></h2>
+          <ul className="mt-6 space-y-3 text-sm">{[[tx('Licencia', 'License', 'Licença'), p.licencia], [tx('Implementación', 'Implementation', 'Implantação'), p.implementacion], [tx('Capacitación', 'Training', 'Treinamento'), p.capacitacion]].map(([t, v]) => <li key={t as string} className="flex justify-between border-b border-fg/10 pb-2"><span className="text-muted">{t}</span><span className="tnum">{money(v as number, 0)}</span></li>)}
+            <li className="flex justify-between pt-1 text-base font-semibold"><span>{tx('Inversión total', 'Total investment', 'Investimento total')}</span><span className="texto-oro font-display text-2xl tnum">{money(F.inversion(p), 0)}</span></li></ul>
+          <p className="mt-4 text-xs text-muted">{tx(`Se recupera en ${num(K.recSimple)} años con un ahorro de ${money(K.A, 0)} por año.`, `Pays back in ${num(K.recSimple)} years with savings of ${money(K.A, 0)} per year.`, `Retorna em ${num(K.recSimple)} anos com economia de ${money(K.A, 0)} por ano.`)}</p>
         </div></Revelar>
         <Revelar retraso={0.12}><div className="glass h-full p-6 sm:p-8">
-          <h2 className="font-display text-2xl font-bold sm:text-3xl">Clientes <span className="texto-oro">potenciales</span></h2>
-          <div className="mt-6 flex flex-wrap gap-2">{['Distribuidoras', 'Cadenas de retail', 'Supermercados', 'Farmacias', 'Ferreterías', 'Industrias', 'Operadores logísticos', 'Repuestos', 'Emprendimientos con bodega'].map((c) => <span key={c} className="rounded-full border border-primario/25 bg-primario/10 px-3 py-1.5 text-xs">{c}</span>)}</div>
-          <p className="mt-5 text-sm leading-relaxed text-muted">Cualquier empresa que maneje inventario y hoy use un software antiguo, con errores de stock, mantenimiento constante y soporte caro: desde una sola tienda hasta redes con sucursales en varios países.</p>
+          <h2 className="font-display text-2xl font-bold sm:text-3xl">{tx('Clientes', 'Potential', 'Clientes')} <span className="texto-oro">{tx('potenciales', 'customers', 'potenciais')}</span></h2>
+          <div className="mt-6 flex flex-wrap gap-2">{({ es: ['Distribuidoras', 'Cadenas de retail', 'Supermercados', 'Farmacias', 'Ferreterías', 'Industrias', 'Operadores logísticos', 'Repuestos', 'Emprendimientos con bodega'], en: ['Distributors', 'Retail chains', 'Supermarkets', 'Pharmacies', 'Hardware stores', 'Manufacturers', 'Logistics operators', 'Spare parts', 'Small businesses with stock'], pt: ['Distribuidoras', 'Redes de varejo', 'Supermercados', 'Farmácias', 'Lojas de ferragens', 'Indústrias', 'Operadores logísticos', 'Autopeças', 'Pequenos negócios com estoque'] })[idioma].map((c) => <span key={c} className="rounded-full border border-primario/25 bg-primario/10 px-3 py-1.5 text-xs">{c}</span>)}</div>
+          <p className="mt-5 text-sm leading-relaxed text-muted">{tx('Cualquier empresa que maneje inventario y hoy use un software antiguo, con errores de stock, mantenimiento constante y soporte caro: desde una sola tienda hasta redes con sucursales en varios países.', 'Any company that handles inventory and still runs old software, with stock errors, constant maintenance and expensive support: from a single store to networks with branches in several countries.', 'Qualquer empresa que gerencia estoque e ainda usa um software antigo, com erros de estoque, manutenção constante e suporte caro: de uma única loja a redes com filiais em vários países.')}</p>
         </div></Revelar>
       </section>
 
       {/* Economía: veredicto */}
       <section id="economia" className="relative mx-auto max-w-5xl scroll-mt-24 px-4 py-20">
-        <Revelar className="text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">La decisión, <span className="texto-oro">con números</span></h2><p className="mx-auto mt-4 max-w-2xl text-muted">Costo anual uniforme equivalente (CAUE) del software antiguo frente a NEXORA, con TMAR del {num(p.i * 100, 0)} %.</p></Revelar>
+        <Revelar className="text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">{tx('La decisión,', 'The decision,', 'A decisão,')} <span className="texto-oro">{tx('con números', 'by the numbers', 'em números')}</span></h2><p className="mx-auto mt-4 max-w-2xl text-muted">{tx(`Costo anual uniforme equivalente (CAUE) del software antiguo frente a NEXORA, con TMAR del ${num(p.i * 100, 0)} %.`, `Equivalent uniform annual cost (EUAC) of the old software versus NEXORA, at a MARR of ${num(p.i * 100, 0)} %.`, `Custo anual uniforme equivalente (CAUE) do software antigo frente ao NEXORA, com TMA de ${num(p.i * 100, 0)} %.`)}</p></Revelar>
         <Revelar retraso={0.15}><div className="glass mt-10 space-y-6 p-6 sm:p-8">
-          {[['Software actual (defensor)', R.def.caueMin, 'from-stone-600 to-stone-400'], ['NEXORA (retador)', R.ret.caueMin, 'from-violeta via-primario to-amber-100']].map(([t, v, c]) => <div key={t as string}>
-            <div className="mb-2 flex justify-between text-sm"><span>{t}</span><span className="font-semibold tnum">{money(v as number)} / año</span></div>
+          {[[tx('Software actual (defensor)', 'Current software (defender)', 'Software atual (defensor)'), R.def.caueMin, 'from-stone-600 to-stone-400'], [tx('NEXORA (retador)', 'NEXORA (challenger)', 'NEXORA (desafiante)'), R.ret.caueMin, 'from-violeta via-primario to-amber-100']].map(([t, v, c]) => <div key={t as string}>
+            <div className="mb-2 flex justify-between text-sm"><span>{t}</span><span className="font-semibold tnum">{money(v as number)} / {tx('año', 'year', 'ano')}</span></div>
             <div className="h-4 overflow-hidden rounded-full bg-fg/5"><motion.div className={cx('h-full rounded-full bg-gradient-to-r', c as string)} initial={{ width: 0 }} whileInView={{ width: `${((v as number) / maxCaue) * 100}%` }} viewport={{ once: true }} transition={{ duration: 1.4, ease: suave }} /></div></div>)}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-fg/10 pt-6"><div><div className="text-xs uppercase tracking-[.25em] text-muted">Veredicto</div><div className="texto-oro font-display text-3xl font-bold">{R.veredicto}</div></div><div className="text-right text-sm text-muted">Ahorro equivalente<div className="font-display text-2xl font-bold text-fg">{money(R.def.caueMin - R.ret.caueMin)}</div></div></div>
+          <div className="flex flex-wrap items-center justify-between gap-4 border-t border-fg/10 pt-6"><div><div className="text-xs uppercase tracking-[.25em] text-muted">{tx('Veredicto', 'Verdict', 'Veredito')}</div><div className="texto-oro font-display text-3xl font-bold">{R.veredicto === 'CONSERVAR' ? tx('CONSERVAR', 'KEEP', 'MANTER') : tx('REEMPLAZAR AHORA', 'REPLACE NOW', 'SUBSTITUIR AGORA')}</div></div><div className="text-right text-sm text-muted">{tx('Ahorro equivalente', 'Equivalent savings', 'Economia equivalente')}<div className="font-display text-2xl font-bold text-fg">{money(R.def.caueMin - R.ret.caueMin)}</div></div></div>
         </div></Revelar>
       </section>
 
       {/* Cómo empezar */}
       <section id="empezar" className="relative mx-auto max-w-6xl scroll-mt-24 px-4 py-20">
-        <Revelar className="text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">Empiece <span className="texto-oro">hoy</span></h2></Revelar>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">{[['01', 'Configure su empresa', 'País, moneda, identificación fiscal y sucursales ubicadas en el mapa.'], ['02', 'Cargue sus datos', 'Productos con la plantilla de Excel, proveedores y su equipo con roles.'], ['03', 'Opere y decida', 'Registre ventas y compras; la IA y los reportes hacen el resto.']].map(([n, t, d], k) => (
+        <Revelar className="text-center"><h2 className="font-display text-3xl font-bold sm:text-5xl">{tx('Empiece', 'Start', 'Comece')} <span className="texto-oro">{tx('hoy', 'today', 'hoje')}</span></h2></Revelar>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">{[['01', tx('Configure su empresa', 'Set up your company', 'Configure sua empresa'), tx('País, moneda, identificación fiscal y sucursales ubicadas en el mapa.', 'Country, currency, tax ID and branches placed on the map.', 'País, moeda, identificação fiscal e filiais no mapa.')], ['02', tx('Cargue sus datos', 'Load your data', 'Carregue seus dados'), tx('Productos con la plantilla de Excel, proveedores y su equipo con roles.', 'Products with the Excel template, suppliers and your team with roles.', 'Produtos com o modelo do Excel, fornecedores e sua equipe com funções.')], ['03', tx('Opere y decida', 'Operate and decide', 'Opere e decida'), tx('Registre ventas y compras; la IA y los reportes hacen el resto.', 'Record sales and purchases; AI and reports do the rest.', 'Registre vendas e compras; a IA e os relatórios fazem o resto.')]].map(([n, t, d], k) => (
           <Revelar key={n} retraso={k * 0.12}><div className="glass glass-hover h-full p-6"><div className="texto-oro font-display text-4xl font-bold">{n}</div><div className="mt-3 font-semibold">{t}</div><p className="mt-1 text-sm text-muted">{d}</p></div></Revelar>))}</div>
+
+        {/* Planes (salen de los valores del proyecto) */}
+        <Revelar className="mt-20 text-center"><h3 className="font-display text-2xl font-bold sm:text-4xl">{tx('Elija su', 'Choose your', 'Escolha seu')} <span className="texto-oro">{tx('plan', 'plan', 'plano')}</span></h3><p className="mx-auto mt-3 max-w-2xl text-sm text-muted">{tx('Desde un emprendimiento con una sola tienda hasta una red en varios países.', 'From a one-store small business to a network across several countries.', 'De um pequeno negócio com uma loja a uma rede em vários países.')}</p>
+          <div className="mt-6 inline-flex rounded-full border border-primario/30 bg-fg/5 p-1">{([['empresas', tx('Planes empresas', 'Business plans', 'Planos empresas')], ['emprendimientos', tx('Planes emprendimientos', 'Small business plans', 'Planos pequenos negócios')]] as const).map(([g, t]) => (
+            <button key={g} onClick={() => setGrupo(g)} className={cx('rounded-full px-4 py-2 text-xs font-semibold transition sm:px-5 sm:text-sm', grupo === g ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black' : 'text-muted hover:text-fg')}>{t}</button>))}</div></Revelar>
+        <div className="mt-10 grid items-stretch gap-4 md:grid-cols-3">{planes.map((pl, k) => (
+          <Revelar key={grupo + pl.nombre} retraso={k * 0.12} className="h-full"><div className={cx('glass relative flex h-full flex-col p-6 sm:p-7', pl.destacado && 'border-primario/60 shadow-[0_20px_60px_-20px_rgb(var(--t-oro)/.55)]')}>
+            {pl.destacado && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-black">{tx('Recomendado', 'Recommended', 'Recomendado')}</span>}
+            <div className="text-xs uppercase tracking-[.2em] text-muted">{pl.tipo}</div>
+            <div className="mt-1 font-display text-2xl font-bold">{pl.nombre}</div>
+            <div className="mt-4"><span className="texto-oro font-display text-4xl font-bold tnum">{pl.precio}</span><span className="ml-1 text-sm text-muted">{pl.unidad}</span></div>
+            <p className="mt-1 min-h-[2.5rem] text-xs text-muted">{pl.nota}</p>
+            <ul className="mt-5 flex-1 space-y-2 text-sm">{pl.incluye.map((x) => <li key={x} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-primario" /><span>{x}</span></li>)}</ul>
+            <button onClick={ingresar} className={cx('mt-6 flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition', pl.destacado ? 'bg-gradient-to-r from-amber-200 via-primario to-violeta text-black hover:brightness-110' : 'border border-primario/40 hover:bg-primario/10')}>{pl.boton} <ArrowRight size={15} /></button>
+          </div></Revelar>))}</div>
       </section>
 
       {/* Llamado final con horizonte */}
@@ -193,13 +238,13 @@ export default function Landing() {
         <Horizonte tamano={1600} className="top-[48%]" />
         <Revelar className="relative z-10 mx-auto max-w-3xl px-4 pt-20 text-center">
           <ShieldCheck className="mx-auto mb-4 text-cian" size={30} />
-          <h2 className="font-display text-4xl font-bold sm:text-6xl">Su operación, <span className="texto-oro">iluminada.</span></h2>
-          <button onClick={ingresar} className="mx-auto mt-8 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-7 py-3 text-sm font-semibold text-black shadow-[0_10px_40px_-8px_rgba(212,175,55,.7)] transition hover:brightness-110">Ingresar a NEXORA <ArrowRight size={16} /></button>
+          <h2 className="font-display text-4xl font-bold sm:text-6xl">{tx('Su operación,', 'Your operation,', 'Sua operação,')} <span className="texto-oro">{tx('iluminada.', 'illuminated.', 'iluminada.')}</span></h2>
+          <button onClick={ingresar} className="mx-auto mt-8 flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-200 via-primario to-violeta px-7 py-3 text-sm font-semibold text-black shadow-[0_10px_40px_-8px_rgb(var(--t-oro)/.7)] transition hover:brightness-110">{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></button>
         </Revelar>
       </section>
       <footer className="relative border-t border-primario/10 bg-black/60 px-4 py-10 text-sm text-muted backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-6"><div><Logo size={26} /><p className="mt-3 max-w-xs text-xs">Proyecto de Ingeniería Económica · Análisis de reemplazo y depreciación · 2026</p></div>
-          <div className="text-xs"><div className="mb-2 font-semibold text-fg">Equipo</div><ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">{['Kattia Arreaga Castro', 'Emilio Espinoza Escobar', 'Holger Ferruzola Lucas', 'Emily Hidalgo Castro', 'Eduardo Lara Pincay', 'Christopher Martínez Bastidas'].map((n) => <li key={n}>{n}</li>)}</ul></div></div>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-6"><div><Logo size={26} /><p className="mt-3 max-w-xs text-xs">{tx('Proyecto de Ingeniería Económica · Análisis de reemplazo y depreciación · 2026', 'Engineering Economics project · Replacement and depreciation analysis · 2026', 'Projeto de Engenharia Econômica · Análise de substituição e depreciação · 2026')}</p></div>
+          <div className="text-xs"><div className="mb-2 font-semibold text-fg">{tx('Equipo', 'Team', 'Equipe')}</div><ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">{['Kattia Arreaga Castro', 'Emilio Espinoza Escobar', 'Holger Ferruzola Lucas', 'Emily Hidalgo Castro', 'Eduardo Lara Pincay', 'Christopher Martínez Bastidas'].map((n) => <li key={n}>{n}</li>)}</ul></div></div>
       </footer>
     </div>
   )

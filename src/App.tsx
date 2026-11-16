@@ -1,40 +1,42 @@
-import { useEffect, useState, lazy, Suspense, useCallback, useSyncExternalStore } from 'react'
+import { useEffect, useState, lazy, Suspense, useCallback, useSyncExternalStore, createElement, type ComponentType } from 'react'
 import { AnimatePresence } from 'framer-motion'
-import { ArrowLeft } from 'lucide-react'
-import { useApp, PERMISOS, hidratado } from './store/useApp'
+import { useApp, permisosDe, tieneRol, hidratado } from './store/useApp'
 import { setMoneda } from './lib/format'
 import { SIMBOLOS } from './data/paises'
-import { Fondo, Layout } from './components/Layout'
-import { Logo } from './components/Logo'
+import { Layout } from './components/Layout'
 import { Splash } from './components/Splash'
+import { DefsGraficos } from './components/charts'
+import { useIdioma } from './lib/idioma'
+import { recordarTema, temaGuardado } from './lib/temas'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 
-const Productos = lazy(() => import('./pages/Productos'))
-const Compras = lazy(() => import('./pages/Compras'))
-const IA = lazy(() => import('./pages/IA'))
-const Auditoria = lazy(() => import('./pages/Auditoria'))
-const Reportes = lazy(() => import('./pages/Reportes'))
-const Economico = lazy(() => import('./pages/Economico'))
-const Configuracion = lazy(() => import('./pages/Configuracion'))
-const RedGlobal = lazy(() => import('./pages/RedGlobal'))
+/**
+ * Como lazy(), pero una vez descargada la página se dibuja al instante: React.lazy siempre "suspende" un cuadro
+ * la primera vez que se muestra, y eso se veía como un parpadeo al cambiar de sección.
+ */
+const PRECARGAS: (() => Promise<unknown>)[] = []
+function precargable<P extends object>(f: () => Promise<{ default: ComponentType<P> }>) {
+  let listo: ComponentType<P> | null = null
+  const cargar = () => f().then((m) => { listo = m.default; return m })
+  const Lazy = lazy(cargar)
+  PRECARGAS.push(cargar)
+  return (props: P) => createElement((listo ?? Lazy) as ComponentType<P>, props)
+}
+const Resumen = precargable(() => import('./pages/Resumen'))
+const Espacio = precargable(() => import('./pages/Espacio'))
+const Productos = precargable(() => import('./pages/Productos'))
+const Compras = precargable(() => import('./pages/Compras'))
+const IA = precargable(() => import('./pages/IA'))
+const Auditoria = precargable(() => import('./pages/Auditoria'))
+const Reportes = precargable(() => import('./pages/Reportes'))
+const Economico = precargable(() => import('./pages/Economico'))
+const Configuracion = precargable(() => import('./pages/Configuracion'))
+const RedGlobal = precargable(() => import('./pages/RedGlobal'))
 const Bienvenida = lazy(() => import('./components/Bienvenida').then((m) => ({ default: m.Bienvenida })))
-const Defensa = lazy(() => import('./pages/Defensa'))
-const Landing = lazy(() => import('./pages/Landing'))
+const Landing = precargable(() => import('./pages/Landing'))
 const Cargando = () => <div className="p-10 text-center text-muted">Cargando…</div>
 
-/** Modo Defensa: herramienta independiente del sistema operativo (ruta #/defensa). */
-function DefensaAparte() {
-  return (
-    <div className="min-h-full p-4 sm:p-6"><Fondo />
-      <header className="glass mx-auto mb-6 flex max-w-[1500px] items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-3"><Logo size={32} /><span className="hidden border-l border-fg/10 pl-3 text-sm text-muted sm:block">Modo Defensa · práctica de la sustentación</span></div>
-        <a href="#" className="flex items-center gap-1.5 rounded-xl bg-fg/5 px-3 py-2 text-xs font-medium hover:bg-fg/10"><ArrowLeft size={14} />Volver al sistema</a>
-      </header>
-      <div className="mx-auto max-w-[1500px]"><Suspense fallback={<Cargando />}><Defensa /></Suspense></div>
-    </div>
-  )
-}
 
 export default function App() {
   const { usuario, pagina, tema, empresa } = useApp()
@@ -43,18 +45,23 @@ export default function App() {
   setMoneda(SIMBOLOS[empresa.moneda] ?? empresa.moneda)
   const [hash, setHash] = useState(location.hash)
   const [intro, setIntro] = useState(true)
+  // Al entrar, descarga en segundo plano todas las secciones para que cambiar entre ellas sea instantáneo
+  useEffect(() => { if (!usuario) return; const t = setTimeout(() => PRECARGAS.forEach((p) => p().catch(() => undefined)), 600); return () => clearTimeout(t) }, [usuario])
   const fin = useCallback(() => setIntro(false), [])
   useEffect(() => { document.documentElement.classList.toggle('dark', tema === 'oscuro') }, [tema])
+  const idioma = useIdioma((s) => s.idioma)
+  const temaColor = useApp((s) => (s.usuario ? s.temasColor?.[s.usuario.id] ?? 'oro' : null))
+  useEffect(() => { const t = temaColor ?? temaGuardado(); document.documentElement.dataset.tema = t; if (temaColor) recordarTema(temaColor) }, [temaColor])
+  useEffect(() => { document.documentElement.lang = idioma }, [idioma])
   useEffect(() => { const h = () => setHash(location.hash); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
 
   let vista
   if (!listo) vista = null
-  else if (hash === '#/defensa') vista = <DefensaAparte />
   else if (!usuario) vista = hash === '#/login' ? <Login /> : <Suspense fallback={null}><Landing /></Suspense>
   else {
-    const p = PERMISOS[usuario.rol].includes(pagina) ? pagina : 'dashboard'
-    const Pag = { dashboard: Dashboard, red: RedGlobal, productos: Productos, compras: Compras, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]
-    vista = <Layout><Suspense fallback={<Cargando />}><Pag />{usuario.rol === 'Gerente General' && !empresa.configurada && <Bienvenida />}</Suspense></Layout>
+    const p = permisosDe(usuario).includes(pagina) ? pagina : 'dashboard'
+    const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]
+    vista = <Layout><Suspense fallback={<Cargando />}><Pag />{tieneRol(usuario, 'Gerente General') && !empresa.configurada && <Bienvenida />}</Suspense></Layout>
   }
-  return <>{vista}<AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>
+  return <>{vista}<DefsGraficos /><AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>
 }

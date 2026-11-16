@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu } from 'lucide-react'
-import { useApp, PERMISOS, type Pagina } from '../store/useApp'
+import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
+import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Logo } from './Logo'
 import { Asistente } from './Asistente'
@@ -9,38 +9,56 @@ import { cx } from './ui'
 import { plural } from '../lib/format'
 import { enQuiebre } from '../lib/inventario'
 import { normalizar } from '../lib/preguntas'
+import { useTx } from '../lib/idioma'
+import { SelectorIdioma } from './SelectorIdioma'
+import { SelectorTema } from './SelectorTema'
 
-export const MENU: { id: Pagina; label: string; icon: ReactNode }[] = [
+/** Menú agrupado: arriba el Dashboard, luego Operación, Control y Finanzas; abajo Configuración y la IA. */
+export const MENU: { id: Pagina; label: string; icon: ReactNode; grupo?: 'Operación' | 'Control' | 'Finanzas' | 'pie' }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { id: 'red', label: 'Red global', icon: <Globe2 size={18} /> },
-  { id: 'productos', label: 'Inventario', icon: <Boxes size={18} /> },
-  { id: 'compras', label: 'Compras', icon: <ShoppingCart size={18} /> },
-  { id: 'auditoria', label: 'Trazabilidad', icon: <ShieldCheck size={18} /> },
-  { id: 'reportes', label: 'Reportes', icon: <FileDown size={18} /> },
-  { id: 'economico', label: 'Análisis económico', icon: <BarChart3 size={18} /> },
-  { id: 'ia', label: 'IA NEXORA', icon: <Brain size={18} /> },
-  { id: 'configuracion', label: 'Configuración', icon: <Settings size={18} /> },
+  { id: 'espacio', label: 'Espacio de trabajo', icon: <SquareKanban size={18} /> },
+  { id: 'productos', label: 'Inventario', icon: <Boxes size={18} />, grupo: 'Operación' },
+  { id: 'compras', label: 'Compras', icon: <ShoppingCart size={18} />, grupo: 'Operación' },
+  { id: 'red', label: 'Red global', icon: <Globe2 size={18} />, grupo: 'Operación' },
+  { id: 'auditoria', label: 'Trazabilidad', icon: <ShieldCheck size={18} />, grupo: 'Control' },
+  { id: 'reportes', label: 'Reportes', icon: <FileDown size={18} />, grupo: 'Control' },
+  { id: 'economico', label: 'Análisis económico', icon: <BarChart3 size={18} />, grupo: 'Finanzas' },
+  { id: 'resumen', label: 'Resumen', icon: <Wallet size={18} />, grupo: 'Finanzas' },
+  { id: 'configuracion', label: 'Configuración', icon: <Settings size={18} />, grupo: 'pie' },
+  { id: 'ia', label: 'IA NEXORA', icon: <Brain size={18} />, grupo: 'pie' },
 ]
+const GRUPOS = ['Operación', 'Control', 'Finanzas'] as const
+/** Nombres del menú en inglés y portugués (el español está en MENU y GRUPOS). */
+const TRAD: Record<string, [string, string]> = {
+  dashboard: ['Dashboard', 'Painel'], espacio: ['Workspace', 'Espaço de trabalho'], productos: ['Inventory', 'Estoque'], compras: ['Purchasing', 'Compras'], red: ['Global network', 'Rede global'],
+  auditoria: ['Traceability', 'Rastreabilidade'], reportes: ['Reports', 'Relatórios'], economico: ['Economic analysis', 'Análise econômica'], resumen: ['Summary', 'Resumo'],
+  configuracion: ['Settings', 'Configurações'], ia: ['NEXORA AI', 'IA NEXORA'], 'Operación': ['Operations', 'Operação'], Control: ['Control', 'Controle'], Finanzas: ['Finance', 'Finanças'],
+}
 
-/** Fondo "obsidiana": resplandor dorado cenital, haces de luz diagonales y textura de grano. */
-export function Fondo() {
+/**
+ * Fondo "obsidiana": resplandor cenital, haces de luz diagonales y textura de grano.
+ * `quieto`: sin animaciones (dentro del sistema hay muchas tarjetas de vidrio encima y moverse detrás obliga a redibujar su desenfoque en cada cuadro).
+ */
+export function Fondo({ quieto = false }: { quieto?: boolean }) {
+  const anim = (c: string) => (quieto ? '' : c)
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-      <div className="absolute left-1/2 top-[-38rem] h-[70rem] w-[70rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(212,175,55,.16),rgba(176,125,38,.05)_55%,transparent)]" />
-      <div className="haz absolute -left-48 -top-40 h-[150%] w-[30rem] rotate-[24deg] animate-destello" />
-      <div className="haz absolute left-[16%] -top-40 h-[150%] w-[9rem] rotate-[24deg] animate-destello [animation-delay:-2s]" />
-      <div className="haz absolute right-[8%] -top-40 h-[150%] w-[14rem] -rotate-[18deg] animate-destello [animation-delay:-1s] opacity-60" />
-      <div className="absolute -bottom-72 -right-48 h-[42rem] w-[42rem] animate-orbe rounded-full bg-violeta/10 blur-[150px]" />
+      <div className="absolute left-1/2 top-[-38rem] h-[70rem] w-[70rem] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgb(var(--t-oro)/.16),rgb(var(--t-oscuro)/.05)_55%,transparent)]" />
+      <div className={`haz absolute -left-48 -top-40 h-[150%] w-[30rem] rotate-[24deg] ${anim('animate-destello')}`} />
+      <div className={`haz absolute left-[16%] -top-40 h-[150%] w-[9rem] rotate-[24deg] ${anim('animate-destello [animation-delay:-2s]')}`} />
+      <div className={`haz absolute right-[8%] -top-40 h-[150%] w-[14rem] -rotate-[18deg] opacity-60 ${anim('animate-destello [animation-delay:-1s]')}`} />
+      <div className={`absolute -bottom-72 -right-48 h-[42rem] w-[42rem] rounded-full bg-violeta/10 blur-[150px] ${anim('animate-orbe')}`} />
       <div className="ruido absolute inset-0" />
     </div>
   )
 }
 
 function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
+  const tx = useTx()
   const { usuario, ir, productos } = useApp()
   const setTab = useEcon((s) => s.setTab)
   const [q, setQ] = useState('')
-  const permitidas = usuario ? PERMISOS[usuario.rol] : []
+  const permitidas = usuario ? permisosDe(usuario) : []
   const res = useMemo(() => {
     const n = normalizar(q)
     const items: { tipo: string; label: string; go: () => void }[] = [
@@ -57,11 +75,11 @@ function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
         <motion.div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-[12vh] backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && cerrar()}>
           <motion.div initial={{ y: -10, scale: 0.98 }} animate={{ y: 0, scale: 1 }} className="glass w-full max-w-xl overflow-hidden" style={{ background: 'color-mix(in srgb, var(--bg2) 90%, transparent)' }}>
             <div className="flex items-center gap-2 border-b border-fg/10 px-4"><Search size={16} className="text-muted" />
-              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && res[0]) { res[0].go(); cerrar() } }} placeholder="Buscar páginas, productos, preguntas de la defensa…" className="w-full bg-transparent py-3.5 text-sm outline-none" />
+              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && res[0]) { res[0].go(); cerrar() } }} placeholder={tx('Buscar páginas, productos y pestañas…', 'Search pages, products and tabs…', 'Buscar páginas, produtos e abas…')} className="w-full bg-transparent py-3.5 text-sm outline-none" />
               <kbd className="rounded border border-fg/20 px-1.5 text-[10px] text-muted">ESC</kbd></div>
             <ul className="max-h-80 overflow-y-auto p-2">
               {res.map((r, k) => <li key={k}><button onClick={() => { r.go(); cerrar() }} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-fg/10"><span className="truncate">{r.label}</span><span className="shrink-0 text-[10px] uppercase text-muted">{r.tipo}</span></button></li>)}
-              {!res.length && <li className="p-4 text-center text-sm text-muted">Sin resultados</li>}
+              {!res.length && <li className="p-4 text-center text-sm text-muted">{tx('Sin resultados', 'No results', 'Sem resultados')}</li>}
             </ul>
           </motion.div>
         </motion.div>
@@ -71,7 +89,9 @@ function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { usuario, pagina, ir, logout, tema, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
+  const tx = useTx()
+  const nombre = (id: string, es: string) => (TRAD[id] ? tx(es, TRAD[id][0], TRAD[id][1]) : es)
+  const { usuario, pagina, ir, logout, tema, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, tareas, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
   const [movil, setMovil] = useState(false)
   const [paleta, setPaleta] = useState(false)
   const [notif, setNotif] = useState(false)
@@ -81,63 +101,77 @@ export function Layout({ children }: { children: ReactNode }) {
   })
   const togglePres = (v: boolean) => { setPresentacion(v); try { if (v) document.documentElement.requestFullscreen?.(); else if (document.fullscreenElement) document.exitFullscreen() } catch { /* sin pantalla completa */ } }
   if (!usuario) return null
-  const permitidas = PERMISOS[usuario.rol]
+  const permitidas = permisosDe(usuario)
+  const hoy = new Date().toISOString().slice(0, 10)
   const alertas = [
+    // Tareas asignadas a quien ingresó (las vencidas primero)
+    ...tareas.filter((t) => t.asignados.includes(usuario.id) && (t.estado === 'pendiente' || t.estado === 'progreso')).sort((a, b) => (a.vence || '9999').localeCompare(b.vence || '9999')).slice(0, 5)
+      .map((t) => ({ t: t.vence && t.vence < hoy ? 'rojo' : 'ambar', m: `${tx('Tarea para usted', 'Task for you', 'Tarefa para você')}: ${t.titulo}${t.vence ? ` · ${t.vence < hoy ? tx('venció', 'overdue', 'venceu') : tx('vence', 'due', 'vence')} ${t.vence.slice(8)}/${t.vence.slice(5, 7)}` : ''}` })),
     ...productos.filter((p) => enQuiebre(p)).slice(0, 6).map((p) => ({ t: 'rojo', m: `Quiebre de stock: ${p.nombre}` })),
     ...ordenes.filter((o) => o.estado === 'Borrador').map((o) => ({ t: 'ambar', m: `${o.id} pendiente de aprobación` })),
   ]
   const item = (m: (typeof MENU)[number]) => (
-    <button key={m.id} onClick={() => { ir(m.id); setMovil(false) }} aria-label={m.label} className={cx('group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition', colapsado && 'lg:justify-center lg:px-0', pagina === m.id ? 'text-fg' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
+    <button key={m.id} onClick={() => { ir(m.id); setMovil(false) }} aria-label={nombre(m.id, m.label)} className={cx('group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition', colapsado && 'lg:justify-center lg:px-0', pagina === m.id ? 'text-fg' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
       {pagina === m.id && <motion.span layoutId="nav" className="absolute inset-0 rounded-xl border border-primario/30 bg-gradient-to-r from-primario/25 to-violeta/10" />}
       <span className={cx('relative shrink-0', pagina === m.id && 'text-primario')}>{m.icon}</span>
-      <span className={cx('relative truncate whitespace-nowrap', colapsado && 'lg:hidden')}>{m.label}</span>
+      <span className={cx('relative truncate whitespace-nowrap', colapsado && 'lg:hidden')}>{nombre(m.id, m.label)}</span>
       {m.id === 'ia' && <span className={cx('relative ml-auto rounded-full bg-violeta/20 px-1.5 text-[9px] font-bold text-cian', colapsado && 'lg:hidden')}>IA</span>}
-      {colapsado && <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-lg border border-fg/10 px-2.5 py-1.5 text-xs font-medium text-fg opacity-0 shadow-xl transition group-hover:opacity-100 group-focus-visible:opacity-100 lg:block" style={{ background: 'var(--bg2)' }}>{m.label}</span>}
+      {colapsado && <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 hidden -translate-y-1/2 whitespace-nowrap rounded-lg border border-fg/10 px-2.5 py-1.5 text-xs font-medium text-fg opacity-0 shadow-xl transition group-hover:opacity-100 group-focus-visible:opacity-100 lg:block" style={{ background: 'var(--bg2)' }}>{nombre(m.id, m.label)}</span>}
     </button>
   )
   const visibles = MENU.filter((m) => permitidas.includes(m.id))
   if (presentacion) return (
-    <div className="presentacion min-h-full p-6"><Fondo />
-      <button onClick={() => togglePres(false)} className="no-print fixed right-4 top-4 z-40 flex items-center gap-2 rounded-xl bg-fg/10 px-3 py-2 text-xs backdrop-blur hover:bg-fg/20"><Minimize2 size={14} />Salir (Esc)</button>
+    <div className="presentacion min-h-full p-6"><Fondo quieto />
+      <button onClick={() => togglePres(false)} className="no-print fixed right-4 top-4 z-40 flex items-center gap-2 rounded-xl bg-fg/10 px-3 py-2 text-xs backdrop-blur hover:bg-fg/20"><Minimize2 size={14} />{tx('Salir (Esc)', 'Exit (Esc)', 'Sair (Esc)')}</button>
       <div className="mx-auto max-w-[1500px]">{children}</div>
     </div>
   )
   return (
-    <div className="flex min-h-full"><Fondo />
+    <div className="flex min-h-full"><Fondo quieto />
       <Paleta abierta={paleta} cerrar={() => setPaleta(false)} />
       <Asistente />
       {movil && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMovil(false)} />}
-      <aside className={cx('glass fixed inset-y-3 left-3 z-40 flex flex-col p-3 transition-[width,transform] duration-300 lg:sticky lg:left-auto lg:top-3 lg:ml-3 lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:translate-x-0', colapsado ? 'w-64 lg:w-[76px]' : 'w-64', movil ? 'translate-x-0' : '-translate-x-[120%]')}>
+      <aside className={cx('glass-clear fixed inset-y-3 left-3 z-40 flex flex-col p-3 transition-[width,transform] duration-300 lg:sticky lg:left-auto lg:top-3 lg:ml-3 lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:translate-x-0', colapsado ? 'w-64 lg:w-[76px]' : 'w-64', movil ? 'translate-x-0' : '-translate-x-[120%]')}>
         <div className={cx('flex h-11 shrink-0 items-center px-1', colapsado && 'lg:justify-center lg:px-0')}>
           <span className={cx(colapsado && 'lg:hidden')}><Logo size={34} /></span>
           {colapsado && <span className="hidden lg:block"><Logo size={36} texto={false} /></span>}
           <button aria-label="Cerrar menú" onClick={() => setMovil(false)} className="ml-auto rounded-lg p-1.5 text-muted hover:bg-fg/10 lg:hidden"><ChevronsLeft size={18} /></button>
         </div>
         <div className="my-3 h-px shrink-0 bg-fg/10" />
-        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 px-1', !colapsado && 'overflow-y-auto')}>{visibles.filter((m) => m.id !== 'configuracion').map(item)}</nav>
+        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 px-1', !colapsado && 'overflow-y-auto')}>
+          {visibles.filter((m) => !m.grupo).map(item)}
+          {GRUPOS.map((g) => { const ms = visibles.filter((m) => m.grupo === g); return ms.length > 0 && (
+            <div key={g} className="mt-2 flex flex-col gap-1">
+              <div className={cx('px-3 pb-0.5 text-[10px] font-semibold uppercase tracking-[.22em] text-muted/60', colapsado && 'lg:hidden')}>{nombre(g, g)}</div>
+              {colapsado && <div className="mx-4 mb-1 hidden h-px bg-fg/10 lg:block" />}
+              {ms.map(item)}
+            </div>) })}
+        </nav>
         <div className="mt-3 shrink-0 space-y-1 border-t border-fg/10 pt-3">
-          {visibles.filter((m) => m.id === 'configuracion').map(item)}
+          {visibles.filter((m) => m.grupo === 'pie').map(item)}
           <div className={cx('rounded-xl bg-fg/5 px-3 py-2 text-xs', colapsado && 'lg:hidden')}><div className="truncate font-semibold">{empresa.nombre || 'Mi empresa'}</div><div className="truncate text-muted">{plural(SUCURSALES.length, 'sucursal', 'sucursales')} · {plural(new Set(SUCURSALES.map((s) => s.pais)).size, 'país', 'países')}</div></div>
-          <button onClick={() => setColapsado(!colapsado)} aria-label={colapsado ? 'Expandir menú' : 'Contraer menú'} className={cx('group relative hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-muted transition hover:bg-fg/5 hover:text-fg lg:flex', colapsado && 'justify-center px-0')}>
-            <ChevronsLeft size={18} className={cx('shrink-0 transition-transform duration-300', colapsado && 'rotate-180')} />{!colapsado && <span className="whitespace-nowrap">Contraer menú</span>}
-            {colapsado && <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg border border-fg/10 px-2.5 py-1.5 text-xs text-fg opacity-0 shadow-xl transition group-hover:opacity-100" style={{ background: 'var(--bg2)' }}>Expandir menú</span>}
+          <button onClick={() => setColapsado(!colapsado)} aria-label={colapsado ? tx('Expandir menú', 'Expand menu', 'Expandir menu') : tx('Contraer menú', 'Collapse menu', 'Recolher menu')} className={cx('group relative hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-muted transition hover:bg-fg/5 hover:text-fg lg:flex', colapsado && 'justify-center px-0')}>
+            <ChevronsLeft size={18} className={cx('shrink-0 transition-transform duration-300', colapsado && 'rotate-180')} />{!colapsado && <span className="whitespace-nowrap">{tx('Contraer menú', 'Collapse menu', 'Recolher menu')}</span>}
+            {colapsado && <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg border border-fg/10 px-2.5 py-1.5 text-xs text-fg opacity-0 shadow-xl transition group-hover:opacity-100" style={{ background: 'var(--bg2)' }}>{tx('Expandir menú', 'Expand menu', 'Expandir menu')}</span>}
           </button>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col lg:pl-3">
-        <header className="glass no-print sticky top-3 z-20 mx-3 mt-3 flex items-center gap-2 px-3 py-2 lg:ml-0">
+        <header className="glass-clear no-print sticky top-3 z-20 mx-3 mt-3 flex items-center gap-2 px-3 py-2 lg:ml-0">
           <button aria-label="Abrir menú" className="rounded-lg p-2 hover:bg-fg/10 lg:hidden" onClick={() => setMovil(true)}><Menu size={18} /></button>
-          <button onClick={() => setPaleta(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left text-sm text-muted hover:bg-fg/10 sm:max-w-md"><Search size={15} /><span className="truncate">Buscar en NEXORA…</span><kbd className="ml-auto hidden rounded border border-fg/20 px-1.5 text-[10px] sm:block">Ctrl K</kbd></button>
-          <select aria-label="Sucursal" value={sucursal} onChange={(e) => setSucursal(e.target.value as typeof sucursal)} className="inp hidden !w-auto shrink-0 md:block"><option value="TODAS">Todas las sucursales</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
-          <button title="Modo presentación" onClick={() => togglePres(true)} aria-label="Modo presentación" className="hidden shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium hover:bg-fg/10 sm:flex"><Maximize2 size={15} /><span className="hidden 2xl:inline">Presentación</span></button>
+          <button onClick={() => setPaleta(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left text-sm text-muted hover:bg-fg/10 sm:max-w-md"><Search size={15} /><span className="truncate">{tx('Buscar en NEXORA…', 'Search NEXORA…', 'Buscar no NEXORA…')}</span><kbd className="ml-auto hidden rounded border border-fg/20 px-1.5 text-[10px] sm:block">Ctrl K</kbd></button>
+          <select aria-label="Sucursal" value={sucursal} onChange={(e) => setSucursal(e.target.value as typeof sucursal)} className="inp hidden !w-auto shrink-0 md:block"><option value="TODAS">{tx('Todas las sucursales', 'All branches', 'Todas as filiais')}</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
+          <button title="Modo presentación" onClick={() => togglePres(true)} aria-label="Modo presentación" className="hidden shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium hover:bg-fg/10 sm:flex"><Maximize2 size={15} /><span className="hidden 2xl:inline">{tx('Presentación', 'Presentation', 'Apresentação')}</span></button>
+          <SelectorIdioma className="hidden shrink-0 lg:flex" />
+          <SelectorTema />
           <button aria-label="Cambiar tema" onClick={() => setTema(tema === 'oscuro' ? 'claro' : 'oscuro')} className="rounded-xl p-2 hover:bg-fg/10">{tema === 'oscuro' ? <Sun size={17} /> : <Moon size={17} />}</button>
           <div className="relative">
             <button aria-label="Notificaciones" onClick={() => setNotif(!notif)} className="relative rounded-xl p-2 hover:bg-fg/10"><Bell size={17} />{alertas.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-peligro" />}</button>
-            {notif && <div className="glass absolute right-0 top-11 w-72 p-2" style={{ background: 'color-mix(in srgb, var(--bg2) 92%, transparent)' }}>{alertas.length ? alertas.map((a, k) => <div key={k} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-fg/5"><span className={cx('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', a.t === 'rojo' ? 'bg-peligro' : 'bg-alerta')} />{a.m}</div>) : <div className="p-2 text-xs text-muted">Sin alertas</div>}</div>}
+            {notif && <div className="glass absolute right-0 top-11 w-72 p-2" style={{ background: 'color-mix(in srgb, var(--bg2) 92%, transparent)' }}>{alertas.length ? alertas.map((a, k) => <div key={k} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-fg/5"><span className={cx('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', a.t === 'rojo' ? 'bg-peligro' : 'bg-alerta')} />{a.m}</div>) : <div className="p-2 text-xs text-muted">{tx('Sin alertas', 'No alerts', 'Sem alertas')}</div>}</div>}
           </div>
           <div className="flex items-center gap-2 border-l border-fg/10 pl-2">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-xs font-bold text-black">{usuario.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
-            <div className="hidden leading-tight xl:block"><div className="text-xs font-semibold">{usuario.nombre}</div><div className="text-[10px] text-muted">{usuario.rol}</div></div>
+            <div className="hidden leading-tight xl:block"><div className="text-xs font-semibold">{usuario.nombre}</div><div className="max-w-[16rem] truncate text-[10px] text-muted">{rolesDe(usuario).join(' · ')}</div></div>
             <button aria-label="Cerrar sesión" onClick={logout} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
           </div>
         </header>

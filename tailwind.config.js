@@ -8,6 +8,8 @@ export default {
         fg: 'rgb(var(--fg) / <alpha-value>)', muted: 'rgb(var(--muted) / <alpha-value>)',
         // Paleta "obsidiana y oro": oro, oro viejo, bronce y champán (varían con el tema para mantener contraste AA)
         primario: 'rgb(var(--oro) / <alpha-value>)', secundario: 'rgb(var(--oro-viejo) / <alpha-value>)', violeta: 'rgb(var(--bronce) / <alpha-value>)',
+        // La escala amber (usada en degradados y textos claros) cambia con el tema de color
+        amber: Object.fromEntries([50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((n) => [n, `rgb(var(--amber-${n}) / <alpha-value>)`])),
         cian: 'rgb(var(--champan) / <alpha-value>)', exito: '#10B981', alerta: '#FB923C', peligro: '#F43F5E', tenue: '#A8A29E',
       },
       fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], display: ['"Space Grotesk"', 'Inter', 'sans-serif'] },

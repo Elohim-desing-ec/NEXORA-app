@@ -18,7 +18,7 @@ export function Card({ children, className, hover, titulo, accion }: { children:
 type Variante = 'primario' | 'vidrio' | 'peligro' | 'exito' | 'fantasma'
 export function Button({ variante = 'vidrio', className, children, ...r }: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante }) {
   const v: Record<Variante, string> = {
-    primario: 'bg-gradient-to-r from-primario to-violeta text-black shadow-[0_8px_30px_-6px_rgba(212,175,55,.55)] hover:brightness-110',
+    primario: 'bg-gradient-to-r from-primario to-violeta text-black shadow-[0_8px_30px_-6px_rgb(var(--t-oro)/.55)] hover:brightness-110',
     vidrio: 'bg-fg/5 border border-fg/10 hover:bg-fg/10',
     peligro: 'bg-peligro/15 text-peligro border border-peligro/30 hover:bg-peligro/25',
     exito: 'bg-exito/15 text-exito border border-exito/30 hover:bg-exito/25',

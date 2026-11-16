@@ -2,15 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Barcode, FileSpreadsheet, History, Pencil, Plus, Printer, Search, Trash2, PackageMinus } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import JsBarcode from 'jsbarcode'
-import { useApp } from '../store/useApp'
+import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
 import { enQuiebre, kardex, stockTotal } from '../lib/inventario'
 import { CATEGORIAS, type Producto, type Sucursal, type SucursalId } from '../data/base'
 import type { TipoOperacion } from '../store/useApp'
 import { exportarTabla } from '../lib/export'
+import { perfilDe } from '../lib/sectores'
 
-const vacio = (sucs: Sucursal[]): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria: CATEGORIAS[0], costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10), proveedorId: '' })
+const vacio = (sucs: Sucursal[], categoria = CATEGORIAS[0]): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria, costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10), proveedorId: '' })
 
 function CodigoBarras({ valor }: { valor: string }) {
   const ref = useRef<SVGSVGElement>(null)
@@ -20,7 +21,7 @@ function CodigoBarras({ valor }: { valor: string }) {
 
 export default function Productos() {
   const { productos, movimientos, usuario, sucursal, guardarProducto, eliminarProducto, transferir, registrar, proveedores, sucursales: SUCURSALES } = useApp()
-  const soloLectura = usuario?.rol === 'Auditor'
+  const soloLectura = esSoloLectura(usuario)
   const [q, setQ] = useState(''), [cat, setCat] = useState('Todas')
   const [edit, setEdit] = useState<Producto | null>(null)
   const [codigo, setCodigo] = useState<Producto | null>(null)
@@ -33,7 +34,8 @@ export default function Productos() {
   // Hasta 5 sucursales: una columna por sucursal. Con más: solo la sucursal elegida arriba (o el total).
   const cols = SUCURSALES.length <= 5 ? SUCURSALES.map((x) => x.id) : sucursal !== 'TODAS' ? [sucursal] : []
   const [pag, setPag] = useState(0), POR_PAG = 50
-  const categorias = useMemo(() => [...new Set([...CATEGORIAS, ...productos.map((p) => p.categoria)])], [productos])
+  const sector = useApp((s) => s.empresa.sector)
+  const categorias = useMemo(() => [...new Set([...perfilDe(sector).categorias, ...productos.map((p) => p.categoria)])], [productos, sector])
   const lista = useMemo(() => productos.filter((p) => (cat === 'Todas' || p.categoria === cat) && `${p.sku} ${p.nombre} ${p.lote}`.toLowerCase().includes(q.toLowerCase())), [productos, q, cat])
   const filasK = kx ? kardex(kx.p.id, movimientos, kx.s) : []
   const exportar = (f: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', 'Costo', 'Precio', ...SUCURSALES.map((x) => x.id), 'Total', 'Valor', 'Lote', 'Vence'], lista.map((p) => [p.sku, p.nombre, p.categoria, money(p.costo), money(p.precio), ...SUCURSALES.map((x) => p.stock[x.id] ?? 0), stockTotal(p), money(stockTotal(p) * p.costo), p.lote, p.vence]), f)
@@ -44,7 +46,7 @@ export default function Productos() {
       <Titulo titulo="Productos e inventario" sub={`${productos.length} productos · ${new Set(productos.map((p) => p.categoria)).size} categorías · ${SUCURSALES.length} sucursales${cols.length < SUCURSALES.length ? ' (elija una sucursal arriba para ver su columna)' : ''}`}>
         <Button onClick={() => exportar('xlsx')}><FileSpreadsheet size={15} />Excel</Button><Button onClick={() => exportar('pdf')}><Printer size={15} />PDF</Button>
         {!soloLectura && productos.length > 0 && <Button onClick={() => setAj({ p: productos[0], s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: productos[0].costo })}><PackageMinus size={15} />Registrar movimiento</Button>}
-        {!soloLectura && <Button variante="primario" disabled={!SUCURSALES.length} title={SUCURSALES.length ? '' : 'Primero registre una sucursal en Configuración'} onClick={() => setEdit(vacio(SUCURSALES))}><Plus size={15} />Nuevo producto</Button>}
+        {!soloLectura && <Button variante="primario" disabled={!SUCURSALES.length} title={SUCURSALES.length ? '' : 'Primero registre una sucursal en Configuración'} onClick={() => setEdit(vacio(SUCURSALES, categorias[0]))}><Plus size={15} />Nuevo producto</Button>}
       </Titulo>
       <Card>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -76,6 +78,21 @@ export default function Productos() {
         </table></Scroll>
         {lista.length > POR_PAG && <div className="mt-3 flex items-center justify-between text-xs text-muted"><span>{pag * POR_PAG + 1}–{Math.min(lista.length, (pag + 1) * POR_PAG)} de {lista.length} productos</span><div className="flex gap-1"><Button className="!py-1" disabled={pag === 0} onClick={() => setPag(pag - 1)}>Anterior</Button><Button className="!py-1" disabled={(pag + 1) * POR_PAG >= lista.length} onClick={() => setPag(pag + 1)}>Siguiente</Button></div></div>}
         {!lista.length && <p className="py-10 text-center text-sm text-muted">{productos.length ? 'Ningún producto coincide con la búsqueda.' : 'Aún no hay productos. Pulse "Nuevo producto" o importe un Excel en Configuración → Mis datos.'}</p>}
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">{([
+        ['En quiebre', 'Menos de un tercio del mínimo', productos.filter((p) => enQuiebre(p, sucursal)), 'rojo'],
+        ['Sobrestock', 'Más de 3 veces el máximo', productos.filter((p) => stockTotal(p, sucursal) > p.max * 3), 'ambar'],
+        ['Por vencer', 'Vence en los próximos 60 días', productos.filter((p) => stockTotal(p, sucursal) > 0 && p.vence && new Date(p.vence + 'T12:00:00').getTime() - Date.now() < 60 * 864e5).sort((a, b) => a.vence.localeCompare(b.vence)), 'violeta'],
+      ] as const).map(([t, d, ps, tono]) => (
+        <Card key={t} titulo={<span className="flex items-center gap-2">{t}<Badge tono={tono}>{ps.length}</Badge></span>} accion={<span className="text-xs text-muted">{d}</span>}>
+          <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{p.nombre}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge></button></li>)}
+            {!ps.length && <li className="text-muted">Nada por aquí 🎉</li>}</ul>
+        </Card>))}</div>
+      <Card titulo="Stock por sucursal" accion={<span className="text-xs text-muted">Valor a costo promedio y a precio de venta</span>}>
+        <Scroll><table className="tabla"><thead><tr><th>Sucursal</th><th>Ciudad</th><th className="num">Productos con stock</th><th className="num">Unidades</th><th className="num">Valor a costo</th><th className="num">Valor a precio</th><th className="num">En quiebre</th></tr></thead>
+          <tbody>{SUCURSALES.map((s) => { const con = productos.filter((p) => (p.stock[s.id] ?? 0) > 0); return <tr key={s.id}><td className="font-mono text-xs">{s.id}</td><td>{s.ciudad}</td><td className="num">{con.length}</td><td className="num">{num(productos.reduce((a, p) => a + (p.stock[s.id] ?? 0), 0), 0)}</td><td className="num">{money(productos.reduce((a, p) => a + (p.stock[s.id] ?? 0) * p.costo, 0))}</td><td className="num">{money(productos.reduce((a, p) => a + (p.stock[s.id] ?? 0) * p.precio, 0))}</td><td className="num">{productos.filter((p) => p.stock[s.id] !== undefined && enQuiebre(p, s.id)).length}</td></tr> })}</tbody>
+        </table></Scroll>
+        {!SUCURSALES.length && <p className="py-6 text-center text-sm text-muted">Primero registre sus sucursales en Configuración.</p>}
       </Card>
 
       <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={productos.some((x) => x.id === edit?.id) ? 'Editar producto' : 'Nuevo producto'}>

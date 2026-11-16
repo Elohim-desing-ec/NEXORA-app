@@ -1,4 +1,4 @@
-/** Genera ejercicios aleatorios (reemplazo o depreciación) resueltos paso a paso para practicar la defensa. */
+/** Genera ejercicios aleatorios (reemplazo o depreciación) resueltos paso a paso para practicar. */
 import * as F from './finance'
 import { L, money, pct } from './format'
 

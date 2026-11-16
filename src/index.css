@@ -2,21 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tema claro "marfil y oro" */
-:root { --fg: 28 25 23; --muted: 87 83 78; --bg1: #FBF7EE; --bg2: #FFFFFF; --glass: rgba(255,255,255,.72); --glass-b: rgba(120,90,20,.14); --hi: rgba(255,255,255,.95);
-  --oro: 161 120 16; --oro-viejo: 150 105 20; --bronce: 133 92 18; --champan: 138 101 8; color-scheme: light; }
+/* Tema claro "marfil y oro" (también es el tema de color por defecto) */
+:root, [data-tema="oro"] { --fg: 28 25 23; --muted: 87 83 78; --bg1: #FBF7EE; --bg2: #FFFFFF; --glass: rgba(255,255,255,.72); --glass-b: rgba(120,90,20,.14); --hi: rgba(255,255,255,.95);
+  --frost-1: rgba(255,255,255,.80); --frost-2: rgba(255,250,238,.56); --clear-1: rgba(255,255,255,.58); --clear-2: rgba(255,255,255,.24); --clear-b: rgba(255,255,255,.85); --clear-hi: rgba(255,255,255,.95);
+  --oro: 161 120 16; --oro-viejo: 150 105 20; --bronce: 133 92 18; --champan: 138 101 8; color-scheme: light;
+  /* Tonos de acento del tema (iguales en claro y oscuro) y escala "amber" que usa Tailwind */
+  --t-oro: 212 175 55; --t-claro: 243 213 138; --t-palido: 255 243 207; --t-oscuro: 176 125 38; --t-sombra: 42 29 5;
+  --amber-50: 255 251 235; --amber-100: 254 243 199; --amber-200: 253 230 138; --amber-300: 252 211 77; --amber-400: 251 191 36; --amber-500: 245 158 11;
+  --amber-600: 217 119 6; --amber-700: 180 83 9; --amber-800: 146 64 14; --amber-900: 120 53 15; --amber-950: 69 26 3; }
 /* Tema oscuro "obsidiana y oro" */
-.dark { --fg: 250 250 249; --muted: 168 162 158; --bg1: #000000; --bg2: #0A0907; --glass: rgba(255,255,255,.035); --glass-b: rgba(212,175,55,.16); --hi: rgba(255,226,150,.12);
+.dark, .dark [data-tema="oro"] { --fg: 250 250 249; --muted: 168 162 158; --bg1: #000000; --bg2: #0A0907; --glass: rgba(255,255,255,.035); --glass-b: rgb(var(--t-oro)/.16); --hi: rgb(var(--t-claro)/.12);
+  --frost-1: rgba(255,255,255,.075); --frost-2: rgba(255,255,255,.022); --clear-1: rgba(255,255,255,.085); --clear-2: rgba(255,255,255,.012); --clear-b: rgba(255,255,255,.14); --clear-hi: rgba(255,255,255,.30);
   --oro: 212 175 55; --oro-viejo: 201 151 43; --bronce: 176 125 38; --champan: 243 213 138; color-scheme: dark; }
+
+/* ───────── Temas de color (Configuración → Temas). Solo cambian los colores; el resto queda igual. ───────── */
+/* Zafiro: azul eléctrico sobre noche profunda */
+[data-tema="azul"] { --t-oro: 92 140 255; --t-claro: 165 194 255; --t-palido: 226 235 255; --t-oscuro: 52 92 214; --t-sombra: 8 18 52;
+  --amber-50: 240 245 255; --amber-100: 219 231 255; --amber-200: 180 203 255; --amber-300: 140 172 255; --amber-400: 110 150 255; --amber-500: 82 128 250;
+  --amber-600: 59 104 230; --amber-700: 44 82 196; --amber-800: 34 62 150; --amber-900: 24 42 104; --amber-950: 12 22 60;
+  --bg1: #F3F6FC; --glass-b: rgba(37,87,214,.14); --oro: 59 110 240; --oro-viejo: 45 95 225; --bronce: 50 98 230; --champan: 30 64 175; }
+.dark[data-tema="azul"], .dark [data-tema="azul"] { --bg1: #01030a; --bg2: #060a16; --glass-b: rgba(92,140,255,.18); --hi: rgba(165,194,255,.12);
+  --oro: 92 140 255; --oro-viejo: 80 125 250; --bronce: 74 116 240; --champan: 165 194 255; }
+/* Amatista: morado de vidrio */
+[data-tema="morado"] { --t-oro: 162 122 255; --t-claro: 205 182 255; --t-palido: 238 230 255; --t-oscuro: 112 70 222; --t-sombra: 30 12 60;
+  --amber-50: 248 244 255; --amber-100: 237 228 255; --amber-200: 216 198 255; --amber-300: 196 170 255; --amber-400: 176 142 255; --amber-500: 156 116 250;
+  --amber-600: 136 92 236; --amber-700: 112 70 210; --amber-800: 86 52 165; --amber-900: 60 34 118; --amber-950: 32 16 66;
+  --bg1: #F6F3FC; --glass-b: rgba(124,77,240,.14); --oro: 124 77 240; --oro-viejo: 110 64 225; --bronce: 104 58 220; --champan: 88 40 180; }
+.dark[data-tema="morado"], .dark [data-tema="morado"] { --bg1: #04020b; --bg2: #0c0717; --glass-b: rgba(162,122,255,.18); --hi: rgba(205,182,255,.12);
+  --oro: 162 122 255; --oro-viejo: 146 106 250; --bronce: 128 90 240; --champan: 205 182 255; }
+/* Negro mate: grafito y plata */
+[data-tema="mate"] { --t-oro: 210 210 220; --t-claro: 236 236 242; --t-palido: 250 250 252; --t-oscuro: 130 130 145; --t-sombra: 26 26 30;
+  --amber-50: 250 250 251; --amber-100: 244 244 247; --amber-200: 226 226 232; --amber-300: 205 205 212; --amber-400: 180 180 190; --amber-500: 150 150 160;
+  --amber-600: 120 120 130; --amber-700: 92 92 102; --amber-800: 66 66 74; --amber-900: 42 42 48; --amber-950: 24 24 28;
+  --bg1: #F4F4F5; --glass-b: rgba(60,60,70,.14); --oro: 128 128 140; --oro-viejo: 112 112 124; --bronce: 104 104 116; --champan: 60 60 70; }
+.dark[data-tema="mate"], .dark [data-tema="mate"] { --bg1: #050506; --bg2: #0d0d0f; --glass-b: rgba(255,255,255,.10); --hi: rgba(255,255,255,.08);
+  --oro: 210 210 220; --oro-viejo: 190 190 200; --bronce: 150 150 162; --champan: 236 236 242; }
 
 html, body, #root { height: 100%; }
 body { @apply font-sans text-fg antialiased; background: linear-gradient(160deg, var(--bg1), var(--bg2)); background-attachment: fixed; }
 .tnum { font-variant-numeric: tabular-nums; }
 
 @layer components {
-  .glass { background: var(--glass); border: 1px solid var(--glass-b); box-shadow: inset 0 1px 0 var(--hi), 0 20px 50px -20px rgba(2,6,23,.45); @apply backdrop-blur-xl rounded-2xl; }
+  /* Vidrio esmerilado («Frosted»): tarjetas y paneles. Desenfoque fuerte, tinte suave y grano fino. */
+  .glass { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)' opacity='.05'/%3E%3C/svg%3E"), linear-gradient(145deg, var(--frost-1), var(--frost-2));
+    border: 1px solid var(--glass-b); box-shadow: inset 0 1px 0 var(--hi), inset 0 -1px 0 rgba(0,0,0,.10), 0 20px 50px -20px rgba(2,6,23,.45);
+    -webkit-backdrop-filter: blur(20px) saturate(145%); backdrop-filter: blur(20px) saturate(145%); @apply rounded-2xl; }
+  /* Vidrio transparente («Clear», estilo iOS): menú lateral y barra superior. Poco desenfoque y bordes con brillo. */
+  .glass-clear { background: linear-gradient(160deg, var(--clear-1), var(--clear-2) 45%, var(--clear-1)); border: 1px solid var(--clear-b);
+    box-shadow: inset 1px 1px 0 var(--clear-hi), inset -1px -1px 0 rgba(255,255,255,.05), inset 0 0 30px rgba(255,255,255,.03), 0 24px 60px -24px rgba(0,0,0,.55);
+    -webkit-backdrop-filter: blur(14px) saturate(180%) brightness(1.06); backdrop-filter: blur(14px) saturate(180%) brightness(1.06); @apply rounded-3xl; }
+  .glass-clear::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.14), transparent 26%, transparent 72%, rgba(255,255,255,.05)); }
   .glass-hover { @apply transition duration-300 hover:-translate-y-0.5; }
-  .glass-hover:hover { box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px rgba(212,175,55,.45), 0 25px 60px -20px rgba(212,175,55,.35); }
+  .glass-hover:hover { box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px rgb(var(--t-oro)/.45), 0 25px 60px -20px rgb(var(--t-oro)/.35); }
   .inp { @apply w-full rounded-xl bg-fg/5 border border-fg/10 px-3 py-2 text-sm outline-none transition focus:border-primario focus:ring-2 focus:ring-primario/30 tnum; }
   .tabla { @apply w-full text-sm tnum; }
   .tabla th { @apply text-left text-xs font-semibold tracking-wide text-muted px-3 py-2 border-b border-fg/10 whitespace-nowrap; }
@@ -25,15 +63,15 @@ body { @apply font-sans text-fg antialiased; background: linear-gradient(160deg,
   .num { @apply text-right; }
 }
 
-*:focus-visible { outline: 2px solid #F3D58A; outline-offset: 2px; border-radius: 8px; }
-::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgba(212,175,55,.28); border-radius: 8px; }
+*:focus-visible { outline: 2px solid rgb(var(--t-claro)); outline-offset: 2px; border-radius: 8px; }
+::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: rgb(var(--t-oro)/.28); border-radius: 8px; }
 .ruido { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E"); opacity: .05; }
 .presentacion { font-size: 118%; }
 .katex { font-size: 1.05em; }
-.espacio { background: radial-gradient(ellipse at 50% 45%, #2a1d05 0%, #060504 55%, #000000 100%); }
+.espacio { background: radial-gradient(ellipse at 50% 45%, rgb(var(--t-sombra)) 0%, #060504 55%, #000000 100%); }
 .espacio::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .7;
   background-image: radial-gradient(1px 1px at 12px 18px, #fff, transparent), radial-gradient(1px 1px at 70px 90px, #fff7e0, transparent),
-    radial-gradient(1.5px 1.5px at 140px 40px, #fff, transparent), radial-gradient(1px 1px at 190px 150px, #fde68a, transparent), radial-gradient(1px 1px at 40px 170px, #fff, transparent);
+    radial-gradient(1.5px 1.5px at 140px 40px, #fff, transparent), radial-gradient(1px 1px at 190px 150px, rgb(var(--t-claro)), transparent), radial-gradient(1px 1px at 40px 170px, #fff, transparent);
   background-size: 220px 220px; }
 .maplibregl-ctrl-group { background: rgba(12,10,6,.7) !important; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.12); border-radius: 12px !important; overflow: hidden; }
 .maplibregl-ctrl-group button { width: 34px !important; height: 34px !important; } .maplibregl-ctrl-group button + button { border-top: 1px solid rgba(255,255,255,.1) !important; }
@@ -47,20 +85,20 @@ body { @apply font-sans text-fg antialiased; background: linear-gradient(160deg,
 /* ───────── Horizonte dorado: arco de luz con destello que lo recorre ───────── */
 .horizonte { position: absolute; left: 50%; width: var(--d, 1400px); height: var(--d, 1400px); transform: translateX(-50%); pointer-events: none; }
 .horizonte > div { position: absolute; inset: 0; border-radius: 9999px; }
-.horizonte-halo { inset: -18% !important; background: radial-gradient(42% 14% at 50% 18%, rgba(255,214,120,.42), rgba(212,175,55,.12) 55%, transparent 75%); filter: blur(24px); }
-.horizonte-disco { background: radial-gradient(circle at 50% 0%, #1c1405 0%, #070604 32%, #000 55%);
-  box-shadow: inset 0 2px 0 rgba(255,232,170,.95), inset 0 40px 80px -30px rgba(212,175,55,.6), 0 -12px 70px rgba(212,175,55,.38), 0 -2px 22px rgba(255,214,120,.55); }
-.horizonte-barrido { background: conic-gradient(from 0deg, transparent 0deg, rgba(255,240,195,.95) 14deg, rgba(212,175,55,.5) 30deg, transparent 52deg);
+.horizonte-halo { inset: -18% !important; background: radial-gradient(42% 14% at 50% 18%, rgb(var(--t-claro)/.42), rgb(var(--t-oro)/.12) 55%, transparent 75%); filter: blur(24px); }
+.horizonte-disco { background: radial-gradient(circle at 50% 0%, rgb(var(--t-sombra)/.7) 0%, #070604 32%, #000 55%);
+  box-shadow: inset 0 2px 0 rgb(var(--t-palido)/.95), inset 0 40px 80px -30px rgb(var(--t-oro)/.6), 0 -12px 70px rgb(var(--t-oro)/.38), 0 -2px 22px rgb(var(--t-claro)/.55); }
+.horizonte-barrido { background: conic-gradient(from 0deg, transparent 0deg, rgb(var(--t-palido)/.95) 14deg, rgb(var(--t-oro)/.5) 30deg, transparent 52deg);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); }
-.horizonte-brillo { background: conic-gradient(from 0deg, transparent 0deg, rgba(255,214,120,.45) 16deg, transparent 50deg); filter: blur(10px);
+.horizonte-brillo { background: conic-gradient(from 0deg, transparent 0deg, rgb(var(--t-claro)/.45) 16deg, transparent 50deg); filter: blur(10px);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 26px), #000 calc(100% - 6px)); mask: radial-gradient(farthest-side, transparent calc(100% - 26px), #000 calc(100% - 6px)); }
-:root:not(.dark) .horizonte-disco { background: radial-gradient(circle at 50% 0%, #fff6df 0%, #fbf3e0 40%, #f6ecd6 60%); }
+:root:not(.dark) .horizonte-disco { background: radial-gradient(circle at 50% 0%, rgb(var(--t-palido)) 0%, rgb(var(--t-palido)/.7) 40%, rgb(var(--t-palido)/.45) 60%); }
 /* Haces de luz diagonales del fondo */
-.haz { background: linear-gradient(90deg, transparent, rgba(255,220,140,.075), transparent); filter: blur(10px); }
-:root:not(.dark) .haz { background: linear-gradient(90deg, transparent, rgba(212,175,55,.10), transparent); }
+.haz { background: linear-gradient(90deg, transparent, rgb(var(--t-claro)/.075), transparent); filter: blur(10px); }
+:root:not(.dark) .haz { background: linear-gradient(90deg, transparent, rgb(var(--t-oro)/.10), transparent); }
 /* Texto dorado metálico */
-.texto-oro { background: linear-gradient(180deg, #FFF3CF 0%, #F3D58A 35%, #D4AF37 65%, #9C7420 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-:root:not(.dark) .texto-oro { background: linear-gradient(180deg, #B8890F 0%, #8A6508 100%); -webkit-background-clip: text; background-clip: text; }
+.texto-oro { background: linear-gradient(180deg, rgb(var(--t-palido)) 0%, rgb(var(--t-claro)) 35%, rgb(var(--t-oro)) 65%, rgb(var(--t-oscuro)) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root:not(.dark) .texto-oro { background: linear-gradient(180deg, rgb(var(--oro)) 0%, rgb(var(--bronce)) 100%); -webkit-background-clip: text; background-clip: text; }
 /* Meridianos del globo dibujado: ilusión de rotación */
 .meridiano { transform-box: fill-box; transform-origin: center; animation: meridiano 8s linear infinite; }
 @keyframes meridiano { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.02); } }

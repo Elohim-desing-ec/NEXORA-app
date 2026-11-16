@@ -6,6 +6,7 @@ import { Badge, Card, Kpi, Scroll, Tabs, cx } from '../../components/ui'
 import { VerProc } from '../../components/Procedimiento'
 import { Degradados, Grafico, TooltipVidrio, ejes, rejilla } from '../../components/charts'
 import * as F from '../../lib/finance'
+import { etq } from '../../lib/finance'
 import * as PR from '../../lib/procedimientos'
 import { money, num, pct } from '../../lib/format'
 
@@ -14,7 +15,7 @@ const k = (v: number) => `${num(v / 1000, 1)}k`
 export function Comparacion() {
   const p = useEcon((s) => s.p)
   const K = F.indicadores(p), act = F.totalActual(p), nue = F.totalNuevo(p)
-  const datos = p.conceptos.map((c) => ({ concepto: c.nombre.split(' ').slice(0, 2).join(' '), Actual: c.actual, NEXORA: c.nuevo }))
+  const datos = p.conceptos.map((c) => ({ concepto: c.nombre.split(' ').slice(0, 2).join(' '), Actual: c.actual, Nuevo: c.nuevo }))
   return <>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Kpi titulo="Ahorro anual" valor={K.A} formato={(v) => money(v)} icono={<CheckCircle2 size={15} />} tono="verde" sub={<VerProc proc={PR.procAhorro(p)} />} />
@@ -24,14 +25,14 @@ export function Comparacion() {
     </div>
     <div className="grid gap-4 2xl:grid-cols-2">
       <Card titulo="Costos anuales por concepto"><Scroll><table className="tabla">
-        <thead><tr><th>Concepto</th><th className="num">Sistema actual</th><th className="num">NEXORA</th><th className="num">Ahorro</th><th className="num">% red.</th></tr></thead>
+        <thead><tr><th>Concepto</th><th className="num">{etq(p).defensor}</th><th className="num">{etq(p).retador}</th><th className="num">Ahorro</th><th className="num">% red.</th></tr></thead>
         <tbody>{p.conceptos.map((c) => <tr key={c.nombre}><td className="max-w-[220px] truncate">{c.nombre}</td><td className="num">{money(c.actual)}</td><td className="num">{money(c.nuevo)}</td><td className={cx('num font-semibold', c.actual - c.nuevo < 0 ? 'text-peligro' : 'text-exito')}>{money(c.actual - c.nuevo)}</td><td className="num">{pct(c.actual ? (c.actual - c.nuevo) / c.actual : 0, 0)}</td></tr>)}
           <tr className="font-bold"><td>TOTAL</td><td className="num">{money(act)}</td><td className="num">{money(nue)}</td><td className="num text-exito">{money(K.A)}</td><td className="num">{pct(K.A / act, 1)}</td></tr></tbody>
       </table></Scroll>
-        <p className="mt-3 text-xs text-muted">Nota: la licencia y soporte SUBE con NEXORA (+{money(p.conceptos[2].nuevo - p.conceptos[2].actual)}), pero el resto de conceptos baja mucho más.</p>
+        {p.conceptos.filter((c) => c.nuevo > c.actual).map((c) => <p key={c.nombre} className="mt-3 text-xs text-muted">Nota: «{c.nombre}» SUBE con {etq(p).retador} (+{money(c.nuevo - c.actual)}), pero el total de costos baja {money(K.A)} al año.</p>)}
       </Card>
-      <Card titulo="Actual vs NEXORA"><Grafico><BarChart data={datos}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="concepto" {...ejes} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} cursor={{ fill: 'rgb(var(--fg) / .05)' }} /><Legend />
-        <Bar dataKey="Actual" fill="url(#g5)" radius={[6, 6, 0, 0]} /><Bar dataKey="NEXORA" fill="url(#g0)" radius={[6, 6, 0, 0]} /></BarChart></Grafico></Card>
+      <Card titulo={`${etq(p).defensor} vs ${etq(p).retador}`}><Grafico><BarChart data={datos}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="concepto" {...ejes} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} cursor={{ fill: 'rgb(var(--fg) / .05)' }} /><Legend />
+        <Bar dataKey="Actual" name={etq(p).defensor} fill="url(#g5)" radius={[6, 6, 0, 0]} /><Bar dataKey="Nuevo" name={etq(p).retador} fill="url(#g0)" radius={[6, 6, 0, 0]} /></BarChart></Grafico></Card>
     </div>
   </>
 }
@@ -69,7 +70,7 @@ export function Reemplazo() {
       </Card>
       <Card titulo="Costo marginal vs CAUE mínimo del retador"><Grafico><ComposedChart data={dm}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="anio" {...ejes} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} /><Legend />
         <Bar dataKey="cm" name="Costo marginal defensor" radius={[6, 6, 0, 0]}>{dm.map((x, i) => <Cell key={i} fill={x.cm < x.ret ? '#10B981' : '#F43F5E'} fillOpacity={0.75} />)}</Bar>
-        <Line dataKey="ret" name="CAUE mín. retador" stroke="#F3D58A" strokeWidth={2.5} dot={false} /></ComposedChart></Grafico></Card>
+        <Line dataKey="ret" name="CAUE mín. retador" stroke="rgb(var(--t-claro))" strokeWidth={2.5} dot={false} /></ComposedChart></Grafico></Card>
     </div>
   </>
 }
@@ -125,12 +126,12 @@ export function VidaUtil() {
   const P = quien === 'ret' ? F.inversion(p) : p.defensor.vm0, vm = quien === 'ret' ? p.retador.vm : p.defensor.vm, coa = quien === 'ret' ? p.retador.coa : p.defensor.coa
   const min = V.filas[V.nOpt - 1]
   return <>
-    <Tabs items={[{ id: 'ret', label: 'Retador (NEXORA)' }, { id: 'def', label: 'Defensor (sistema actual)' }]} valor={quien} onChange={setQuien} />
+    <Tabs items={[{ id: 'ret', label: `Retador (${etq(p).retador})` }, { id: 'def', label: `Defensor (${etq(p).defensor.toLowerCase()})` }]} valor={quien} onChange={setQuien} />
     <div className="grid gap-4 2xl:grid-cols-5">
       <Card className="2xl:col-span-2" titulo="Tabla de vida útil económica"><TablaCAUE quien={quien === 'ret' ? 'retador' : 'defensor'} P={P} vm={vm} coa={coa} filas={V.filas} nOpt={V.nOpt} /></Card>
       <Card className="2xl:col-span-3" titulo="Curvas de costo: forma de U">
         <Grafico alto={320}><ComposedChart data={V.filas}><CartesianGrid {...rejilla} /><XAxis dataKey="n" {...ejes} tickFormatter={(v) => `n=${v}`} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} labelFormatter={(v) => `n = ${v}`} /><Legend />
-          <Line dataKey="rc" name="Recuperación de capital" stroke="#B07D26" strokeWidth={2} dot={{ r: 3 }} /><Line dataKey="coaEq" name="COA equivalente" stroke="#FB923C" strokeWidth={2} dot={{ r: 3 }} /><Line dataKey="caue" name="CAUE total" stroke="#F3D58A" strokeWidth={3.5} dot={{ r: 4 }} />
+          <Line dataKey="rc" name="Recuperación de capital" stroke="rgb(var(--t-oscuro))" strokeWidth={2} dot={{ r: 3 }} /><Line dataKey="coaEq" name="COA equivalente" stroke="#FB923C" strokeWidth={2} dot={{ r: 3 }} /><Line dataKey="caue" name="CAUE total" stroke="rgb(var(--t-claro))" strokeWidth={3.5} dot={{ r: 4 }} />
           <ReferenceLine x={V.nOpt} stroke="#10B981" strokeDasharray="4 4" /><ReferenceDot x={V.nOpt} y={min.caue} r={8} fill="#10B981" stroke="white" /></ComposedChart></Grafico>
         <p className="mt-3 rounded-lg bg-exito/10 p-3 text-sm"><b>Conclusión automática:</b> la vida útil económica del {quien === 'ret' ? 'retador' : 'defensor'} es <b>{V.nOpt} año(s)</b> con CAUE mínimo de <b>{money(V.caueMin)}</b>. La RC baja al repartir la inversión en más años, mientras el COA equivalente sube por el envejecimiento; su suma forma la U.</p>
       </Card>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Pencil, Plus, Trash2, Truck, Trophy, Building2 } from 'lucide-react'
-import { useApp } from '../store/useApp'
-import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, Titulo } from '../components/ui'
+import { CheckCircle2, Pencil, Plus, Trash2, Truck, Trophy, Building2, ClipboardList } from 'lucide-react'
+import { useApp, tieneRol, soloLectura as esSoloLectura } from '../store/useApp'
+import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, Titulo, Tabs } from '../components/ui'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
 
@@ -10,11 +10,12 @@ const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: 
 
 export default function Compras() {
   const { ordenes, productos, proveedores, sucursales, usuario, crearOrden, avanzarOrden, guardarProveedor, eliminarProveedor } = useApp()
+  const [tab, setTab] = useState<'ordenes' | 'proveedores'>('ordenes')
   const [nueva, setNueva] = useState<{ proveedorId: string; sucursal: SucursalId; items: { productoId: string; cantidad: number; costo: number }[] } | null>(null)
   const [prov, setProv] = useState<Proveedor | null>(null), [err, setErr] = useState('')
-  const puedeAprobar = usuario?.rol === 'Gerente General' || usuario?.rol === 'Analista Financiero'
-  const puedeRecibir = usuario?.rol === 'Gerente General' || usuario?.rol === 'Jefe de Bodega'
-  const puedeEditar = usuario?.rol !== 'Auditor'
+  const puedeAprobar = tieneRol(usuario, 'Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Gerente de Sucursal')
+  const puedeRecibir = tieneRol(usuario, 'Gerente General', 'Jefe de Bodega', 'Jefe de Logística', 'Gerente de Sucursal')
+  const puedeEditar = !esSoloLectura(usuario)
   // Cumplimiento real: % de órdenes aprobadas que ya fueron recibidas (si hay historial); si no, el valor registrado.
   const ranking = useMemo(() => proveedores.map((p) => {
     const os = ordenes.filter((o) => o.proveedorId === p.id && o.estado !== 'Borrador')
@@ -31,8 +32,9 @@ export default function Compras() {
         {puedeEditar && <Button variante="primario" disabled={!!sinDatos} title={sinDatos} onClick={() => setNueva({ proveedorId: proveedores[0].id, sucursal: sucursales[0]?.id ?? '', items: [item()] })}><Plus size={15} />Nueva orden</Button>}
       </Titulo>
       {sinDatos && <Card><p className="text-sm text-muted">{sinDatos} para poder crear órdenes de compra.</p></Card>}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <Card titulo="Órdenes de compra" className="xl:col-span-2"><Scroll><table className="tabla">
+      <Tabs items={[{ id: 'ordenes', label: 'Órdenes de compra', icon: <ClipboardList size={14} /> }, { id: 'proveedores', label: 'Proveedores', icon: <Building2 size={14} /> }]} valor={tab} onChange={setTab} />
+      {tab === 'ordenes' && <>
+        <Card titulo="Órdenes de compra"><Scroll><table className="tabla">
           <thead><tr><th>N.°</th><th>Fecha</th><th>Proveedor</th><th>Sucursal</th><th className="num">Ítems</th><th className="num">Total</th><th>Estado</th><th></th></tr></thead>
           <tbody>{ordenes.slice().reverse().map((o) => <tr key={o.id}>
             <td className="font-mono text-xs">{o.id}</td><td>{fecha(o.fecha)}</td><td>{proveedores.find((p) => p.id === o.proveedorId)?.nombre ?? '—'}</td><td>{o.sucursal}</td><td className="num">{o.items.length}</td><td className="num font-semibold">{money(totalOC(o))}</td>
@@ -41,6 +43,13 @@ export default function Compras() {
               {o.estado === 'Aprobada' && <Button disabled={!puedeRecibir} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><Truck size={14} />Recibir</Button>}</td>
           </tr>)}</tbody></table></Scroll>
           {!ordenes.length && <p className="py-8 text-center text-sm text-muted">Aún no hay órdenes de compra.</p>}</Card>
+      </>}
+      {tab === 'proveedores' && <div className="grid gap-4 xl:grid-cols-3">
+      <Card className="xl:col-span-2" titulo={`Proveedores (${proveedores.length})`}><Scroll><table className="tabla">
+        <thead><tr><th>Nombre</th><th>RUC</th><th>Ciudad</th><th>Contacto</th><th>Teléfono</th><th>Correo</th><th /></tr></thead>
+        <tbody>{proveedores.map((p) => <tr key={p.id}><td className="font-medium">{p.nombre}</td><td className="font-mono text-xs">{p.ruc}</td><td>{p.ciudad}</td><td>{p.contacto}</td><td>{p.telefono}</td><td className="text-muted">{p.email}</td>
+          <td>{puedeEditar && <div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setProv({ ...p }) }}><Pencil size={15} /></Button><Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar ${p.nombre}?`)) { const e = eliminarProveedor(p.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div>}</td></tr>)}</tbody></table></Scroll>
+        {!proveedores.length && <p className="py-6 text-center text-sm text-muted">Registre sus proveedores con "Nuevo proveedor".</p>}</Card>
         <Card titulo={<span className="flex items-center gap-2"><Trophy size={15} className="text-alerta" />Ranking de proveedores</span>}>
           <ol className="space-y-2">{ranking.map((p, k) => <li key={p.id} className="flex items-center gap-3 rounded-xl bg-fg/5 px-3 py-2">
             <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${k < 3 ? 'bg-gradient-to-br from-alerta to-peligro text-white' : 'bg-fg/10'}`}>{k + 1}</span>
@@ -50,12 +59,7 @@ export default function Compras() {
           {!ranking.length && <p className="text-sm text-muted">Sin proveedores registrados.</p>}
           <p className="mt-3 text-[11px] text-muted">Puntaje = 60 % cumplimiento (órdenes recibidas / aprobadas) + 40 % competitividad de precio (1 = precio de mercado).</p>
         </Card>
-      </div>
-      <Card titulo={`Proveedores (${proveedores.length})`}><Scroll><table className="tabla">
-        <thead><tr><th>Nombre</th><th>RUC</th><th>Ciudad</th><th>Contacto</th><th>Teléfono</th><th>Correo</th><th /></tr></thead>
-        <tbody>{proveedores.map((p) => <tr key={p.id}><td className="font-medium">{p.nombre}</td><td className="font-mono text-xs">{p.ruc}</td><td>{p.ciudad}</td><td>{p.contacto}</td><td>{p.telefono}</td><td className="text-muted">{p.email}</td>
-          <td>{puedeEditar && <div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setProv({ ...p }) }}><Pencil size={15} /></Button><Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar ${p.nombre}?`)) { const e = eliminarProveedor(p.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div>}</td></tr>)}</tbody></table></Scroll>
-        {!proveedores.length && <p className="py-6 text-center text-sm text-muted">Registre sus proveedores con "Nuevo proveedor".</p>}</Card>
+      </div>}
 
       <Modal abierto={!!prov} onClose={() => setProv(null)} titulo={proveedores.some((x) => x.id === prov?.id) ? 'Editar proveedor' : 'Nuevo proveedor'} ancho="max-w-xl">
         {prov && <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); const r = guardarProveedor(prov); if (r) setErr(r); else setProv(null) }}>

@@ -24,7 +24,7 @@ describe('Asistente NEXORA', () => {
     expect(r('¿en qué países estamos?').texto).toContain('3 sucursal(es) en 3 país(es)')
     expect(r('¿qué productos están en quiebre?').texto).toContain('BOG 2 u')
   })
-  it('responde preguntas económicas con el motor del Modo Defensa', () => {
+  it('responde preguntas económicas con el motor del Asesor económico', () => {
     const x = r('¿Conviene reemplazar el sistema?')
     expect(x.ir?.pagina).toBe('economico')
     expect(x.texto).toContain('REEMPLAZAR AHORA')

@@ -51,7 +51,7 @@ No forma parte del menú del sistema. Se abre desde el botón de la pantalla de 
 
 ## Versión publicada
 
-**https://elohim-desing-ec.github.io/nexora/** — se actualiza con `npm run publicar` (solo publica si las 27 pruebas pasan).
+**https://elohim-desing-ec.github.io/NEXORA-app/** — se actualiza con `npm run publicar` (solo publica si todas las pruebas pasan).
 
 ## 2. Estructura
 

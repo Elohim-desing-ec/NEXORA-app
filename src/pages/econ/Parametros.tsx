@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEcon } from '../../store/useEcon'
 import { Campo, NumInput } from '../../components/ui'
-import { inversion, NOMBRE_DEP, type MetodoDep } from '../../lib/finance'
+import { inversion, NOMBRE_DEP, type MetodoDep, etq } from '../../lib/finance'
 import { money } from '../../lib/format'
 
 const Grupo = ({ t, children }: { t: string; children: ReactNode }) => <details open className="group rounded-xl bg-fg/5 p-3"><summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-cian">{t}</summary><div className="mt-3 space-y-2.5">{children}</div></details>
@@ -17,21 +17,28 @@ export default function Parametros() {
   const { p, set } = useEcon()
   return (
     <div className="space-y-3 text-sm">
+      <Grupo t="Evaluación">
+        <Campo label="Nombre de la evaluación"><input className="inp" value={etq(p).evaluacion} onChange={(e) => set((q) => { q.etiquetas = { ...etq(q), evaluacion: e.target.value } })} /></Campo>
+        <div className="grid grid-cols-2 gap-2">
+          <Campo label="Lo que tiene hoy (defensor)"><input className="inp" value={etq(p).defensor} onChange={(e) => set((q) => { q.etiquetas = { ...etq(q), defensor: e.target.value } })} /></Campo>
+          <Campo label="La alternativa (retador)"><input className="inp" value={etq(p).retador} onChange={(e) => set((q) => { q.etiquetas = { ...etq(q), retador: e.target.value } })} /></Campo>
+        </div>
+      </Grupo>
       <Grupo t="Proyecto">
         <div className="grid grid-cols-2 gap-2">
           <Campo label="TMAR (%)"><Pct v={p.i} on={(x) => set((q) => { q.i = x })} /></Campo>
           <Campo label="Impuesto renta (%)"><Pct v={p.impuesto} on={(x) => set((q) => { q.impuesto = x })} /></Campo>
-          <Campo label="Licencia"><NumInput step={500} value={p.licencia} onChange={(x) => set((q) => { q.licencia = x })} /></Campo>
-          <Campo label="Implementación"><NumInput step={500} value={p.implementacion} onChange={(x) => set((q) => { q.implementacion = x })} /></Campo>
-          <Campo label="Capacitación"><NumInput step={500} value={p.capacitacion} onChange={(x) => set((q) => { q.capacitacion = x })} /></Campo>
+          <Campo label={etq(p).inversion[0]}><NumInput step={500} value={p.licencia} onChange={(x) => set((q) => { q.licencia = x })} /></Campo>
+          <Campo label={etq(p).inversion[1]}><NumInput step={500} value={p.implementacion} onChange={(x) => set((q) => { q.implementacion = x })} /></Campo>
+          <Campo label={etq(p).inversion[2]}><NumInput step={500} value={p.capacitacion} onChange={(x) => set((q) => { q.capacitacion = x })} /></Campo>
           <Campo label="Valor residual S"><NumInput step={500} value={p.S} onChange={(x) => set((q) => { q.S = x })} /></Campo>
           <Campo label="Vida fiscal n"><NumInput min={1} max={8} value={p.n} onChange={(x) => set((q) => { q.n = Math.max(1, Math.min(8, Math.round(x))) })} /></Campo>
           <Campo label="Inflación (%)"><Pct v={p.inflacion} on={(x) => set((q) => { q.inflacion = x })} /></Campo>
         </div>
         <div className="rounded-lg bg-primario/10 px-3 py-2 text-xs">Inversión P = <b className="tnum">{money(inversion(p))}</b></div>
       </Grupo>
-      <Grupo t="Costos anuales (actual vs NEXORA)">
-        <div className="grid grid-cols-2 gap-1.5 text-[10px] uppercase text-muted"><span>Actual</span><span>NEXORA</span></div>
+      <Grupo t={`Costos anuales (actual vs ${etq(p).retador})`}>
+        <div className="grid grid-cols-2 gap-1.5 text-[10px] uppercase text-muted"><span>Actual</span><span>{etq(p).retador}</span></div>
         {p.conceptos.map((c, k) => <div key={k}><div className="mb-1 flex gap-1"><input aria-label="Concepto" className="inp !px-2 !py-1 text-xs" value={c.nombre} onChange={(e) => set((q) => { q.conceptos[k].nombre = e.target.value })} />
           <button aria-label="Quitar concepto" title="Quitar" disabled={p.conceptos.length <= 1} className="rounded-lg px-1.5 text-muted hover:bg-peligro/15 hover:text-peligro disabled:opacity-30" onClick={() => set((q) => { q.conceptos.splice(k, 1) })}><Trash2 size={13} /></button></div>
           <div className="grid grid-cols-2 gap-1.5"><NumInput step={100} value={c.actual} onChange={(x) => set((q) => { q.conceptos[k].actual = x })} /><NumInput step={100} value={c.nuevo} onChange={(x) => set((q) => { q.conceptos[k].nuevo = x })} /></div></div>)}
@@ -48,7 +55,7 @@ export default function Parametros() {
         <Serie label="Valor de mercado al final del año" valores={p.defensor.vm} on={(k, x) => set((q) => { q.defensor.vm[k] = x })} />
         <Serie label="COA" valores={p.defensor.coa} on={(k, x) => set((q) => { q.defensor.coa[k] = x })} />
       </Grupo>
-      <Grupo t="Retador (NEXORA)">
+      <Grupo t={`Retador (${etq(p).retador})`}>
         <Serie label="Valor de mercado al final del año" valores={p.retador.vm} on={(k, x) => set((q) => { q.retador.vm[k] = x })} />
         <Serie label="COA" valores={p.retador.coa} on={(k, x) => set((q) => { q.retador.coa[k] = x })} />
       </Grupo>

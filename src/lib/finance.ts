@@ -42,7 +42,13 @@ export interface Params {
   unidades: number[]
   inflacion: number
   horizonte: number
+  /** Nombres de esta evaluación (opcional: si faltan, se usan los del caso NEXORA). */
+  etiquetas?: Etiquetas
 }
+export interface Etiquetas { evaluacion: string; defensor: string; retador: string; inversion: [string, string, string] }
+export const ETIQUETAS_NEXORA: Etiquetas = { evaluacion: 'Reemplazar el software de inventario por NEXORA', defensor: 'Sistema actual', retador: 'NEXORA', inversion: ['Licencia', 'Implementación', 'Capacitación'] }
+/** Nombres de la evaluación con valores por defecto. */
+export const etq = (p: Params): Etiquetas => ({ ...ETIQUETAS_NEXORA, ...p.etiquetas })
 
 export const inversion = (p: Params) => p.licencia + p.implementacion + p.capacitacion
 export const totalActual = (p: Params) => p.conceptos.reduce((s, c) => s + c.actual, 0)

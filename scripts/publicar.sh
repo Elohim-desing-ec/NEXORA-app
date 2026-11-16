@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publica NEXORA en GitHub Pages (rama gh-pages) → https://elohim-desing-ec.github.io/nexora/
+# Publica NEXORA en GitHub Pages (rama gh-pages) → https://elohim-desing-ec.github.io/NEXORA-app/
 #   1) Corre las pruebas: si algún cálculo financiero falla, NO se publica.
 #   2) Compila la app.
 #   3) Copia dist/ a la rama gh-pages en una carpeta temporal y la sube (commit normal, sin forzar).
@@ -22,4 +22,4 @@ git -C "$DESTINO" add -A
 git -C "$DESTINO" commit -q -m "Publicación $(date '+%Y-%m-%d %H:%M')" || echo "Sin cambios que publicar"
 git -C "$DESTINO" push -q origin gh-pages
 git worktree remove "$DESTINO"
-echo "✔ Publicado en https://elohim-desing-ec.github.io/nexora/ (tarda 1-2 minutos en actualizarse)"
+echo "✔ Publicado en https://elohim-desing-ec.github.io/NEXORA-app/ (tarda 1-2 minutos en actualizarse)"

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { ResponsiveContainer } from 'recharts'
 import { money } from '../lib/format'
 
-export const COLORES = ['#D4AF37', '#B07D26', '#F3D58A', '#10B981', '#FB923C', '#F43F5E']
+export const COLORES = ['rgb(var(--t-oro))', 'rgb(var(--t-oscuro))', 'rgb(var(--t-claro))', '#10B981', '#FB923C', '#F43F5E']
 export const ejes = { stroke: 'rgb(var(--muted))', fontSize: 11, tickLine: false, axisLine: false } as const
 export const rejilla = { stroke: 'rgb(var(--muted) / .15)', strokeDasharray: '3 3', vertical: false } as const
 
@@ -20,3 +20,5 @@ export const Grafico = ({ alto = 280, children }: { alto?: number; children: Rea
 export const Degradados = () => (
   <defs>{COLORES.map((c, k) => <linearGradient key={k} id={`g${k}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c} stopOpacity={0.9} /><stop offset="100%" stopColor={c} stopOpacity={0.25} /></linearGradient>)}</defs>
 )
+/** Recharts no dibuja componentes propios dentro de sus gráficos, así que los degradados url(#g0…g5) se definen una sola vez para toda la app. */
+export const DefsGraficos = () => <svg aria-hidden width="0" height="0" style={{ position: 'absolute' }}><Degradados /></svg>

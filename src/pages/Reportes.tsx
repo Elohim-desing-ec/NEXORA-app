@@ -11,9 +11,9 @@ import { totalOC } from './Compras'
 
 export default function Reportes() {
   const { productos, movimientos, ordenes, auditoria, proveedores: PROVEEDORES, sucursales } = useApp()
-  const p = useEcon((s) => s.p)
+  const p = useEcon((s) => s.p), hayEval = useEcon((s) => !!s.activa)
   const { sucursales: sucs, proveedores, empresa } = useApp()
-  const a = useMemo(() => analizarNegocio({ productos, movimientos, ordenes, sucursales: sucs, proveedores, p, empresa: empresa.nombre }), [productos, movimientos, ordenes, sucs, proveedores, p, empresa.nombre])
+  const a = useMemo(() => analizarNegocio({ productos, movimientos, ordenes, sucursales: sucs, proveedores, p: hayEval ? p : undefined, empresa: empresa.nombre }), [productos, movimientos, ordenes, sucs, proveedores, p, hayEval, empresa.nombre])
   const estilo: Record<Nivel, [string, JSX.Element]> = { critico: ['border-peligro/40 bg-peligro/10', <AlertOctagon key="c" size={16} className="text-peligro" />], alerta: ['border-alerta/40 bg-alerta/10', <AlertTriangle key="a" size={16} className="text-alerta" />], oportunidad: ['border-cian/40 bg-cian/10', <Lightbulb key="o" size={16} className="text-cian" />], ok: ['border-exito/40 bg-exito/10', <CheckCircle2 key="k" size={16} className="text-exito" />] }
   const reportes = [
     { t: 'Inventario valorizado', d: 'Stock por sucursal, costo, precio, lote y vencimiento', f: (x: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', ...sucursales.map((x) => x.id), 'Total', 'Valor'], productos.map((q) => [q.sku, q.nombre, q.categoria, ...sucursales.map((x) => q.stock[x.id] ?? 0), stockTotal(q), money(stockTotal(q) * q.costo)]), x) },
@@ -33,7 +33,7 @@ export default function Reportes() {
       </Card>
       <Card className="border-primario/30" titulo="Análisis económico completo">
         <p className="mb-3 text-sm text-muted">Excel con una hoja por pestaña y FÓRMULAS reales (CAUE, factores, depreciación, FEDI, VPN/TIR con NPV e IRR) enlazadas a la hoja Parametros. PDF con resumen ejecutivo y tablas.</p>
-        <div className="flex gap-2"><Button variante="primario" onClick={() => exportarAnalisisExcel(p)}><FileSpreadsheet size={15} />Excel con fórmulas</Button><Button onClick={() => exportarAnalisisPDF(p)}><FileText size={15} />PDF</Button></div>
+        <div className="flex gap-2"><Button variante="primario" disabled={!hayEval} title={hayEval ? '' : 'Primero cree una evaluación en Análisis económico'} onClick={() => exportarAnalisisExcel(p)}><FileSpreadsheet size={15} />Excel con fórmulas</Button><Button disabled={!hayEval} onClick={() => exportarAnalisisPDF(p)}><FileText size={15} />PDF</Button></div>
       </Card>
       <div className="grid gap-4 md:grid-cols-2">{reportes.map((r) => <Card key={r.t} hover titulo={r.t}><p className="mb-3 text-sm text-muted">{r.d}</p><div className="flex gap-2"><Button onClick={() => r.f('xlsx')}><FileSpreadsheet size={15} />Excel</Button><Button onClick={() => r.f('pdf')}><FileText size={15} />PDF</Button></div></Card>)}</div>
     </div>

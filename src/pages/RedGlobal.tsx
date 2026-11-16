@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Building2, Globe2, Landmark, MapPin, RefreshCw, Rotate3d, TrendingUp, Plus } from 'lucide-react'
-import { useApp } from '../store/useApp'
+import { useApp, tieneRol } from '../store/useApp'
 import { Badge, Button, Card, Kpi, Scroll, Titulo, cx } from '../components/ui'
 import type { EstiloGlobo, Vuelo, ArcoGlobo } from '../components/Globo'
 import { bandera, pais, SIMBOLOS } from '../data/paises'
@@ -41,7 +41,7 @@ export default function RedGlobal() {
   const volar = (id: string) => { const s = sucursales.find((x) => x.id === id); if (s) { setSel(id); setVuelo({ lng: s.lng, lat: s.lat, zoom: 13, t: Date.now() }) } }
 
   if (!sucursales.length) return <div className="space-y-5"><Titulo titulo="Red global" sub="Sus sucursales en el mundo" />
-    <Card><div className="py-10 text-center"><Globe2 className="mx-auto mb-3 text-cian" size={40} /><p className="text-sm text-muted">Aún no hay sucursales registradas.</p>{usuario?.rol === 'Gerente General' && <Button variante="primario" className="mt-4" onClick={() => ir('configuracion')}><Plus size={15} />Agregar sucursales</Button>}</div></Card></div>
+    <Card><div className="py-10 text-center"><Globe2 className="mx-auto mb-3 text-cian" size={40} /><p className="text-sm text-muted">Aún no hay sucursales registradas.</p>{tieneRol(usuario, 'Gerente General') && <Button variante="primario" className="mt-4" onClick={() => ir('configuracion')}><Plus size={15} />Agregar sucursales</Button>}</div></Card></div>
 
   return (
     <div className="space-y-5">

@@ -94,9 +94,9 @@ export function Indicadores() {
     </div>
     <div className="grid gap-4 2xl:grid-cols-2">
       <Card titulo="Flujos y VP acumulado"><Grafico><ComposedChart data={acum}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="t" {...ejes} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} labelFormatter={(v) => `Año ${v}`} /><Legend /><ReferenceLine y={0} stroke="#A8A29E" />
-        <Bar dataKey="flujo" name="Flujo" radius={[6, 6, 0, 0]}>{acum.map((a, i) => <Cell key={i} fill={a.flujo < 0 ? '#F43F5E' : '#D4AF37'} fillOpacity={0.75} />)}</Bar><Line dataKey="acum" name="VP acumulado" stroke="#10B981" strokeWidth={2.5} /></ComposedChart></Grafico></Card>
+        <Bar dataKey="flujo" name="Flujo" radius={[6, 6, 0, 0]}>{acum.map((a, i) => <Cell key={i} fill={a.flujo < 0 ? '#F43F5E' : 'rgb(var(--t-oro))'} fillOpacity={0.75} />)}</Bar><Line dataKey="acum" name="VP acumulado" stroke="#10B981" strokeWidth={2.5} /></ComposedChart></Grafico></Card>
       <Card titulo="Perfil del VPN vs tasa (la TIR es donde corta el eje)"><Grafico><ComposedChart data={perfil}><Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="i" {...ejes} interval={4} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} /><ReferenceLine y={0} stroke="#F43F5E" />
-        <Area dataKey="VPN" stroke="#F3D58A" fill="url(#g2)" strokeWidth={2.5} /></ComposedChart></Grafico>
+        <Area dataKey="VPN" stroke="rgb(var(--t-claro))" fill="url(#g2)" strokeWidth={2.5} /></ComposedChart></Grafico>
         <p className="text-xs text-muted">TIR = {pct(K.TIR)} · TMAR = {pct(p.i, 0)} → {K.TIR > p.i ? 'TIR > TMAR: se acepta.' : 'TIR < TMAR: se rechaza.'}</p></Card>
     </div>
   </>
@@ -115,10 +115,10 @@ export function Sensibilidad() {
     </Card>
     <div className="grid gap-4 2xl:grid-cols-2">
       <Card titulo={`Gráfico tornado: variación del VPN (base ${money(T.base, 0)}) con ±20 %`}><Grafico><BarChart data={datos} layout="vertical" stackOffset="sign" margin={{ left: 30 }}><CartesianGrid {...rejilla} horizontal={false} vertical /><XAxis type="number" {...ejes} tickFormatter={k} /><YAxis type="category" dataKey="variable" {...ejes} width={110} /><Tooltip content={<TooltipVidrio />} cursor={{ fill: 'rgb(var(--fg) / .05)' }} /><Legend /><ReferenceLine x={0} stroke="#A8A29E" />
-        <Bar dataKey="−20 %" stackId="a" fill="#FB923C" fillOpacity={0.8} radius={4} /><Bar dataKey="+20 %" stackId="a" fill="#D4AF37" fillOpacity={0.8} radius={4} /></BarChart></Grafico>
+        <Bar dataKey="−20 %" stackId="a" fill="#FB923C" fillOpacity={0.8} radius={4} /><Bar dataKey="+20 %" stackId="a" fill="rgb(var(--t-oro))" fillOpacity={0.8} radius={4} /></BarChart></Grafico>
         <p className="text-xs text-muted">Variable más sensible: <b className="text-fg">{T.filas[0].variable}</b>. Ordenadas de mayor a menor impacto.</p></Card>
       <Card titulo="CAUE mínimo vs TMAR (5 % – 25 %)"><Grafico><LineChart data={tmars}><CartesianGrid {...rejilla} /><XAxis dataKey="tmar" {...ejes} interval={4} /><YAxis {...ejes} tickFormatter={k} /><Tooltip content={<TooltipVidrio />} /><Legend />
-        <Line dataKey="defensor" name="Defensor" stroke="#F43F5E" strokeWidth={2.5} dot={false} /><Line dataKey="retador" name="Retador" stroke="#F3D58A" strokeWidth={2.5} dot={false} /></LineChart></Grafico></Card>
+        <Line dataKey="defensor" name="Defensor" stroke="#F43F5E" strokeWidth={2.5} dot={false} /><Line dataKey="retador" name="Retador" stroke="rgb(var(--t-claro))" strokeWidth={2.5} dot={false} /></LineChart></Grafico></Card>
     </div>
     <div className="grid gap-4 md:grid-cols-2">
       <Card titulo="Valor de equilibrio del defensor" accion={<VerProc proc={PR.procEquilibrio(p)} />}><div className="text-3xl font-bold tnum">{money(F.equilibrioDefensor(p))}</div><p className="mt-1 text-sm text-muted">Valor de mercado del sistema actual con el que daría igual conservarlo o reemplazarlo (hoy vale {money(p.defensor.vm0)}).</p></Card>
@@ -149,7 +149,7 @@ export function Recomendacion() {
   const p = useEcon((s) => s.p)
   const R = F.reemplazo(p), K = F.indicadores(p), fe = F.fedi(p, p.depMetodo)
   const criterios = [
-    [R.reemplazarAhora, `CAUE: NEXORA ${money(R.ret.caueMin)} vs actual ${money(R.def.caueMin)} → ahorro equivalente ${money(R.def.caueMin - R.ret.caueMin)}/año`],
+    [R.reemplazarAhora, `CAUE: ${F.etq(p).retador} ${money(R.ret.caueMin)} vs ${F.etq(p).defensor.toLowerCase()} ${money(R.def.caueMin)} → ahorro equivalente ${money(R.def.caueMin - R.ret.caueMin)}/año`],
     [K.VPN > 0, `VPN = ${money(K.VPN)} > 0 a una TMAR del ${pct(p.i, 0)}`],
     [K.TIR > p.i, `TIR = ${pct(K.TIR)} frente a TMAR ${pct(p.i, 0)}`],
     [K.BC > 1, `B/C = ${num(K.BC, 2)}: cada dólar invertido devuelve ${money(K.BC)}`],

@@ -1,35 +1,41 @@
 import { lazy, Suspense, useRef, useState } from 'react'
-import { Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload } from 'lucide-react'
-import { useApp, ROLES, PERMISOS, type Usuario, type FilaImport } from '../store/useApp'
-import { useEcon } from '../store/useEcon'
+import { Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload, Palette, Check } from 'lucide-react'
+import { useApp, ROLES, type Usuario, type FilaImport, rolesDe, permisosDe, MAX_ROLES, DESCRIPCION_ROL, SOLO_LECTURA, type Rol } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, Scroll, Tabs, Titulo, cx } from '../components/ui'
 import { MENU } from '../components/Layout'
 import { descargarPlantilla, leerArchivo } from '../lib/importar'
+import { cargarRespaldo, descargarRespaldo } from '../lib/respaldo'
+import { perfilDe } from '../lib/sectores'
+import { TEMAS } from '../lib/temas'
+import { MuestraTema } from '../components/SelectorTema'
+import { InstalarApp } from '../components/InstalarApp'
 import { money } from '../lib/format'
-import { SECTORES, type Empresa, type Sucursal } from '../data/base'
+import { SECTORES, TAMANOS, type Empresa, type Sucursal } from '../data/base'
 import { PAISES, MONEDAS, SIMBOLOS, bandera, pais } from '../data/paises'
 import { EditorSucursal, sucursalVacia } from '../components/EditorSucursal'
 import { valorInventario } from '../lib/inventario'
 
 const Globo = lazy(() => import('../components/Globo'))
 
-const ve = (rol: Usuario['rol']) => MENU.filter((m) => PERMISOS[rol].includes(m.id)).map((m) => m.label)
+const ve = (u: Pick<Usuario, 'rol' | 'roles'>) => MENU.filter((m) => permisosDe(u).includes(m.id)).map((m) => m.label)
 
 function Usuarios() {
   const { usuarios, usuario, guardarUsuario, eliminarUsuario } = useApp()
   const [edit, setEdit] = useState<Usuario | null>(null), [err, setErr] = useState('')
-  const tono = { 'Gerente General': 'violeta', 'Analista Financiero': 'cian', Contador: 'verde', 'Jefe de Compras': 'azul', 'Jefe de Bodega': 'azul', Auditor: 'ambar', Ayudante: 'gris' } as const
+  const tono = (r: Rol) => (r === 'Gerente General' ? 'violeta' : SOLO_LECTURA.includes(r) ? 'ambar' : /Financ|Contador/.test(r) ? 'cian' : /Ventas|Vendedor|Cajero|Marketing/.test(r) ? 'verde' : r === 'Ayudante' ? 'gris' : 'azul')
+  /** Marca o desmarca un rol: el primero elegido es el principal; máximo 3. */
+  const alternar = (u: Usuario, r: Rol): Usuario => { const rs = rolesDe(u); const nuevos = rs.includes(r) ? rs.filter((x) => x !== r) : rs.length >= MAX_ROLES ? rs : [...rs, r]; return nuevos.length ? { ...u, rol: nuevos[0], roles: nuevos.slice(1) } : u }
   return <>
     <Card titulo={`Usuarios del sistema (${usuarios.length})`} accion={<Button variante="primario" onClick={() => { setErr(''); setEdit({ id: crypto.randomUUID(), nombre: '', usuario: '', email: '', rol: 'Ayudante', clave: '' }) }}><Plus size={15} />Agregar persona</Button>}>
-      <Scroll><table className="tabla"><thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Puede ver</th><th /></tr></thead>
+      <Scroll><table className="tabla"><thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>Puede ver</th><th /></tr></thead>
         <tbody>{usuarios.map((u) => <tr key={u.id}>
           <td className="font-medium"><div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-[10px] font-bold text-black">{u.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span>{u.nombre}{u.id === usuario?.id && <Badge tono="verde">Usted</Badge>}</div></td>
-          <td className="font-mono text-xs">{u.usuario}</td><td><Badge tono={tono[u.rol]}>{u.rol}</Badge></td>
-          <td className="whitespace-normal text-xs text-muted">{ve(u.rol).join(' · ')}</td>
+          <td className="font-mono text-xs">{u.usuario}</td><td><div className="flex flex-wrap gap-1">{rolesDe(u).map((r) => <Badge key={r} tono={tono(r)}>{r}</Badge>)}</div></td>
+          <td className="whitespace-normal text-xs text-muted">{ve(u).join(' · ')}</td>
           <td><div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setEdit({ ...u }) }}><Pencil size={15} /></Button>
             <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar a ${u.nombre}?`)) { const e = eliminarUsuario(u.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div></td>
         </tr>)}</tbody></table></Scroll>
-      <p className="mt-3 text-xs text-muted">Para asignar funciones a una persona, edítela y cambie su rol. Cada rol ve un menú distinto.</p>
+      <p className="mt-3 text-xs text-muted">Cada persona puede tener hasta {MAX_ROLES} roles, según su capacidad: ve la suma de los menús de todos sus roles. Hay {ROLES.length} roles disponibles.</p>
     </Card>
     <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={usuarios.some((x) => x.id === edit?.id) ? 'Editar usuario' : 'Agregar persona'} ancho="max-w-lg">
       {edit && <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); const r = guardarUsuario({ ...edit, nombre: edit.nombre.trim(), usuario: edit.usuario.trim().toLowerCase(), email: edit.email.trim() }); if (r) setErr(r); else setEdit(null) }}>
@@ -38,8 +44,14 @@ function Usuarios() {
           <Campo label="Usuario (para ingresar)" ayuda="Corto y sin espacios, ej.: ana"><input className="inp" value={edit.usuario} onChange={(e) => setEdit({ ...edit, usuario: e.target.value.replace(/\s/g, '').toLowerCase() })} /></Campo>
           <Campo label="Contraseña" ayuda="Fácil de recordar, ej.: ana2026"><input className="inp" value={edit.clave} onChange={(e) => setEdit({ ...edit, clave: e.target.value })} /></Campo>
         </div>
-        <Campo label="Rol"><select className="inp" value={edit.rol} onChange={(e) => setEdit({ ...edit, rol: e.target.value as Usuario['rol'] })}>{ROLES.map((r) => <option key={r}>{r}</option>)}</select></Campo>
-        <p className="text-xs text-muted">Con este rol verá: {ve(edit.rol).join(', ')}.</p>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between"><span className="text-xs font-medium text-muted">Roles (hasta {MAX_ROLES}, según lo que hace la persona)</span><span className="text-[11px] text-muted">{rolesDe(edit).length}/{MAX_ROLES}</span></div>
+          <div className="grid max-h-64 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2">{ROLES.map((r) => { const si = rolesDe(edit).includes(r), lleno = !si && rolesDe(edit).length >= MAX_ROLES; return (
+            <button key={r} type="button" disabled={lleno} onClick={() => setEdit(alternar(edit, r))} className={cx('rounded-xl border px-3 py-2 text-left transition disabled:opacity-35', si ? 'border-primario/60 bg-primario/10' : 'border-fg/10 hover:bg-fg/5')}>
+              <div className="flex items-center justify-between gap-2 text-sm font-semibold">{r}{si && <span className="rounded-full bg-gradient-to-r from-primario to-violeta px-1.5 text-[9px] font-bold text-black">{edit.rol === r ? 'PRINCIPAL' : 'ADICIONAL'}</span>}</div>
+              <div className="text-[11px] text-muted">{DESCRIPCION_ROL[r]}</div></button>) })}</div>
+        </div>
+        <p className="text-xs text-muted">Con {rolesDe(edit).length > 1 ? 'estos roles' : 'este rol'} verá: {ve(edit).join(', ')}.</p>
         <Campo label="Correo (opcional)"><input type="email" className="inp" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Campo>
         {err && <p className="text-sm text-peligro">{err}</p>}
         <div className="flex justify-end gap-2"><Button type="button" onClick={() => setEdit(null)}>Cancelar</Button><Button variante="primario" type="submit">Guardar</Button></div>
@@ -55,7 +67,9 @@ export function FormEmpresa({ e, setE }: { e: Empresa; setE: (e: Empresa) => voi
     <Campo label="País (sede principal)"><select className="inp" value={e.pais} onChange={(x) => { const n = pais(x.target.value); setE({ ...e, pais: x.target.value, moneda: n?.moneda ?? e.moneda }) }}>{PAISES.map((q) => <option key={q.codigo} value={q.codigo}>{bandera(q.codigo)} {q.nombre}</option>)}</select></Campo>
     <Campo label="Moneda de la empresa" ayuda="Costos, precios y reportes"><select className="inp" value={e.moneda} onChange={(x) => setE({ ...e, moneda: x.target.value })}>{MONEDAS.map((m) => <option key={m} value={m}>{m} ({SIMBOLOS[m]})</option>)}</select></Campo>
     <Campo label={`Identificación fiscal (${p?.idFiscal ?? 'ID'})`}><input className="inp" value={e.idFiscal} onChange={(x) => setE({ ...e, idFiscal: x.target.value })} /></Campo>
-    <Campo label="Sector"><select className="inp" value={e.sector} onChange={(x) => setE({ ...e, sector: x.target.value })}><option value="">— Elegir —</option>{SECTORES.map((q) => <option key={q}>{q}</option>)}</select></Campo>
+    <Campo label="Sector"><select className="inp" value={e.sector} onChange={(x) => setE({ ...e, sector: x.target.value })}><option value="">— Elegir —</option>{[...SECTORES, ...(e.sector && !SECTORES.includes(e.sector) ? [e.sector] : [])].map((q) => <option key={q}>{q}</option>)}</select></Campo>
+    <Campo label="Tamaño del negocio"><select className="inp" value={e.tamano ?? ''} onChange={(x) => setE({ ...e, tamano: x.target.value })}><option value="">— Elegir —</option>{TAMANOS.map((q) => <option key={q}>{q}</option>)}</select></Campo>
+    {e.sector && <div className="rounded-xl border border-primario/25 bg-primario/10 p-3 text-xs sm:col-span-2 lg:col-span-3"><b className="text-primario">NEXORA se adapta a «{perfilDe(e.sector).nombre}»:</b> {perfilDe(e.sector).foco} Categorías sugeridas: {perfilDe(e.sector).categorias.slice(0, 4).join(', ')}… Meta de margen: {Math.round(perfilDe(e.sector).margenMeta * 100)} %.</div>}
     <Campo label="Teléfono"><input className="inp" value={e.telefono} onChange={(x) => setE({ ...e, telefono: x.target.value })} /></Campo>
   </div>
 }
@@ -93,23 +107,15 @@ function EmpresaTab() {
 }
 
 function Datos() {
-  const { productos, movimientos, sucursales, vaciarDatos, importarProductos, ir, respaldo, restaurar } = useApp()
-  const econ = useEcon()
+  const { productos, movimientos, sucursales, vaciarDatos, importarProductos, ir } = useApp()
   const archivo = useRef<HTMLInputElement>(null), resp = useRef<HTMLInputElement>(null)
   const [prev, setPrev] = useState<{ filas: FilaImport[]; errores: string[]; nombre: string } | null>(null)
   const [msg, setMsg] = useState('')
-  const descargar = () => {
-    const blob = new Blob([JSON.stringify({ app: 'NEXORA', version: 3, fecha: new Date().toISOString(), datos: respaldo(), economico: { p: econ.p, escenarios: econ.escenarios } }, null, 2)], { type: 'application/json' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `NEXORA_respaldo_${new Date().toISOString().slice(0, 10)}.json`; a.click(); URL.revokeObjectURL(a.href)
-  }
+  const descargar = descargarRespaldo
   const cargar = async (f: File) => {
-    try {
-      const j = JSON.parse(await f.text())
-      if (j.app !== 'NEXORA' || !j.datos?.usuarios) throw new Error()
-      if (!confirm(`¿Restaurar el respaldo del ${new Date(j.fecha).toLocaleString('es-EC')}? Reemplaza todos los datos actuales.`)) return
-      restaurar(j.datos); if (j.economico) useEcon.setState({ p: j.economico.p, escenarios: j.economico.escenarios ?? [] })
-      setMsg('Respaldo restaurado correctamente.')
-    } catch { alert('El archivo no es un respaldo válido de NEXORA.') }
+    const r = await cargarRespaldo(f)
+    if (r === 'ok') setMsg('Respaldo restaurado correctamente.')
+    else if (r === 'invalido') alert('El archivo no es un respaldo válido de NEXORA.')
   }
   return <>
     <Card titulo="Estado actual"><div className="grid gap-3 text-sm sm:grid-cols-3">{[['Productos', productos.length], ['Movimientos', movimientos.length], ['Valor del inventario', money(valorInventario(productos), 0)]].map(([a, b]) => <div key={a} className="rounded-xl bg-fg/5 p-3"><div className="text-xs text-muted">{a}</div><div className="text-xl font-bold tnum">{b}</div></div>)}</div>
@@ -130,8 +136,8 @@ function Datos() {
         <input ref={resp} type="file" accept=".json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) cargar(f); e.target.value = '' }} />
       </Card>
       <Card hover titulo={<span className="flex items-center gap-2"><Eraser size={15} className="text-peligro" />Vaciar inventario</span>}>
-        <p className="mb-3 text-sm text-muted">Borra productos, movimientos y órdenes (usuarios, proveedores y empresa se conservan). Descargue un respaldo antes.</p>
-        <Button variante="peligro" onClick={() => { if (confirm('¿Borrar TODO el inventario, movimientos y órdenes? Esta acción no se puede deshacer.')) { vaciarDatos(); setMsg('Inventario vaciado.') } }}><Eraser size={15} />Vaciar inventario</Button>
+        <p className="mb-3 text-sm text-muted">Borra productos, movimientos, órdenes, ventas, gastos y cierres (usuarios, proveedores y empresa se conservan). Descargue un respaldo antes.</p>
+        <Button variante="peligro" onClick={() => { if (confirm('¿Borrar TODO el inventario, movimientos, órdenes, ventas, gastos y cierres? Esta acción no se puede deshacer.')) { vaciarDatos(); setMsg('Inventario vaciado.') } }}><Eraser size={15} />Vaciar inventario</Button>
       </Card>
     </div>
     <Modal abierto={!!prev} onClose={() => setPrev(null)} titulo={`Vista previa · ${prev?.nombre}`} ancho="max-w-5xl">
@@ -160,11 +166,30 @@ function Guia() {
   return <Card titulo="¿Cómo empezar a usar NEXORA con datos reales?"><ol className="space-y-3">{pasos.map(([t, d], k) => <li key={t} className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-xs font-bold text-black">{k + 1}</span><div><div className="font-semibold">{t}</div><p className="text-sm text-muted">{d}</p></div></li>)}</ol></Card>
 }
 
+/** Temas de color: cada usuario elige el suyo (también desde el botón de paleta de la barra superior). */
+function Temas() {
+  const { usuario, temasColor, setTemaColor, tema, setTema } = useApp()
+  const actual = (usuario && temasColor?.[usuario.id]) || 'oro'
+  return <>
+    <Card titulo="Temas de color" accion={<div className="flex rounded-full border border-fg/10 bg-fg/5 p-0.5 text-xs">{(['oscuro', 'claro'] as const).map((m) => <button key={m} onClick={() => setTema(m)} className={cx('rounded-full px-3 py-1 capitalize transition', tema === m ? 'bg-gradient-to-r from-primario to-violeta font-semibold text-black' : 'text-muted hover:text-fg')}>Modo {m}</button>)}</div>}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-fg/5 p-3 text-sm"><span><b>App de escritorio:</b> instale NEXORA en esta computadora para abrirla con su propio ícono, en su propia ventana y sin internet.</span><InstalarApp /></div>
+      <p className="mb-4 text-sm text-muted">Solo cambian los colores: el diseño, las letras y las animaciones quedan iguales. El tema se guarda para <b className="text-fg">su usuario</b>: cada persona que ingresa ve el suyo (lo cambia con el botón de paleta de la barra superior).</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{TEMAS.map((x) => (
+        <button key={x.id} onClick={() => setTemaColor(x.id)} className={cx('glass glass-hover p-3 text-left', actual === x.id && 'ring-2 ring-primario')}>
+          <MuestraTema id={x.id} grande />
+          <div className="mt-3 flex items-center justify-between gap-2"><span className="font-semibold">{x.nombre}</span>{actual === x.id ? <Badge tono="azul"><Check size={11} />En uso</Badge> : <span className="text-xs text-primario">Usar</span>}</div>
+          <p className="mt-0.5 text-xs text-muted">{x.desc[0]}</p>
+          <div className="mt-2 flex gap-1.5">{x.muestra.map((c) => <span key={c} className="h-3 w-3 rounded-full ring-1 ring-fg/10" style={{ background: c }} />)}</div>
+        </button>))}</div>
+    </Card>
+  </>
+}
+
 export default function Configuracion() {
-  const [t, setT] = useState<'usuarios' | 'empresa' | 'datos' | 'guia'>('usuarios')
+  const [t, setT] = useState<'usuarios' | 'empresa' | 'datos' | 'temas' | 'guia'>('usuarios')
   return <div className="space-y-4">
     <Titulo titulo="Configuración" sub="Empresa, usuarios del sistema y carga de datos reales" />
-    <Tabs items={[{ id: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> }, { id: 'empresa', label: 'Empresa', icon: <Building2 size={14} /> }, { id: 'datos', label: 'Mis datos', icon: <Database size={14} /> }, { id: 'guia', label: 'Guía', icon: <BookOpen size={14} /> }]} valor={t} onChange={setT} />
-    {t === 'usuarios' ? <Usuarios /> : t === 'empresa' ? <EmpresaTab /> : t === 'datos' ? <Datos /> : <Guia />}
+    <Tabs items={[{ id: 'usuarios', label: 'Usuarios', icon: <Users size={14} /> }, { id: 'empresa', label: 'Empresa', icon: <Building2 size={14} /> }, { id: 'datos', label: 'Mis datos', icon: <Database size={14} /> }, { id: 'temas', label: 'Temas', icon: <Palette size={14} /> }, { id: 'guia', label: 'Guía', icon: <BookOpen size={14} /> }]} valor={t} onChange={setT} />
+    {t === 'usuarios' ? <Usuarios /> : t === 'empresa' ? <EmpresaTab /> : t === 'datos' ? <Datos /> : t === 'temas' ? <Temas /> : <Guia />}
   </div>
 }

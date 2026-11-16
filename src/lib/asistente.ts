@@ -10,7 +10,7 @@ import { money, num, pct, fecha } from './format'
 import { normalizar, responder as responderEcon } from './preguntas'
 import { enQuiebre, stockTotal } from './inventario'
 
-export interface Ctx { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; proveedores: Proveedor[]; sucursales: Sucursal[]; empresa: Empresa; rol: Rol; nombre: string; p: Params }
+export interface Ctx { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; proveedores: Proveedor[]; sucursales: Sucursal[]; empresa: Empresa; rol: Rol; nombre: string; p: Params; /** ¿La empresa ya creó una evaluación económica? (si falta, se asume que sí) */ hayEval?: boolean }
 export interface Resp { texto: string; ir?: { pagina: Pagina; label: string; tab?: string }; sugerencias?: string[] }
 
 /** Coincide al inicio de palabra ("vend" ⊂ "vendido", pero "tema" ⊄ "sistema"); palabras cortas, exactas. */
@@ -70,7 +70,7 @@ const AYUDA: Intencion[] = [
   { tema: ['presentacion', 'pantalla completa'], r: () => ({ texto: 'Botón "Presentación" en la barra superior: pantalla completa, letra más grande y sin menús. Esc para salir.' }) },
   { tema: ['modo oscuro', 'modo claro', 'tema', 'color'], r: () => ({ texto: 'El botón ☀/🌙 de la barra superior cambia entre modo oscuro y claro.' }) },
   { tema: ['buscar', 'ctrl', 'encontrar'], r: () => ({ texto: 'Pulse Ctrl + K (⌘ + K en Mac) para abrir el buscador global de páginas, productos y pestañas del análisis.' }) },
-  { tema: ['defensa', 'sustentacion', 'docente', 'practicar'], r: () => ({ texto: 'El Modo Defensa es una herramienta aparte: Análisis económico → "Modo Defensa ↗" o el botón de la pantalla de ingreso. Responde preguntas de la docente con los valores actuales.' }) },
+  { tema: ['defensa', 'asesor', 'sustentacion', 'practicar'], r: () => ({ texto: 'El Asesor económico está en Análisis económico → pestaña «Asesor». Responda preguntas como «¿me conviene reemplazar?» o «¿qué pasa si la TMAR sube?» y le contesta con los números y fórmulas de su evaluación.', ir: { pagina: 'economico', label: 'Ir al Asesor', tab: 'asesor' } }) },
 ]
 
 function puntuar(q: string, it: Intencion) {
@@ -89,6 +89,7 @@ export function asistente(pregunta: string, c: Ctx): Resp {
   if (d.s && (!a.s || (!esPregCompo && d.s >= a.s))) return d.it.r(c, q)
   if (a.s) return a.it.r(c, q)
   const e = responderEcon(pregunta, c.p)
+  if (e && c.hayEval === false) return { texto: 'Para responder con números, primero cree una evaluación en Análisis económico: ingrese lo que tiene hoy, la alternativa y cuánto invertiría.', ir: { pagina: 'economico', label: 'Crear una evaluación' } }
   if (e) return { texto: e.respuesta.texto, ir: { pagina: 'economico', label: 'Ver en Análisis económico', tab: e.respuesta.tab } }
   const R = F.reemplazo(c.p)
   return { texto: `No entendí la pregunta. Pruebe con otras palabras o elija una sugerencia.\n(Dato rápido: el análisis económico indica ${R.veredicto}, ahorro ${money(F.ahorroAnual(c.p))}/año, TIR ${pct(F.indicadores(c.p).TIR, 1)}, VPN ${money(F.indicadores(c.p).VPN)}, recuperación ${num(F.indicadores(c.p).recSimple)} años.)`, sugerencias: SUGERENCIAS }
