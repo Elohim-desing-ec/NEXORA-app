@@ -8,7 +8,9 @@ self.addEventListener('fetch', (e) => {
   const r = e.request
   if (r.method !== 'GET' || !r.url.startsWith('http')) return
   if (r.mode === 'navigate') {
-    e.respondWith(fetch(r).then((res) => { const copia = res.clone(); caches.open(CACHE).then((c) => c.put('./index.html', copia)); return res }).catch(() => caches.match('./index.html')))
+    // Solo la app se guarda como index.html (las páginas fijas, como privacidad.html, no la reemplazan).
+    const app = /\/(index\.html)?$/.test(new URL(r.url).pathname)
+    e.respondWith(fetch(r).then((res) => { if (app && res.ok) { const copia = res.clone(); caches.open(CACHE).then((c) => c.put('./index.html', copia)) } return res }).catch(() => (app ? caches.match('./index.html') : caches.match(r))))
     return
   }
   e.respondWith(caches.match(r).then((guardado) => {
