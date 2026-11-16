@@ -20,18 +20,10 @@ export interface Licencia { plan: string; vence: string | null; empresaId?: stri
 /** ¿El plan sigue vigente? (la prueba gratis vence; los planes pagados no). */
 export const licenciaVigente = (l: Licencia | null | undefined) => !!l && (!l.vence || new Date(l.vence).getTime() > Date.now())
 
-/** Equipo del proyecto. Usuario = primer nombre; contraseña = nombre + 2026. Se cambian en Configuración. */
-const equipo = (id: string, nombre: string, usuario: string, rol: Rol): Usuario => ({ id, nombre, usuario, rol, email: '', clave: `${usuario}2026` })
-export const USUARIOS: Usuario[] = [
-  equipo('u1', 'Eduardo Lara Pincay', 'eduardo', 'Gerente General'),
-  equipo('u2', 'Kattia Arreaga Castro', 'kattia', 'Contador'),
-  equipo('u3', 'Emilio Espinoza Escobar', 'emilio', 'Jefe de Bodega'),
-  equipo('u4', 'Holger Ferruzola Lucas', 'holger', 'Jefe de Compras'),
-  equipo('u5', 'Emily Hidalgo Castro', 'emily', 'Analista Financiero'),
-  equipo('u6', 'Christopher Martínez Bastidas', 'christopher', 'Auditor'),
-]
-/** Rol de cada integrante del equipo (para actualizar datos ya guardados que aún dicen "Ayudante"). */
-const ROL_EQUIPO: Record<string, Rol> = Object.fromEntries(USUARIOS.map((u) => [u.id, u.rol]))
+/** Sin usuarios precargados: el titular entra con su cuenta NEXORA y crea o invita a su equipo. */
+export const USUARIOS: Usuario[] = []
+/** Ids de los usuarios de demostración que traían las versiones anteriores (se quitan en la versión 6). */
+const EQUIPO_DEMO = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6']
 
 /** Secciones que ve cada rol. Una persona puede tener hasta 3 roles: ve la suma de todos. */
 export const PERMISOS: Record<Rol, Pagina[]> = {
@@ -409,7 +401,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
     restaurar: (d) => { set({ ...d, gastos: d.gastos ?? [], cierres: d.cierres ?? [], ventas: d.ventas ?? [], tareas: d.tareas ?? [], notas: d.notas ?? [], clientes: d.clientes ?? [] }); log('Respaldo restaurado', `${d.productos.length} productos`) },
   }
 }, {
-  name: 'nexora-app', version: 5,
+  name: 'nexora-app', version: 6,
   storage: createJSONStorage(() => almacen),
   partialize: (s) => ({ ...s, presentacion: false }),
   migrate: (old, v) => {
@@ -420,9 +412,9 @@ export const useApp = create<AppState>()(persist((set, get) => {
       empresa: { ...EMPRESA_BASE, nombre: o.empresa?.nombre ?? '', idFiscal: o.empresa?.ruc ?? '', telefono: o.empresa?.telefono ?? '' },
       sucursales: (o.sucursales ?? []).map((x: Sucursal, i: number) => ({ ...x, tipo: i === 0 ? 'Matriz' : 'Sucursal', pais: 'EC', activa: true })),
     }
-    if (v < 5) { // v5: cada integrante del equipo con su propio rol (antes "Ayudante")
-      const rol = (u: Usuario | null) => (u && u.rol === 'Ayudante' && ROL_EQUIPO[u.id] ? { ...u, rol: ROL_EQUIPO[u.id] } : u)
-      o = { ...o, usuarios: (o.usuarios ?? USUARIOS).map(rol), usuario: rol(o.usuario ?? null) }
+    if (v < 6) { // v6: se quitan los usuarios de demostración del equipo del proyecto (sus contraseñas eran públicas)
+      const demo = (u: Usuario | null | undefined) => !!u && EQUIPO_DEMO.includes(u.id)
+      o = { ...o, usuarios: ((o.usuarios ?? []) as Usuario[]).filter((u) => !demo(u)), usuario: demo(o.usuario) ? null : o.usuario ?? null }
     }
     return o as unknown as AppState
   },

@@ -17,7 +17,7 @@ No necesita backend: los datos se guardan en el navegador (localStorage). Al abr
 
 El sistema **arranca sin datos de demostración**: la empresa carga sus datos reales.
 
-**Ingreso:** usuario `eduardo` / contraseña `eduardo2026` (Gerente General). Resto del equipo (contraseña = usuario + `2026`): `emily` Analista Financiero · `kattia` Contador · `holger` Jefe de Compras · `emilio` Jefe de Bodega · `christopher` Auditor.
+**Ingreso:** con una cuenta NEXORA (correo, Google o Facebook) que tenga un plan vigente o la prueba gratis. La creadora tiene acceso de **Administrador** (tabla `administradores` en Supabase). Ya no hay usuarios de demostración precargados.
 
 | Rol | Ve |
 |---|---|
