@@ -230,7 +230,7 @@ export default function Landing() {
         </Revelar>
       </section>
       <footer className="relative border-t border-primario/10 bg-black/60 px-4 py-10 text-sm text-muted backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-6"><div><Logo size={26} /><p className="mt-3 max-w-xs text-xs">{tx('Proyecto de Ingeniería Económica · Análisis de reemplazo y depreciación · 2026', 'Engineering Economics project · Replacement and depreciation analysis · 2026', 'Projeto de Engenharia Econômica · Análise de substituição e depreciação · 2026')}</p></div>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-6"><div><Logo size={26} /><p className="mt-3 max-w-xs text-xs">{tx('Proyecto de Ingeniería Económica · Análisis de reemplazo y depreciación · 2026', 'Engineering Economics project · Replacement and depreciation analysis · 2026', 'Projeto de Engenharia Econômica · Análise de substituição e depreciação · 2026')}</p><a href="privacidad.html" className="mt-2 inline-block text-xs text-primario hover:underline">{tx('Política de privacidad', 'Privacy policy', 'Política de privacidade')}</a></div>
           <div className="text-xs"><div className="mb-2 font-semibold text-fg">{tx('Equipo', 'Team', 'Equipe')}</div><ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">{['Kattia Arreaga Castro', 'Emilio Espinoza Escobar', 'Holger Ferruzola Lucas', 'Emily Hidalgo Castro', 'Eduardo Lara Pincay', 'Christopher Martínez Bastidas'].map((n) => <li key={n}>{n}</li>)}</ul></div></div>
       </footer>
     </div>
