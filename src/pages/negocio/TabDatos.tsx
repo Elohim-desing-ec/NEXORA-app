@@ -23,12 +23,12 @@ export default function TabDatos() {
     return [['Código', 'Producto', 'Categoría', 'Costo', 'Precio', 'Ganancia por unidad', 'Margen %', ...sucursales.map((s) => `Stock ${s.id}`), 'Stock total', 'Vendidas', 'Ganancia generada', 'Valor del stock', 'Estado'],
       ...productos.map((p) => { const s = stats.get(p.id); return [p.sku, p.nombre, p.categoria, p.costo, p.precio, r2(p.precio - p.costo), p.precio ? r2(((p.precio - p.costo) / p.precio) * 100) : 0, ...sucursales.map((x) => p.stock[x.id] ?? 0), stockTotal(p), s?.vendidas ?? 0, r2(s?.ganancia ?? 0), r2(stockTotal(p) * p.costo), estadoStock(p)] })]
   }
-  const hojaVentas = (): Filas => [['N.º', 'Fecha', 'Cliente', 'Productos', 'Sucursal', 'Canal', 'Estado', 'Unidades', 'Total', 'Ganancia'],
+  const hojaVentas = (): Filas => [['N.º', 'Fecha', 'Cliente', 'Productos o servicios', 'Sucursal', 'Canal', 'Estado', 'Unidades', 'Total', 'Ganancia'],
     ...filasVentas(ventas, movimientos, productos).map((f) => [f.id, new Date(f.fecha).toLocaleString('es-EC'), f.cliente, f.detalle, f.sucursal, f.canal, f.estado, f.unidades, r2(f.total), r2(f.ganancia)])]
   const hojaGastos = (): Filas => [['Fecha', 'Concepto', 'Categoría', 'Sucursal', 'Monto', 'Nota'],
     ...[...gastos].sort((a, b) => a.fecha.localeCompare(b.fecha)).map((g) => [g.fecha, g.concepto, g.categoria, g.sucursal || 'General', g.monto, g.nota ?? ''])]
   const hojaResumen = (): Filas => {
-    const fila = (n: string, m: number) => { const a = agregar(movimientos, productos, gastos, anio, m); return [n, r2(a.ventas), r2(a.costo), r2(a.bruta), r2(a.gastos), r2(a.neta), r2(a.margen * 100), a.unidades] }
+    const fila = (n: string, m: number) => { const a = agregar(movimientos, productos, gastos, anio, m, 'TODAS', ventas); return [n, r2(a.ventas), r2(a.costo), r2(a.bruta), r2(a.gastos), r2(a.neta), r2(a.margen * 100), a.unidades] }
     return [['Mes', 'Ventas', 'Costo', 'Ganancia bruta', 'Gastos', 'Ganancia neta', 'Margen neto %', 'Unidades'], ...MESES.map((m, i) => fila(m, i)), fila(`Total ${anio}`, -1)]
   }
   const hojaCierres = (): Filas => [['Periodo', 'Ventas', 'Costo', 'Gastos', 'Ganancia neta', 'Unidades', 'Stock al cierre', 'Valor del stock', 'Cerrado el', 'Cerrado por'],

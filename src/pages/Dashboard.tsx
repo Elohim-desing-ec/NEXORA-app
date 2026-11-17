@@ -9,7 +9,7 @@ import { COLORES, Degradados, Grafico, ejes, rejilla } from '../components/chart
 import { money, num, pct, fechaHora, plural } from '../lib/format'
 import { enQuiebre, stockTotal, valorInventario } from '../lib/inventario'
 import { anomalias } from '../lib/ai'
-import { MESES, periodoDe, variacion } from '../lib/resumen'
+import { MESES, periodoDe, serviciosDe, variacion } from '../lib/resumen'
 import { bandera } from '../data/paises'
 import { saludNegocio, type NivelSalud } from '../lib/salud'
 import { indicadoresSector, perfilDe } from '../lib/sectores'
@@ -156,6 +156,22 @@ export default function Dashboard() {
       if (pd.anio === Y) { cc.anio += v; cc.uAnio += q }
       if (pd.anio === Y - 1) { cc.anioAnt += v; cc.uAnioAnt += q }
       cats.set(c, cc)
+    }
+    // Servicios y otros ingresos (no pasan por el inventario): suman en ventas, barras y en la categoría «Servicios»
+    for (const x of serviciosDe(ventas)) {
+      const t = new Date(x.fecha).getTime(), aqui = sucursal === 'TODAS' || x.sucursal === sucursal, pd = periodoDe(x.fecha)
+      if (t > hace30) v30[x.sucursal] = (v30[x.sucursal] ?? 0) + x.monto
+      const k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, unidades: 0, suc: {} }
+      mm.suc[x.sucursal] = (mm.suc[x.sucursal] ?? 0) + x.monto
+      if (aqui) { mm.ventas += x.monto; mm.costo += x.costo }
+      meses.set(k, mm)
+      if (!aqui) continue
+      const cc = cats.get('Servicios') ?? { mes: 0, mesAnt: 0, anio: 0, anioAnt: 0, uMes: 0, uMesAnt: 0, uAnio: 0, uAnioAnt: 0 }
+      if (pd.anio === Y && pd.mes === M) cc.mes += x.monto
+      if (pd.anio === ant.a && pd.mes === ant.m) cc.mesAnt += x.monto
+      if (pd.anio === Y) cc.anio += x.monto
+      if (pd.anio === Y - 1) cc.anioAnt += x.monto
+      cats.set('Servicios', cc)
     }
     const de = (a: number, m: number) => meses.get(`${a}-${m}`) ?? { ventas: 0, costo: 0, unidades: 0, suc: {} as Record<string, number> }
     const mes = de(Y, M), mesAnt = de(ant.a, ant.m)

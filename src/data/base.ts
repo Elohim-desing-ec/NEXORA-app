@@ -23,7 +23,9 @@ export interface Gasto { id: string; fecha: string; concepto: string; categoria:
 export const CANALES = ['En persona', 'WhatsApp', 'Instagram', 'Facebook', 'TikTok', 'Tienda web', 'Otro']
 export type EstadoVenta = 'Pagada' | 'Por cobrar' | 'Anulada'
 /** Venta con una o varias líneas; cada línea descuenta stock y deja un movimiento "Venta" en el kardex. total = subtotal − descuento. */
-export interface Venta { id: string; fecha: string; sucursal: SucursalId; lineas: { productoId: string; cantidad: number; precio: number; costo: number }[]; descuento: number; total: number; costoTotal: number; cliente: string; canal: string; estado: EstadoVenta; usuario: string }
+/** Línea de venta: un producto del inventario o, con productoId vacío, un servicio u otro ingreso (concepto). */
+export interface LineaVenta { productoId: string; cantidad: number; precio: number; costo: number; concepto?: string }
+export interface Venta { id: string; fecha: string; sucursal: SucursalId; lineas: LineaVenta[]; descuento: number; total: number; costoTotal: number; cliente: string; canal: string; estado: EstadoVenta; usuario: string }
 /** Espacio de trabajo (estilo Notion): tablero de tareas del equipo y notas con bloques. */
 export type EstadoTarea = 'pendiente' | 'progreso' | 'hecho' | 'archivado'
 export type Prioridad = 'alta' | 'media' | 'baja'

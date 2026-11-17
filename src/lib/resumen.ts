@@ -21,14 +21,25 @@ export function periodoDe(f: string) {
 /** ¿La fecha cae en el periodo? mes = -1 significa todo el año. */
 export const enPeriodo = (f: string, anio: number, mes: number) => { const p = periodoDe(f); return p.anio === anio && (mes < 0 || p.mes === mes) }
 
-export interface Agregado { ventas: number; costo: number; bruta: number; gastos: number; neta: number; margen: number; unidades: number }
+export interface Agregado { ventas: number; costo: number; bruta: number; gastos: number; neta: number; margen: number; unidades: number; /** Parte de las ventas que viene de servicios u otros ingresos */ servicios: number }
 
 /** Gastos del periodo; con una sucursal elegida solo cuentan los de esa sucursal (no los generales). */
 export const gastosDe = (gastos: Gasto[], anio: number, mes: number, s: SucursalId | 'TODAS' = 'TODAS') =>
   gastos.filter((g) => (s === 'TODAS' || g.sucursal === s) && enPeriodo(g.fecha, anio, mes))
 
+/** Servicios y otros ingresos sin inventario: una entrada por línea, con el descuento de la venta repartido. */
+export function serviciosDe(ventas: Venta[]) {
+  const r: { fecha: string; sucursal: SucursalId; monto: number; costo: number; concepto: string; cantidad: number }[] = []
+  for (const v of ventas) {
+    if (v.estado === 'Anulada') continue
+    const bruto = v.total + v.descuento, f = bruto ? v.total / bruto : 1
+    for (const l of v.lineas) if (!l.productoId) r.push({ fecha: v.fecha, sucursal: v.sucursal, monto: l.cantidad * l.precio * f, costo: l.cantidad * (l.costo || 0), concepto: l.concepto || 'Servicio', cantidad: l.cantidad })
+  }
+  return r
+}
+
 /** Ganancia bruta = ventas − costo de lo vendido; ganancia neta = bruta − gastos; margen neto = neta ÷ ventas. */
-export function agregar(movs: Movimiento[], productos: Producto[], gastos: Gasto[], anio: number, mes: number, s: SucursalId | 'TODAS' = 'TODAS'): Agregado {
+export function agregar(movs: Movimiento[], productos: Producto[], gastos: Gasto[], anio: number, mes: number, s: SucursalId | 'TODAS' = 'TODAS', listaVentas: Venta[] = []): Agregado {
   const precio = new Map(productos.map((p) => [p.id, p.precio]))
   let ventas = 0, costo = 0, unidades = 0
   for (const m of movs) {
@@ -38,9 +49,15 @@ export function agregar(movs: Movimiento[], productos: Producto[], gastos: Gasto
     costo += q * m.costoUnit
     unidades += q
   }
+  // Servicios y otros ingresos (no pasan por el inventario)
+  let servicios = 0
+  for (const x of serviciosDe(listaVentas)) {
+    if ((s !== 'TODAS' && x.sucursal !== s) || !enPeriodo(x.fecha, anio, mes)) continue
+    ventas += x.monto; costo += x.costo; servicios += x.monto
+  }
   const g = gastosDe(gastos, anio, mes, s).reduce((a, x) => a + x.monto, 0)
   const bruta = ventas - costo, neta = bruta - g
-  return { ventas, costo, bruta, gastos: g, neta, margen: ventas ? neta / ventas : 0, unidades }
+  return { ventas, costo, bruta, gastos: g, neta, margen: ventas ? neta / ventas : 0, unidades, servicios }
 }
 
 /** Variación relativa frente a otro periodo; null si el otro periodo no tiene datos. */
@@ -83,8 +100,8 @@ export function filasVentas(ventas: Venta[], movs: Movimiento[], productos: Prod
   const nombre = (id: string) => prod.get(id)?.nombre ?? 'Producto eliminado'
   const desdeVentas = ventas.map((v): FilaVenta => ({
     key: v.id, id: v.id, fecha: v.fecha, sucursal: v.sucursal, cliente: v.cliente, canal: v.canal, estado: v.estado,
-    detalle: v.lineas.map((l) => `${nombre(l.productoId)} × ${l.cantidad}`).join(', '), codigos: v.lineas.map((l) => prod.get(l.productoId)?.sku ?? '').join(' '),
-    unidades: v.lineas.reduce((a, l) => a + l.cantidad, 0), total: v.total, ganancia: v.total - v.costoTotal, venta: v,
+    detalle: v.lineas.map((l) => `${l.productoId ? nombre(l.productoId) : `${l.concepto || 'Servicio'} (servicio)`} × ${l.cantidad}`).join(', '), codigos: v.lineas.filter((l) => l.productoId).map((l) => prod.get(l.productoId)?.sku ?? '').join(' '),
+    unidades: v.lineas.filter((l) => l.productoId).reduce((a, l) => a + l.cantidad, 0), total: v.total, ganancia: v.total - v.costoTotal, venta: v,
   }))
   const sueltas = movs.filter((m) => m.tipo === 'Venta' && m.cantidad < 0 && !m.pedido).map((m): FilaVenta => {
     const q = -m.cantidad, pu = m.precioUnit ?? prod.get(m.productoId)?.precio ?? 0

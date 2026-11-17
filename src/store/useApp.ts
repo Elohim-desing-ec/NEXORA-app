@@ -3,7 +3,7 @@ import { limitesDe } from '../lib/planes'
 import type { TemaColor } from '../lib/temas'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
-import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC, type Gasto, type Cierre, type Venta, type EstadoVenta, type Tarea, type Nota, type EstadoTarea } from '../data/base'
+import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC, type Gasto, type Cierre, type Venta, type LineaVenta, type EstadoVenta, type Tarea, type Nota, type EstadoTarea } from '../data/base'
 
 export type Rol = 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
   | 'Jefe de Compras' | 'Jefe de Bodega' | 'Jefe de Logística' | 'Jefe de Marketing' | 'Recursos Humanos' | 'Administrador de Sistemas' | 'Asistente Administrativo' | 'Auditor' | 'Socio o Inversionista' | 'Ayudante'
@@ -116,7 +116,7 @@ interface AppState extends Datos {
   importarProductos: (filas: FilaImport[]) => { nuevos: number; actualizados: number }
   guardarUsuario: (u: Usuario) => string | null
   eliminarUsuario: (id: string) => string | null
-  registrarVenta: (v: { fecha: string; sucursal: SucursalId; lineas: { productoId: string; cantidad: number; precio: number }[]; descuento: number; cliente: string; canal: string; estado: EstadoVenta }) => string | null
+  registrarVenta: (v: { fecha: string; sucursal: SucursalId; lineas: { productoId: string; cantidad: number; precio: number; concepto?: string; costo?: number }[]; descuento: number; cliente: string; canal: string; estado: EstadoVenta }) => string | null
   cambiarEstadoVenta: (id: string, estado: Exclude<EstadoVenta, 'Anulada'>) => void
   anularVenta: (id: string) => string | null
   guardarCliente: (c: Cliente) => void
@@ -364,10 +364,12 @@ export const useApp = create<AppState>()(persist((set, get) => {
     respaldo: () => { const s = get(); return { empresa: s.empresa, sucursales: s.sucursales, proveedores: s.proveedores, productos: s.productos, movimientos: s.movimientos, ordenes: s.ordenes, auditoria: s.auditoria, usuarios: s.usuarios, gastos: s.gastos, cierres: s.cierres, ventas: s.ventas, tareas: s.tareas, notas: s.notas, clientes: s.clientes } },
     registrarVenta: (v) => {
       const { productos } = get()
-      const lineas = v.lineas.filter((l) => l.productoId && l.cantidad > 0)
-      if (!lineas.length) return 'Agregue al menos un producto con cantidad'
+      // Productos del inventario y servicios u otros ingresos (sin producto: no tocan el stock)
+      const lineas = v.lineas.filter((l) => (l.productoId || l.concepto?.trim()) && l.cantidad > 0)
+      if (!lineas.length) return 'Agregue al menos un producto o servicio con cantidad'
+      const conProducto = lineas.filter((l) => l.productoId)
       const pide = new Map<string, number>() // unidades por producto (puede repetirse en varias líneas)
-      for (const l of lineas) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
+      for (const l of conProducto) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
       for (const [pid, q] of pide) {
         const p = productos.find((x) => x.id === pid)
         if (!p) return 'Producto no encontrado'
@@ -377,14 +379,17 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const descuento = Math.min(Math.max(0, v.descuento), subtotal)
       const factor = subtotal ? 1 - descuento / subtotal : 1 // el descuento se reparte entre las líneas
       const id = `V-${1001 + get().ventas.length}`, usuario = get().usuario?.nombre ?? 'Sistema'
-      const lin = lineas.map((l) => ({ ...l, costo: productos.find((x) => x.id === l.productoId)!.costo }))
-      const movs: Movimiento[] = lin.map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: -l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `${id}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}` }))
+      const lin: LineaVenta[] = lineas.map((l) => l.productoId
+        ? { productoId: l.productoId, cantidad: l.cantidad, precio: l.precio, costo: productos.find((x) => x.id === l.productoId)!.costo }
+        : { productoId: '', concepto: l.concepto!.trim(), cantidad: l.cantidad, precio: l.precio, costo: Math.max(0, l.costo ?? 0) })
+      const movs: Movimiento[] = lin.filter((l) => l.productoId).map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: -l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `${id}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}` }))
       set({
         productos: productos.map((p) => (pide.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) - pide.get(p.id)! } } : p)),
         movimientos: [...get().movimientos, ...movs],
         ventas: [...get().ventas, { id, fecha: v.fecha, sucursal: v.sucursal, lineas: lin, descuento, total: subtotal - descuento, costoTotal: lin.reduce((a, l) => a + l.cantidad * l.costo, 0), cliente: v.cliente.trim(), canal: v.canal, estado: v.estado, usuario }],
       })
-      log('Venta registrada', `${id} · ${lin.reduce((a, l) => a + l.cantidad, 0)} u · ${(subtotal - descuento).toFixed(2)}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}`, v.sucursal)
+      const servicios = lin.filter((l) => !l.productoId).length
+      log('Venta registrada', `${id} · ${conProducto.reduce((a, l) => a + l.cantidad, 0)} u${servicios ? ` + ${servicios} servicio(s)` : ''} · ${(subtotal - descuento).toFixed(2)}${v.cliente.trim() ? ' · ' + v.cliente.trim() : ''}`, v.sucursal)
       return null
     },
     cambiarEstadoVenta: (id, estado) => { set({ ventas: get().ventas.map((x) => (x.id === id && x.estado !== 'Anulada' ? { ...x, estado } : x)) }); log('Venta actualizada', `${id} · ${estado}`) },
@@ -393,9 +398,9 @@ export const useApp = create<AppState>()(persist((set, get) => {
       if (!v || v.estado === 'Anulada') return 'La venta ya está anulada'
       const factor = v.total + v.descuento ? v.total / (v.total + v.descuento) : 1, usuario = get().usuario?.nombre ?? 'Sistema'
       // Devolución con la misma fecha de la venta: el stock regresa y la venta deja de contar en ese periodo.
-      const movs: Movimiento[] = v.lineas.map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `Anulación ${id}` }))
+      const movs: Movimiento[] = v.lineas.filter((l) => l.productoId).map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: id, usuario, nota: `Anulación ${id}` }))
       const vuelve = new Map<string, number>()
-      for (const l of v.lineas) vuelve.set(l.productoId, (vuelve.get(l.productoId) ?? 0) + l.cantidad)
+      for (const l of v.lineas) if (l.productoId) vuelve.set(l.productoId, (vuelve.get(l.productoId) ?? 0) + l.cantidad)
       set({
         productos: get().productos.map((p) => (vuelve.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) + vuelve.get(p.id)! } } : p)),
         movimientos: [...get().movimientos, ...movs.filter((m) => get().productos.some((p) => p.id === m.productoId))],

@@ -16,13 +16,13 @@ function Delta({ v }: { v: number | null }) {
 }
 
 export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
-  const { productos, movimientos, gastos, cierres, sucursal, usuario, cerrarPeriodo, quitarCierre } = useApp()
+  const { productos, movimientos, ventas, gastos, cierres, sucursal, usuario, cerrarPeriodo, quitarCierre } = useApp()
   const [anio, setAnio] = useState(new Date().getFullYear())
   const [mes, setMes] = useState(new Date().getMonth()) // -1 = todo el año
   const puede = !!usuario && rolesDe(usuario).some((r) => EDITAN.includes(r))
 
   const d = useMemo(() => {
-    const agg = (y: number, m: number, s = sucursal) => agregar(movimientos, productos, gastos, y, m, s)
+    const agg = (y: number, m: number, s = sucursal) => agregar(movimientos, productos, gastos, y, m, s, ventas)
     const a = agg(anio, mes)
     const meses = MESES.map((nombre, i) => ({ i, nombre, mes: nombre.slice(0, 3), ...agg(anio, i), cerrado: cierres.some((c) => c.id === idCierre(anio, i)) }))
     const anterior = mes === 0 ? [anio - 1, 11] : [anio, mes - 1]
@@ -36,7 +36,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
       bajos: estados.filter((e) => e !== 'OK').length, agotados: estados.filter((e) => e === 'Agotado').length,
       consolidado: (y: number, m: number) => agg(y, m, 'TODAS'),
     }
-  }, [productos, movimientos, gastos, cierres, sucursal, anio, mes])
+  }, [productos, movimientos, ventas, gastos, cierres, sucursal, anio, mes])
 
   const { a } = d
   const cierre = cierres.find((c) => c.id === idCierre(anio, mes))
@@ -79,7 +79,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
 
       {/* Ventas y ganancia del periodo */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6 max-sm:[&>*:last-child:nth-child(odd)]:col-span-2">
-        <Kpi titulo="Ventas totales" valor={a.ventas} formato={money} icono={<Coins size={15} />} />
+        <Kpi titulo="Ventas totales" valor={a.ventas} formato={money} icono={<Coins size={15} />} sub={a.servicios ? `Incluye ${money(a.servicios)} en servicios` : undefined} />
         <Kpi titulo="Costo de lo vendido" valor={a.costo} formato={money} icono={<Package size={15} />} tono="ambar" sub="Al costo promedio" />
         <Kpi titulo="Ganancia bruta" valor={a.bruta} formato={money} icono={<TrendingUp size={15} />} tono="verde" sub="Ventas − costo" />
         <Kpi titulo="Gastos del negocio" valor={a.gastos} formato={money} icono={<Receipt size={15} />} tono="rojo" sub={<button className="underline-offset-2 hover:text-primario hover:underline" onClick={() => irA('gastos')}>{plural(d.nGastos, 'gasto', 'gastos')} · ver</button>} />

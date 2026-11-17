@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, Search, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Plus, Search, Trash2, Wrench, X } from 'lucide-react'
 import { useApp, rolesDe } from '../../store/useApp'
 import { CANALES, type EstadoVenta } from '../../data/base'
 import { Badge, Button, Campo, Card, NumInput, Scroll, cx } from '../../components/ui'
 import { fecha, money, num, plural } from '../../lib/format'
 import { EDITAN, MESES, anios, enPeriodo, fechaVenta, filasVentas, hoyISO } from '../../lib/resumen'
 
-interface Linea { k: number; productoId: string; cantidad: number; precio: number }
+/** Línea del formulario: un producto del inventario o un servicio u otro ingreso (concepto libre, sin stock). */
+interface Linea { k: number; productoId: string; cantidad: number; precio: number; servicio?: boolean; concepto?: string; costo?: number }
 const TONO: Record<EstadoVenta, 'verde' | 'ambar' | 'gris'> = { Pagada: 'verde', 'Por cobrar': 'ambar', Anulada: 'gris' }
 /** Día local (AAAA-MM-DD) de una fecha ISO. */
 const diaDe = (iso: string) => { const d = new Date(iso); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 let sig = 1
 const linea = (): Linea => ({ k: sig++, productoId: '', cantidad: 1, precio: 0 })
+const servicio = (): Linea => ({ k: sig++, productoId: '', cantidad: 1, precio: 0, servicio: true, concepto: '', costo: 0 })
 
 export default function TabVentas() {
   const { productos, movimientos, ventas, gastos, cierres, sucursales, sucursal, usuario, registrarVenta, cambiarEstadoVenta, anularVenta } = useApp()
@@ -33,19 +35,19 @@ export default function TabVentas() {
   const elegir = (k: number, id: string) => set(k, { productoId: id, precio: prod.get(id)?.precio ?? 0 })
 
   // Recibo en vivo
-  const validas = lineas.filter((l) => l.productoId && l.cantidad > 0)
+  const validas = lineas.filter((l) => (l.servicio ? l.concepto?.trim() : l.productoId) && l.cantidad > 0)
   const subtotal = validas.reduce((a, l) => a + l.cantidad * l.precio, 0)
   const desc = Math.min(Math.max(0, descuento), subtotal), total = subtotal - desc
-  const costo = validas.reduce((a, l) => a + l.cantidad * (prod.get(l.productoId)?.costo ?? 0), 0)
+  const costo = validas.reduce((a, l) => a + l.cantidad * (l.servicio ? l.costo ?? 0 : prod.get(l.productoId)?.costo ?? 0), 0)
   const pide = new Map<string, number>()
-  for (const l of validas) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
+  for (const l of validas) if (!l.servicio) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
   const faltan = [...pide].filter(([id, n]) => (prod.get(id)?.stock[suc] ?? 0) < n).map(([id]) => `${prod.get(id)?.nombre} (hay ${prod.get(id)?.stock[suc] ?? 0} u en ${suc})`)
 
   const guardar = () => {
     if (!suc) return setMsg({ ok: false, t: 'Primero cree una sucursal en Configuración.' })
-    const e = registrarVenta({ fecha: fechaVenta(dia), sucursal: suc, lineas: validas.map(({ productoId, cantidad, precio }) => ({ productoId, cantidad, precio })), descuento: desc, cliente, canal, estado })
+    const e = registrarVenta({ fecha: fechaVenta(dia), sucursal: suc, lineas: validas.map((l) => (l.servicio ? { productoId: '', concepto: l.concepto!.trim(), cantidad: l.cantidad, precio: l.precio, costo: l.costo ?? 0 } : { productoId: l.productoId, cantidad: l.cantidad, precio: l.precio })), descuento: desc, cliente, canal, estado })
     if (e) return setMsg({ ok: false, t: e })
-    setMsg({ ok: true, t: `Venta registrada por ${money(total)}. El stock ya se descontó en Inventario.` })
+    setMsg({ ok: true, t: `Venta registrada por ${money(total)}.${pide.size ? ' El stock ya se descontó en Inventario.' : ' Ya suma en sus ventas y en el Resumen.'}` })
     setLineas([linea()]); setDescuento(0); setCliente('')
   }
 
@@ -76,22 +78,31 @@ export default function TabVentas() {
         <Card titulo="Agregar venta" className="xl:col-span-3">
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="text-xs font-medium text-muted">Productos de esta venta</div>
+              <div className="text-xs font-medium text-muted">Productos y servicios de esta venta</div>
               {lineas.map((l) => {
                 const p = prod.get(l.productoId)
                 return (
                   <div key={l.k} className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 border-b border-fg/5 pb-2 last:border-0 sm:grid-cols-[1fr_5rem_6.5rem_auto] sm:border-0 sm:pb-0">
-                    <select className="inp col-span-3 sm:col-span-1" aria-label="Producto" value={l.productoId} onChange={(e) => elegir(l.k, e.target.value)}>
+                    {l.servicio
+                      ? <div className="relative col-span-3 sm:col-span-1"><Wrench size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primario" /><input className="inp pl-8" aria-label="Servicio u otro ingreso" placeholder="Servicio u otro ingreso (ej.: instalación, reparación)" value={l.concepto ?? ''} onChange={(e) => set(l.k, { concepto: e.target.value })} /></div>
+                      : <select className="inp col-span-3 sm:col-span-1" aria-label="Producto" value={l.productoId} onChange={(e) => elegir(l.k, e.target.value)}>
                       <option value="">Elija un producto…</option>
                       {productos.map((x) => <option key={x.id} value={x.id} disabled={(x.stock[suc] ?? 0) <= 0}>{x.sku} · {x.nombre} ({x.stock[suc] ?? 0} u)</option>)}
-                    </select>
+                    </select>}
                     <label className="block min-w-0"><span className="mb-0.5 block text-[10px] text-muted sm:hidden">Cantidad</span><NumInput min={1} value={l.cantidad} onChange={(v) => set(l.k, { cantidad: Math.max(0, Math.round(v)) })} /></label>
                     <label className="block min-w-0"><span className="mb-0.5 block text-[10px] text-muted sm:hidden">Precio</span><NumInput step={0.01} min={0} value={l.precio} onChange={(v) => set(l.k, { precio: v })} /></label>
                     <button aria-label="Quitar producto" className="rounded-lg p-2 text-muted hover:bg-fg/10 disabled:opacity-30" disabled={lineas.length === 1} onClick={() => setLineas(lineas.filter((x) => x.k !== l.k))}><X size={15} /></button>
                     {p && <div className="col-span-3 -mt-1 text-[11px] text-muted sm:col-span-4">Precio de lista {money(p.precio)} · subtotal {money(l.cantidad * l.precio)}</div>}
+                    {l.servicio && <div className="col-span-3 -mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted sm:col-span-4">
+                      <span>No descuenta inventario · subtotal {money(l.cantidad * l.precio)} ·</span>
+                      <label className="flex items-center gap-1.5">Su costo (materiales, transporte; opcional)<NumInput step={0.01} min={0} value={l.costo ?? 0} onChange={(v) => set(l.k, { costo: Math.max(0, v) })} className="!w-24 !py-1" /></label>
+                    </div>}
                   </div>)
               })}
-              <Button className="text-xs" onClick={() => setLineas([...lineas, linea()])}><Plus size={14} />Agregar otro producto</Button>
+              <div className="flex flex-wrap gap-2">
+                <Button className="text-xs" onClick={() => setLineas([...lineas, linea()])}><Plus size={14} />Agregar otro producto</Button>
+                <Button className="text-xs" onClick={() => setLineas([...lineas.filter((x) => x.servicio || x.productoId), servicio()])}><Wrench size={14} />Agregar servicio u otro ingreso</Button>
+              </div>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Campo label="Sucursal"><select className="inp" value={suc} onChange={(e) => setSuc(e.target.value)}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.ciudad}</option>)}</select></Campo>
@@ -107,8 +118,8 @@ export default function TabVentas() {
         </Card>
 
         <Card className="xl:col-span-2 border-primario/30" titulo={<span className="flex w-full justify-between gap-2">Resumen de la venta<span className="font-normal text-muted">{fecha(`${dia}T12:00:00`)}</span></span>}>
-          <ul className="space-y-1.5 text-sm">{validas.map((l) => <li key={l.k} className="flex justify-between gap-3"><span className="truncate">{prod.get(l.productoId)?.nombre} × {l.cantidad}</span><span className="tnum">{money(l.cantidad * l.precio)}</span></li>)}
-            {!validas.length && <li className="text-muted">Elija un producto para empezar.</li>}</ul>
+          <ul className="space-y-1.5 text-sm">{validas.map((l) => <li key={l.k} className="flex justify-between gap-3"><span className="truncate">{l.servicio ? `${l.concepto?.trim()} (servicio)` : prod.get(l.productoId)?.nombre} × {l.cantidad}</span><span className="tnum">{money(l.cantidad * l.precio)}</span></li>)}
+            {!validas.length && <li className="text-muted">Elija un producto o agregue un servicio para empezar.</li>}</ul>
           <div className="mt-3 space-y-1.5 border-t border-dashed border-fg/15 pt-3 text-sm">
             <div className="flex justify-between"><span className="text-muted">Subtotal</span><span className="tnum">{money(subtotal)}</span></div>
             <div className="flex justify-between"><span className="text-muted">Descuento</span><span className="tnum">−{money(desc)}</span></div>
