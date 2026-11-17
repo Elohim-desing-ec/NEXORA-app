@@ -2,7 +2,6 @@ import { lazy, Suspense, useState } from 'react'
 import { Loader2, MapPin, Search, X } from 'lucide-react'
 import type { Vuelo } from './Globo'
 import { buscarDireccion, type Lugar } from '../lib/geo'
-import { bandera } from '../data/paises'
 
 const Globo = lazy(() => import('./Globo'))
 
@@ -30,7 +29,7 @@ export function UbicacionMapa({ valor, nombre, inicio, onChange }: { valor: Ubic
         <input className="inp" placeholder="Buscar dirección, barrio o ciudad…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscar() } }} />
         <button type="button" onClick={buscar} className="grid w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-r from-primario to-violeta text-black" aria-label="Buscar dirección">{cargando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}</button>
       </div>
-      {res.length > 0 && <ul className="max-h-36 space-y-1 overflow-y-auto">{res.map((l, k) => <li key={k}><button type="button" onClick={() => elegir(l)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-primario/15">{bandera(l.pais)} {l.nombre}</button></li>)}</ul>}
+      {res.length > 0 && <ul className="max-h-36 space-y-1 overflow-y-auto">{res.map((l, k) => <li key={k}><button type="button" onClick={() => elegir(l)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-primario/15">{l.nombre}</button></li>)}</ul>}
       {msg && <p className="text-xs text-alerta">{msg}</p>}
       <Suspense fallback={<div className="espacio h-56 rounded-xl" />}>
         <Globo className="h-56" autoRotar={false} volarA={vuelo} seleccion="aqui"

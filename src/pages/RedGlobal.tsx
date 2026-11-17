@@ -3,11 +3,12 @@ import { Building2, Globe2, Landmark, MapPin, RefreshCw, Rotate3d, TrendingUp, P
 import { useApp, tieneRol, permisosDe } from '../store/useApp'
 import { Badge, Button, Card, Kpi, Scroll, Titulo, cx } from '../components/ui'
 import type { EstiloGlobo, Vuelo, ArcoGlobo } from '../components/Globo'
-import { bandera, pais, SIMBOLOS } from '../data/paises'
+import { pais, SIMBOLOS } from '../data/paises'
 import { money, num, pct } from '../lib/format'
 import { stockTotal, valorInventario, ventasRecientes } from '../lib/inventario'
 import { tiposDeCambio, type Tasas } from '../lib/geo'
-import { infoNivel, sucursalCercana, textoKm, tieneUbicacion } from '../lib/proveedores'
+import { IconoNivel } from '../components/Iconos'
+import { sucursalCercana, textoKm, tieneUbicacion } from '../lib/proveedores'
 
 const Globo = lazy(() => import('../components/Globo'))
 const nf = (v: number, d = 0) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: d, minimumFractionDigits: d }).format(v)
@@ -64,7 +65,7 @@ export default function RedGlobal() {
         <Card className="!p-3 xl:col-span-2">
           <div className="relative">
             <Suspense fallback={<div className="espacio h-[560px] rounded-xl" />}>
-              <Globo className="h-[460px] sm:h-[560px]" puntos={[...d.filas.map((f) => ({ id: f.s.id, nombre: `${bandera(f.s.pais)} ${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` })), ...(verProv ? provMapa.map(({ p, cerca }) => ({ id: `prov:${p.id}`, tipo: 'proveedor' as const, nombre: `🚚 ${p.nombre}`, lat: p.lat!, lng: p.lng!, valor: 1, detalle: [p.nivel && `${infoNivel(p.nivel)?.icono} ${p.nivel}`, p.provee, p.lugar, cerca && `A ${textoKm(cerca.km)} de ${cerca.s.nombre}`].filter(Boolean).join('\n') })) : [])]}
+              <Globo className="h-[460px] sm:h-[560px]" puntos={[...d.filas.map((f) => ({ id: f.s.id, nombre: `${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` })), ...(verProv ? provMapa.map(({ p, cerca }) => ({ id: `prov:${p.id}`, tipo: 'proveedor' as const, nombre: `Proveedor: ${p.nombre}`, lat: p.lat!, lng: p.lng!, valor: 1, detalle: [p.nivel && `Nivel ${p.nivel}`, p.provee, p.lugar, cerca && `A ${textoKm(cerca.km)} de ${cerca.s.nombre}`].filter(Boolean).join('\n') })) : [])]}
                 arcos={d.arcos} seleccion={sel} onSeleccion={setSel} estilo={estilo} autoRotar={rotar} volarA={vuelo} />
             </Suspense>
             <div className="absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">
@@ -79,7 +80,7 @@ export default function RedGlobal() {
         </Card>
         <Card titulo="Sucursales por país" className="max-h-[620px] overflow-y-auto">
           <div className="space-y-3">{d.porPais.map((p) => <div key={p.pais}>
-            <div className="mb-1 flex items-center justify-between text-sm font-semibold"><span>{bandera(p.pais)} {pais(p.pais)?.nombre ?? p.pais}</span><span className="tnum text-muted">{pct(d.total ? p.valor / d.total : 0, 0)}</span></div>
+            <div className="mb-1 flex items-center justify-between text-sm font-semibold"><span>{pais(p.pais)?.nombre ?? p.pais}</span><span className="tnum text-muted">{pct(d.total ? p.valor / d.total : 0, 0)}</span></div>
             <ul className="space-y-1">{d.filas.filter((f) => f.s.pais === p.pais).map((f) => <li key={f.s.id}><button onClick={() => volar(f.s.id)} className={cx('w-full rounded-xl px-3 py-2 text-left transition', sel === f.s.id ? 'bg-primario/20' : 'bg-fg/5 hover:bg-fg/10')}>
               <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate"><b className="font-mono text-xs">{f.s.id}</b> · {f.s.nombre}</span><Badge tono={f.s.tipo === 'Matriz' ? 'violeta' : 'gris'}>{f.s.tipo}</Badge></div>
               <div className="mt-0.5 flex justify-between text-xs text-muted"><span>{f.s.ciudad}</span><span className="tnum">{money(f.valor, 0)}{local(f.valor, f.s.pais) && <span className="ml-1 text-cian">≈ {local(f.valor, f.s.pais)}</span>}</span></div>
@@ -89,7 +90,7 @@ export default function RedGlobal() {
       {proveedores.length > 0 && <Card titulo={<span className="flex items-center gap-2"><Truck size={15} className="text-sky-400" />Proveedores en el mapa ({provMapa.length} de {proveedores.length})</span>} accion={sinUbicar > 0 && permisosDe(usuario).includes('compras') ? <Button onClick={() => ir('compras')}><MapPin size={14} />Ubicar {sinUbicar}</Button> : undefined}>
         {provMapa.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{provMapa.map(({ p, cerca }) => (
           <button key={p.id} type="button" onClick={() => volarProv(p.id)} className={cx('rounded-xl px-3 py-2 text-left transition', sel === `prov:${p.id}` ? 'bg-sky-500/20' : 'bg-fg/5 hover:bg-fg/10')}>
-            <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate font-medium">{p.nombre}</span>{p.nivel && <span className="shrink-0 text-[11px] text-muted">{infoNivel(p.nivel)?.icono} {p.nivel}</span>}</div>
+            <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate font-medium">{p.nombre}</span>{p.nivel && <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted"><IconoNivel nivel={p.nivel} size={11} />{p.nivel}</span>}</div>
             <div className="mt-0.5 flex justify-between gap-2 text-xs text-muted"><span className="truncate">{[p.provee, p.ciudad].filter(Boolean).join(' · ') || p.lugar || '—'}</span>{cerca && <span className="shrink-0 text-cian">{textoKm(cerca.km)} de {cerca.s.id}</span>}</div>
           </button>))}</div>
           : <p className="text-sm text-muted">Ningún proveedor tiene ubicación todavía. En Compras → Proveedores, edite uno y abra «Ubicación en el mapa».</p>}
@@ -98,7 +99,7 @@ export default function RedGlobal() {
 
       <Card titulo="Consolidado por país" accion={<span className="flex items-center gap-1.5 text-xs text-muted"><RefreshCw size={12} />{fx ? `Tipos de cambio reales (${empresa.moneda} base) · ${new Date(fx.fecha).toLocaleDateString('es-EC')} · open.er-api.com` : fxError ? 'Tipos de cambio no disponibles (sin internet)' : 'Cargando tipos de cambio…'}</span>}>
         <Scroll><table className="tabla"><thead><tr><th>País</th><th className="num">Sucursales</th><th className="num">Ciudades</th><th className="num">Unidades</th><th className="num">Inventario ({empresa.moneda})</th><th className="num">En moneda local</th><th className="num">Ventas 30 d</th><th className="num">Participación</th></tr></thead>
-          <tbody>{d.porPais.map((p) => { const m = pais(p.pais)?.moneda ?? ''; return <tr key={p.pais}><td>{bandera(p.pais)} {pais(p.pais)?.nombre ?? p.pais}</td><td className="num">{p.sucursales}</td><td className="num">{p.ciudades}</td><td className="num">{num(p.unidades, 0)}</td><td className="num font-semibold">{money(p.valor, 0)}</td>
+          <tbody>{d.porPais.map((p) => { const m = pais(p.pais)?.moneda ?? ''; return <tr key={p.pais}><td>{pais(p.pais)?.nombre ?? p.pais}</td><td className="num">{p.sucursales}</td><td className="num">{p.ciudades}</td><td className="num">{num(p.unidades, 0)}</td><td className="num font-semibold">{money(p.valor, 0)}</td>
             <td className="num text-cian">{local(p.valor, p.pais) ?? (m === empresa.moneda ? '—' : '…')}</td><td className="num">{money(p.ventas, 0)}</td><td className="num">{pct(d.total ? p.valor / d.total : 0, 1)}</td></tr> })}</tbody></table></Scroll>
         {fx && <p className="mt-3 text-xs text-muted">Tasas usadas: {[...new Set(sucursales.map((s) => pais(s.pais)?.moneda).filter((m): m is string => !!m && m !== empresa.moneda))].map((m) => `1 ${empresa.moneda} = ${nf(fx.tasas[m] ?? NaN, 4)} ${m}`).join(' · ') || 'todas las sucursales usan la moneda de la empresa'}</p>}
       </Card>

@@ -21,7 +21,7 @@ export const TABS = [
   { id: 'impuestos', label: 'g · Después de impuestos', C: B.Impuestos }, { id: 'indicadores', label: 'h · Indicadores', C: B.Indicadores },
   { id: 'sensibilidad', label: 'i · Sensibilidad', C: B.Sensibilidad }, { id: 'inflacion', label: 'j · Inflación', C: B.Inflacion },
   { id: 'recomendacion', label: 'k · ¿Con mi dinero?', C: B.Recomendacion }, { id: 'escenarios', label: 'Escenarios', C: B.Escenarios },
-  { id: 'asesor', label: '✦ Asesor', C: Asesor },
+  { id: 'asesor', label: 'Asesor', C: Asesor },
 ] as const
 
 /** Asistente para crear una evaluación de la empresa con sus propios valores. */

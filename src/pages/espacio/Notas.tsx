@@ -1,15 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowUpRight, CheckSquare, Code2, Folder, Heading1, Heading2, Link2, List, Minus, Pin, Plus, Quote, Search, Trash2, Type, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Check, CheckSquare, Code2, FileText, Folder, Heading1, Heading2, Link2, List, Minus, Pin, Plus, Quote, Search, Trash2, Type, X } from 'lucide-react'
 import { useApp } from '../../store/useApp'
 import type { Bloque, Nota, TipoBloque } from '../../data/base'
 import { Button, cx } from '../../components/ui'
+import { CLAVES_NOTA, IconoNota, claveNota } from '../../components/Iconos'
 import { fecha } from '../../lib/format'
 import { Marca, servicioDe } from '../../components/Marca'
 import { abrir } from '../../lib/google'
 
 const uid = () => crypto.randomUUID()
-const ICONOS = ['📝', '💡', '📌', '📊', '🚀', '✅', '📦', '🧾', '🗓️', '⭐', '🤝', '🎯']
 /** Fondos de nota: adhesivos de color (texto oscuro) o vidrio con el tema. */
 const COLORES_NOTA: Record<string, string> = {
   naranja: 'linear-gradient(145deg,#FFB65C,#F2862B)', azul: 'linear-gradient(145deg,#8DBBFF,#4A85F2)', amarillo: 'linear-gradient(145deg,#FFE88A,#F4C443)',
@@ -29,10 +29,10 @@ const TIPOS: { tipo: TipoBloque; nombre: string; ayuda: string; icono: JSX.Eleme
 const ATAJOS: [string, TipoBloque][] = [['# ', 'h1'], ['## ', 'h2'], ['- ', 'lista'], ['* ', 'lista'], ['[] ', 'tarea'], ['> ', 'cita'], ['```', 'codigo'], ['---', 'separador']]
 const b = (tipo: TipoBloque, texto = '', hecho?: boolean): Bloque => ({ id: uid(), tipo, texto, ...(hecho !== undefined ? { hecho } : {}) })
 const PLANTILLAS: { nombre: string; icono: string; color: string; bloques: () => Bloque[] }[] = [
-  { nombre: 'Página en blanco', icono: '📝', color: 'vidrio', bloques: () => [b('texto')] },
-  { nombre: 'Acta de reunión', icono: '🤝', color: 'azul', bloques: () => [b('h2', 'Asistentes'), b('lista', ''), b('h2', 'Temas'), b('lista', ''), b('h2', 'Acuerdos'), b('tarea', '', false)] },
-  { nombre: 'Plan de la semana', icono: '🗓️', color: 'amarillo', bloques: () => [b('h2', 'Objetivo'), b('texto', ''), b('h2', 'Pendientes'), b('tarea', 'Revisar productos en quiebre', false), b('tarea', 'Registrar gastos de la semana', false), b('tarea', 'Cerrar caja del viernes', false)] },
-  { nombre: 'Lluvia de ideas', icono: '💡', color: 'naranja', bloques: () => [b('cita', '¿Cómo vendemos más este mes?'), b('lista', '')] },
+  { nombre: 'Página en blanco', icono: 'nota', color: 'vidrio', bloques: () => [b('texto')] },
+  { nombre: 'Acta de reunión', icono: 'acuerdo', color: 'azul', bloques: () => [b('h2', 'Asistentes'), b('lista', ''), b('h2', 'Temas'), b('lista', ''), b('h2', 'Acuerdos'), b('tarea', '', false)] },
+  { nombre: 'Plan de la semana', icono: 'calendario', color: 'amarillo', bloques: () => [b('h2', 'Objetivo'), b('texto', ''), b('h2', 'Pendientes'), b('tarea', 'Revisar productos en quiebre', false), b('tarea', 'Registrar gastos de la semana', false), b('tarea', 'Cerrar caja del viernes', false)] },
+  { nombre: 'Lluvia de ideas', icono: 'idea', color: 'naranja', bloques: () => [b('cita', '¿Cómo vendemos más este mes?'), b('lista', '')] },
 ]
 const resumen = (n: Nota) => n.bloques.filter((x) => x.tipo !== 'separador').map((x) => x.texto).filter(Boolean).join(' · ').slice(0, 110)
 
@@ -101,7 +101,7 @@ function Editor({ inicial, carpetas, onGuardar, onEliminar, onVolver }: { inicia
       <div className="h-24" style={{ background: fondo || 'linear-gradient(120deg, rgb(var(--t-oscuro)/.5), rgb(var(--t-oro)/.25), transparent)' }} />
       <div className="mx-auto max-w-3xl px-5 pb-16 sm:px-10">
         <div className="-mt-8 flex items-end justify-between gap-3">
-          <button title="Cambiar ícono" onClick={() => setN({ ...n, icono: ICONOS[(ICONOS.indexOf(n.icono) + 1) % ICONOS.length] })} className="grid h-16 w-16 place-items-center rounded-2xl bg-[color:var(--bg2)] text-4xl shadow-xl ring-1 ring-fg/10 transition hover:scale-105">{n.icono}</button>
+          <button title="Cambiar ícono" onClick={() => setN({ ...n, icono: CLAVES_NOTA[(CLAVES_NOTA.indexOf(claveNota(n.icono)) + 1) % CLAVES_NOTA.length] })} className="grid h-16 w-16 place-items-center rounded-2xl bg-[color:var(--bg2)] text-primario shadow-xl ring-1 ring-fg/10 transition hover:scale-105"><IconoNota icono={n.icono} size={30} /></button>
           <div className="flex flex-wrap items-center gap-1.5 pb-1">
             <Button variante="fantasma" className="px-2 py-1 text-xs" onClick={onVolver}><ArrowLeft size={14} />Notas</Button>
             <Button variante="fantasma" className={cx('px-2 py-1 text-xs', n.fijada && 'text-primario')} onClick={() => setN({ ...n, fijada: !n.fijada })}><Pin size={14} />{n.fijada ? 'Fijada' : 'Fijar'}</Button>
@@ -129,7 +129,7 @@ function Editor({ inicial, carpetas, onGuardar, onEliminar, onVolver }: { inicia
                   {bl.tipo === 'h2' && <AutoTexto {...comun} className="font-display text-xl font-semibold leading-snug" placeholder="Subtítulo" />}
                   {bl.tipo === 'texto' && <AutoTexto {...comun} className="text-[15px] leading-relaxed" placeholder="Escriba, o pulse «/» para elegir un bloque…" />}
                   {bl.tipo === 'lista' && <div className="flex gap-2"><span className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-primario" /><AutoTexto {...comun} className="text-[15px] leading-relaxed" placeholder="Elemento de la lista" /></div>}
-                  {bl.tipo === 'tarea' && <div className="flex gap-2"><button onClick={() => setB(bl.id, { hecho: !bl.hecho })} className={cx('mt-1 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border transition', bl.hecho ? 'border-primario bg-primario text-black' : 'border-fg/30 hover:border-primario')}>{bl.hecho && '✓'}</button><AutoTexto {...comun} className={cx('text-[15px] leading-relaxed', bl.hecho && 'text-muted line-through')} placeholder="Tarea por hacer" /></div>}
+                  {bl.tipo === 'tarea' && <div className="flex gap-2"><button onClick={() => setB(bl.id, { hecho: !bl.hecho })} className={cx('mt-1 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border transition', bl.hecho ? 'border-primario bg-primario text-black' : 'border-fg/30 hover:border-primario')}>{bl.hecho && <Check size={12} />}</button><AutoTexto {...comun} className={cx('text-[15px] leading-relaxed', bl.hecho && 'text-muted line-through')} placeholder="Tarea por hacer" /></div>}
                   {bl.tipo === 'cita' && <div className="border-l-[3px] border-primario pl-3"><AutoTexto {...comun} className="text-[15px] italic leading-relaxed" placeholder="Cita" /></div>}
                   {bl.tipo === 'codigo' && <div className="rounded-xl bg-black/40 p-3 ring-1 ring-fg/10"><AutoTexto {...comun} className="font-mono text-xs leading-relaxed text-amber-100" placeholder="Código o texto sin formato" /></div>}
                   {bl.tipo === 'enlace' && (/^https?:\/\/\S+$/.test(bl.texto) ? (() => { const sv = servicioDe(bl.texto); return (
@@ -175,7 +175,7 @@ export default function Notas() {
       <motion.button layout whileHover={{ y: -4, rotate: fondo ? -0.6 : 0 }} onClick={() => setSel(n.id)} style={fondo ? { background: fondo } : undefined}
         className={cx('relative flex min-h-[150px] flex-col overflow-hidden rounded-2xl p-4 text-left shadow-[0_18px_40px_-18px_rgba(0,0,0,.6)]', fondo ? 'text-stone-900' : 'glass glass-hover')}>
         {fondo && <span className="pointer-events-none absolute -bottom-3 -right-3 h-10 w-10 rotate-45 bg-black/10" />}
-        <div className="flex items-start justify-between gap-2"><span className="text-2xl">{n.icono}</span>{n.fijada && <Pin size={13} className="opacity-60" />}</div>
+        <div className="flex items-start justify-between gap-2"><IconoNota icono={n.icono} size={22} className="text-primario" />{n.fijada && <Pin size={13} className="opacity-60" />}</div>
         <div className="mt-2 font-semibold leading-snug">{n.titulo || 'Sin título'}</div>
         <p className={cx('mt-1 line-clamp-3 text-xs', fondo ? 'text-stone-800/80' : 'text-muted')}>{resumen(n) || 'Nota vacía'}</p>
         <div className={cx('mt-auto flex items-center justify-between pt-3 text-[10px]', fondo ? 'text-stone-800/70' : 'text-muted')}><span>{n.actualizada ? fecha(n.actualizada) : ''}</span>{n.carpeta && <span className={cx('rounded-md px-1.5 py-0.5 font-semibold', fondo ? 'bg-black/10' : 'bg-fg/10')}>{n.carpeta}</span>}</div>
@@ -190,7 +190,7 @@ export default function Notas() {
       <aside className="glass h-fit space-y-4 p-3">
         <div className="relative">
           <Button variante="primario" className="w-full" onClick={() => setPlantillas(!plantillas)}><Plus size={15} />Nueva nota</Button>
-          {plantillas && <div className="glass absolute inset-x-0 top-11 z-20 p-1.5" style={{ background: 'color-mix(in srgb, var(--bg2) 94%, transparent)' }}>{PLANTILLAS.map((p) => <button key={p.nombre} onClick={() => crear(p)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-fg/5"><span className="text-lg">{p.icono}</span>{p.nombre}</button>)}</div>}
+          {plantillas && <div className="glass absolute inset-x-0 top-11 z-20 p-1.5" style={{ background: 'color-mix(in srgb, var(--bg2) 94%, transparent)' }}>{PLANTILLAS.map((p) => <button key={p.nombre} onClick={() => crear(p)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-fg/5"><span className="text-lg"><IconoNota icono={p.icono} size={15} /></span>{p.nombre}</button>)}</div>}
         </div>
         <div className="relative"><Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input className="inp pl-8" type="search" placeholder="Buscar" value={q} onChange={(e) => setQ(e.target.value)} /></div>
         <div>
@@ -204,7 +204,7 @@ export default function Notas() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}</div></section>}
         <section><div className="mb-2 text-sm font-semibold">{carpeta ?? 'Todas las notas'}</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{lista.filter((n) => !n.fijada).map((n) => <Tarjeta key={n.id} n={n} />)}
-            {!lista.length && <div className="glass col-span-full grid place-items-center gap-3 p-10 text-center"><span className="text-4xl">📝</span><p className="max-w-sm text-sm text-muted">{notas.length ? 'Ninguna nota coincide.' : 'Cree la primera nota del equipo: actas de reunión, planes, ideas o procesos. Escriba «/» para ver todos los bloques.'}</p><Button variante="primario" onClick={() => setPlantillas(true)}><Plus size={15} />Nueva nota</Button></div>}
+            {!lista.length && <div className="glass col-span-full grid place-items-center gap-3 p-10 text-center"><FileText size={40} className="text-primario" /><p className="max-w-sm text-sm text-muted">{notas.length ? 'Ninguna nota coincide.' : 'Cree la primera nota del equipo: actas de reunión, planes, ideas o procesos. Escriba «/» para ver todos los bloques.'}</p><Button variante="primario" onClick={() => setPlantillas(true)}><Plus size={15} />Nueva nota</Button></div>}
           </div></section>
       </div>
     </div>

@@ -29,5 +29,3 @@ export const SIMBOLOS: Record<string, string> = {
 }
 export const MONEDAS = Object.keys(SIMBOLOS).sort()
 export const pais = (codigo: string) => PAISES.find((p) => p.codigo === codigo)
-/** Bandera emoji a partir del código ISO (🇪🇨). */
-export const bandera = (codigo: string) => (codigo?.length === 2 ? String.fromCodePoint(...[...codigo.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '🏳️')

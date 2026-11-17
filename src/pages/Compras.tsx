@@ -3,7 +3,8 @@ import { CheckCircle2, ChevronDown, MapPin, Pencil, Phone, Plus, Trash2, Truck, 
 import { useApp, tieneRol, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo, Tabs, cx } from '../components/ui'
 import { UbicacionMapa } from '../components/UbicacionMapa'
-import { LUGARES_TRABAJO, NIVELES_PROVEEDOR, cumplimientoReal, infoNivel, nivelSugerido, sucursalCercana, textoKm, tieneUbicacion, type NivelProveedor } from '../lib/proveedores'
+import { IconoNivel } from '../components/Iconos'
+import { LUGARES_TRABAJO, NIVELES_PROVEEDOR, cumplimientoReal, nivelSugerido, sucursalCercana, textoKm, tieneUbicacion, type NivelProveedor } from '../lib/proveedores'
 import { pais } from '../data/paises'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
@@ -55,7 +56,7 @@ export default function Compras() {
       <Card className="xl:col-span-2" titulo={`Proveedores (${proveedores.length})`}>
         {proveedores.length > 0 && <div className="sin-barra mb-3 flex gap-1.5 overflow-x-auto">{(['todos', ...NIVELES_PROVEEDOR.map((n) => n.nivel)] as const).map((n) => {
           const k = n === 'todos' ? proveedores.length : proveedores.filter((p) => p.nivel === n).length
-          return <button key={n} type="button" onClick={() => setFiltroNivel(n)} className={cx('shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition', filtroNivel === n ? 'border-primario/50 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5')}>{n === 'todos' ? 'Todos' : `${infoNivel(n)?.icono} ${n}`} · {k}</button>
+          return <button key={n} type="button" onClick={() => setFiltroNivel(n)} className={cx('shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition', filtroNivel === n ? 'border-primario/50 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5')}>{n !== 'todos' && <IconoNivel nivel={n} size={12} className="mr-1 inline -mt-0.5" />}{n === 'todos' ? 'Todos' : n} · {k}</button>
         })}</div>}
         <Scroll><table className="tabla">
         <thead><tr><th>Proveedor</th><th>Nivel</th><th>Dónde trabaja</th><th>Contacto</th><th>Ubicación</th><th /></tr></thead>
@@ -63,7 +64,7 @@ export default function Compras() {
           const sube = nivelSugerido(p, ordenes), cerca = sucursalCercana(p, sucursales)
           return <tr key={p.id}>
             <td><div className="font-medium">{p.nombre}</div>{p.provee && <div className="text-xs text-muted">{p.provee}</div>}{p.ruc && <div className="font-mono text-[11px] text-muted">RUC {p.ruc}</div>}</td>
-            <td><div className="flex flex-col items-start gap-1">{p.nivel ? <Badge tono={TONO_NIVEL[p.nivel]}>{infoNivel(p.nivel)?.icono} {p.nivel}</Badge> : <span className="text-xs text-muted">—</span>}
+            <td><div className="flex flex-col items-start gap-1">{p.nivel ? <Badge tono={TONO_NIVEL[p.nivel]}><IconoNivel nivel={p.nivel} size={11} className="mr-1 inline -mt-0.5" />{p.nivel}</Badge> : <span className="text-xs text-muted">—</span>}
               {sube && puedeEditar && <button type="button" onClick={() => guardarProveedor({ ...p, nivel: sube })} className="flex items-center gap-1 text-[11px] font-medium text-exito hover:underline" title="Ya cumplió varias entregas a tiempo"><ArrowUpCircle size={12} />Subir a {sube}</button>}</div></td>
             <td className="text-sm">{p.lugar || '—'}{p.ciudad && <div className="text-xs text-muted">{p.ciudad}</div>}</td>
             <td className="text-sm">{p.contacto && <div>{p.contacto}</div>}{p.telefono && <a href={`tel:${p.telefono.replace(/\s/g, '')}`} className="flex items-center gap-1 text-primario hover:underline"><Phone size={12} />{p.telefono}</a>}{p.email && <div className="text-xs text-muted">{p.email}</div>}{!p.contacto && !p.telefono && !p.email && <span className="text-muted">—</span>}</td>
@@ -88,7 +89,7 @@ export default function Compras() {
             <div className="mb-1.5 text-xs font-medium text-muted">¿Qué tipo de proveedor es?</div>
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">{NIVELES_PROVEEDOR.map((n) => (
               <button key={n.nivel} type="button" onClick={() => setProv({ ...prov, nivel: n.nivel })} className={cx('rounded-xl border px-3 py-2 text-left transition', prov.nivel === n.nivel ? 'border-primario/60 bg-primario/10' : 'border-fg/10 hover:bg-fg/5')}>
-                <div className="text-sm font-semibold">{n.icono} {n.nivel}</div>
+                <div className="flex items-center gap-1.5 text-sm font-semibold"><IconoNivel nivel={n.nivel} size={14} className="text-primario" />{n.nivel}</div>
                 <div className="text-[11px] leading-snug text-muted">{n.descripcion}</div>
                 <div className="text-[11px] italic text-muted/80">{n.ejemplo}</div>
               </button>))}</div>

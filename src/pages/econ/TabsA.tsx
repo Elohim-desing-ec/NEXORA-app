@@ -95,8 +95,8 @@ export function Enfoques() {
         <tbody>{filas.map(([a, b, c, e]) => <tr key={a}><td className="font-medium">{a}</td><td className="tnum">{b}</td><td>{c ? <Badge tono="verde">Sí</Badge> : <Badge tono="rojo">No · hundido</Badge>}</td><td className="whitespace-normal text-xs text-muted">{e}</td></tr>)}</tbody></table></Scroll>
     </Card>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Card titulo="✅ Correcto (valor de mercado)"><div className="text-2xl font-bold tnum">{money(R.def.caueMin)}</div><p className="text-xs text-muted">CAUE mínimo del defensor con P = {money(d.vm0)}</p></Card>
-      <Card titulo="❌ Error común (usar el costo original)"><div className="text-2xl font-bold text-peligro tnum">{money(erroneo.caueMin)}</div><p className="text-xs text-muted">Si se usara P = {money(d.costoOriginal)} el defensor parecería {money(erroneo.caueMin - R.def.caueMin)} más caro por año: se estaría "cobrando" dos veces un dinero que ya se gastó.</p></Card>
+      <Card titulo="Correcto (valor de mercado)"><div className="text-2xl font-bold tnum">{money(R.def.caueMin)}</div><p className="text-xs text-muted">CAUE mínimo del defensor con P = {money(d.vm0)}</p></Card>
+      <Card titulo="Error común (usar el costo original)"><div className="text-2xl font-bold text-peligro tnum">{money(erroneo.caueMin)}</div><p className="text-xs text-muted">Si se usara P = {money(d.costoOriginal)} el defensor parecería {money(erroneo.caueMin - R.def.caueMin)} más caro por año: se estaría "cobrando" dos veces un dinero que ya se gastó.</p></Card>
     </div>
   </>
 }

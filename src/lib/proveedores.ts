@@ -6,11 +6,11 @@ import type { Orden, Producto, Proveedor, Sucursal } from '../data/base'
 import { enQuiebre } from './inventario'
 
 export type NivelProveedor = 'Emprendedor' | 'Junior' | 'Senior' | 'Experimentado'
-export const NIVELES_PROVEEDOR: { nivel: NivelProveedor; icono: string; descripcion: string; ejemplo: string }[] = [
-  { nivel: 'Emprendedor', icono: '🌱', descripcion: 'Recién empieza o trabaja desde casa. No necesita RUC ni local.', ejemplo: 'Ej.: hace camisetas en su casa' },
-  { nivel: 'Junior', icono: '🔹', descripcion: 'Pocos clientes y algo de experiencia; produce en pequeño.', ejemplo: 'Ej.: taller con 1 o 2 personas' },
-  { nivel: 'Senior', icono: '⭐', descripcion: 'Negocio establecido, con taller o local y RUC.', ejemplo: 'Ej.: distribuidora de la ciudad' },
-  { nivel: 'Experimentado', icono: '🏆', descripcion: 'Muchos años, mayorista o fábrica; entrega en volumen.', ejemplo: 'Ej.: fábrica o importadora' },
+export const NIVELES_PROVEEDOR: { nivel: NivelProveedor; descripcion: string; ejemplo: string }[] = [
+  { nivel: 'Emprendedor', descripcion: 'Recién empieza o trabaja desde casa. No necesita RUC ni local.', ejemplo: 'Ej.: hace camisetas en su casa' },
+  { nivel: 'Junior', descripcion: 'Pocos clientes y algo de experiencia; produce en pequeño.', ejemplo: 'Ej.: taller con 1 o 2 personas' },
+  { nivel: 'Senior', descripcion: 'Negocio establecido, con taller o local y RUC.', ejemplo: 'Ej.: distribuidora de la ciudad' },
+  { nivel: 'Experimentado', descripcion: 'Muchos años, mayorista o fábrica; entrega en volumen.', ejemplo: 'Ej.: fábrica o importadora' },
 ]
 export const LUGARES_TRABAJO = ['Desde su casa', 'Taller pequeño', 'Local o tienda', 'Fábrica o bodega', 'Solo en línea'] as const
 export const infoNivel = (n?: string) => NIVELES_PROVEEDOR.find((x) => x.nivel === n)

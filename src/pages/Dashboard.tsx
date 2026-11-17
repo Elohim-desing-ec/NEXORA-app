@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, AlertTriangle, Boxes, Briefcase, Coins, DollarSign, FileDown, Globe2, HandCoins, HeartPulse, LayoutGrid, PiggyBank, Receipt, RefreshCw, ShieldCheck, ShoppingCart, Sparkles, SquareKanban, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { Activity, AlertTriangle, Boxes, Briefcase, Coins, DollarSign, FileDown, Globe2, HandCoins, HeartPulse, LayoutGrid, PiggyBank, Receipt, RefreshCw, ShieldCheck, ShoppingCart, Sparkles, SquareKanban, TrendingDown, TrendingUp, Wallet, X } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApp, tieneRol, permisosDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
@@ -10,7 +10,6 @@ import { money, num, pct, fechaHora, plural } from '../lib/format'
 import { enQuiebre, stockTotal, valorInventario } from '../lib/inventario'
 import { anomalias } from '../lib/ai'
 import { MESES, agregar, gastosDe, hoyISO, periodoDe, serviciosDe, variacion } from '../lib/resumen'
-import { bandera } from '../data/paises'
 import { saludNegocio, type NivelSalud } from '../lib/salud'
 import { indicadoresSector, perfilDe } from '../lib/sectores'
 import * as F from '../lib/finance'
@@ -258,7 +257,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <Titulo titulo="Dashboard ejecutivo" sub={`${hoyTxt.charAt(0).toUpperCase() + hoyTxt.slice(1)} · ${empresa.nombre || 'Su empresa'} · ${sucursal === 'TODAS' ? `Consolidado · ${plural(SUCURSALES.length, 'sucursal', 'sucursales')} en ${plural(new Set(SUCURSALES.map((s) => s.pais)).size, 'país', 'países')}` : SUCURSALES.find((s) => s.id === sucursal)?.nombre}`}>
-        {sucursal !== 'TODAS' && <button onClick={() => setSucursal('TODAS')} className="rounded-full border border-primario/30 bg-primario/10 px-3 py-1 text-xs font-medium text-primario hover:bg-primario/20">Ver todas las sucursales ✕</button>}
+        {sucursal !== 'TODAS' && <button onClick={() => setSucursal('TODAS')} className="rounded-full border border-primario/30 bg-primario/10 px-3 py-1 text-xs font-medium text-primario hover:bg-primario/20">Ver todas las sucursales<X size={12} className="ml-1 inline -mt-0.5" /></button>}
         <Badge tono="verde"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-exito" />En vivo</Badge>
       </Titulo>
 
@@ -269,7 +268,7 @@ export default function Dashboard() {
           ['3', 'Productos', 'Uno por uno o con plantilla Excel', 'productos', true],
           ['4', 'Análisis económico', 'Costos actuales vs NEXORA', 'economico', true],
         ] as const).map(([n, t, dd, pag, ok]) => <button key={n} disabled={!ok} onClick={() => ir(pag)} className="flex gap-3 rounded-xl bg-fg/5 p-3 text-left transition hover:bg-primario/15 disabled:opacity-40"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-sm font-bold text-black">{n}</span><span><span className="block text-sm font-semibold">{t}</span><span className="text-xs text-muted">{dd}</span></span></button>)}</div>
-        <p className="mt-3 text-xs text-muted">Los indicadores y gráficos se llenan automáticamente a medida que registre productos, ventas y compras. ¿Dudas? Pregúntele al asistente (botón ✦ abajo a la derecha).</p>
+        <p className="mt-3 text-xs text-muted">Los indicadores y gráficos se llenan automáticamente a medida que registre productos, ventas y compras. ¿Dudas? Pregúntele al asistente (botón dorado abajo a la derecha).</p>
       </Card>}
 
       <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
@@ -343,7 +342,7 @@ export default function Dashboard() {
           </svg>
           <ul className="mt-3 space-y-2.5">{d.porSuc.slice(0, 5).map((x, k) => (
             <li key={x.s.id}><button onClick={() => setSucursal(sucursal === x.s.id ? 'TODAS' : x.s.id)} onMouseEnter={() => setBurbuja(x.s.id)} onMouseLeave={() => setBurbuja(null)} className={cx('w-full rounded-lg px-1.5 py-1 text-left transition hover:bg-fg/5', sucursal === x.s.id && 'bg-primario/10')}>
-              <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate"><span className="mr-1.5">{bandera(x.s.pais)}</span><b className="font-medium">{x.s.ciudad || x.s.nombre}</b> <span className="text-xs text-muted">{x.s.id}</span></span><span className="text-xs font-semibold tnum">{f$(x.v)}</span></div>
+              <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate"><b className="font-medium">{x.s.ciudad || x.s.nombre}</b> <span className="text-xs text-muted">{x.s.id}</span></span><span className="text-xs font-semibold tnum">{f$(x.v)}</span></div>
               <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-fg/10"><motion.div className="h-full rounded-full" style={{ background: k < 4 ? BURBUJAS[k].c : COLORES[0] }} initial={{ width: 0 }} animate={{ width: `${(x.v / maxSuc) * 100}%` }} transition={{ duration: 1.1, delay: 0.08 * k, ease: suave }} /></div>
             </button></li>))}</ul>
           {SUCURSALES.length > 0 && <p className="mt-2 text-[11px] text-muted">Toque una sucursal para ver el Dashboard solo de ella.</p>}
@@ -396,7 +395,7 @@ export default function Dashboard() {
       {/* Alertas y actividad */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Panel titulo={<span className="flex items-center gap-2"><AlertTriangle size={16} className="text-peligro" />Quiebres de stock</span>} sub="Productos que hay que reponer">
-          <ul className="space-y-2 text-sm">{d.quiebres.slice(0, 6).map((x) => <li key={x.id}><button onClick={() => ir('productos')} className="flex w-full items-center justify-between gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="truncate">{x.nombre}</span><Badge tono="rojo">{stockTotal(x, sucursal)} u</Badge></button></li>)}{!d.quiebres.length && <li className="text-muted">Sin quiebres 🎉</li>}</ul>
+          <ul className="space-y-2 text-sm">{d.quiebres.slice(0, 6).map((x) => <li key={x.id}><button onClick={() => ir('productos')} className="flex w-full items-center justify-between gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="truncate">{x.nombre}</span><Badge tono="rojo">{stockTotal(x, sucursal)} u</Badge></button></li>)}{!d.quiebres.length && <li className="text-muted">Sin quiebres</li>}</ul>
         </Panel>
         <Panel titulo={<span className="flex items-center gap-2"><Sparkles size={16} className="text-cian" />Anomalías detectadas por IA</span>} sub="Movimientos fuera de lo normal">
           <ul className="space-y-2 text-sm">{d.anom.map(({ m, z }) => <li key={m.id} className="rounded-xl bg-fg/5 px-3 py-2"><div className="flex justify-between gap-2"><span className="truncate">{productos.find((x) => x.id === m.productoId)?.nombre}</span><Badge tono={m.tipo === 'Merma' ? 'ambar' : 'violeta'}>{m.tipo}</Badge></div><div className="text-xs text-muted">{Math.abs(m.cantidad)} u · {m.sucursal} · z = {num(z, 1)}</div></li>)}{!d.anom.length && <li className="text-muted">Todo normal por ahora.</li>}</ul>

@@ -107,7 +107,7 @@ export default function Productos() {
       ] as const).map(([t, d, ps, tono]) => (
         <Card key={t} titulo={<span className="flex items-center gap-2">{t}<Badge tono={tono}>{ps.length}</Badge></span>} accion={<span className="text-xs text-muted">{d}</span>}>
           <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{p.nombre}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge></button></li>)}
-            {!ps.length && <li className="text-muted">Nada por aquí 🎉</li>}</ul>
+            {!ps.length && <li className="text-muted">Nada por aquí</li>}</ul>
         </Card>))}</div>
       <Card titulo="Stock por sucursal" accion={<span className="text-xs text-muted">Valor a costo promedio y a precio de venta</span>}>
         <Scroll><table className="tabla"><thead><tr><th>Sucursal</th><th>Ciudad</th><th className="num">Productos con stock</th><th className="num">Unidades</th><th className="num">Valor a costo</th><th className="num">Valor a precio</th><th className="num">En quiebre</th></tr></thead>

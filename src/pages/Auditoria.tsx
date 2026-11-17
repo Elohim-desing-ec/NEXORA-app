@@ -4,7 +4,6 @@ import { useApp } from '../store/useApp'
 import { Badge, Card, Scroll, Titulo, Tabs } from '../components/ui'
 import { fechaHora, money } from '../lib/format'
 import { stockTotal, valorInventario } from '../lib/inventario'
-import { bandera } from '../data/paises'
 
 const Globo = lazy(() => import('../components/Globo'))
 
@@ -28,9 +27,9 @@ export default function Auditoria() {
         </Card>}
         {tab === 'mapa' && <Card titulo="Mapa global de sucursales">
           <Suspense fallback={<div className="espacio h-[420px] rounded-xl" />}>
-            <Globo className="h-[420px]" puntos={SUCURSALES.map((s) => ({ id: s.id, nombre: `${bandera(s.pais)} ${s.nombre}`, lat: s.lat, lng: s.lng, valor: valorInventario(productos, s.id) + 1, detalle: `${s.direccion || s.ciudad}\nInventario: ${money(valorInventario(productos, s.id), 0)}` }))} />
+            <Globo className="h-[420px]" puntos={SUCURSALES.map((s) => ({ id: s.id, nombre: `${s.nombre}`, lat: s.lat, lng: s.lng, valor: valorInventario(productos, s.id) + 1, detalle: `${s.direccion || s.ciudad}\nInventario: ${money(valorInventario(productos, s.id), 0)}` }))} />
           </Suspense>
-          <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto text-xs">{SUCURSALES.map((s) => <li key={s.id} className="flex justify-between gap-2"><span className="truncate">{bandera(s.pais)} {s.nombre}</span><span className="tnum text-muted">{productos.reduce((a, p) => a + stockTotal(p, s.id), 0)} u</span></li>)}<li className="flex justify-between font-semibold"><span>Total</span><span className="tnum">{productos.reduce((a, p) => a + stockTotal(p), 0)} u</span></li></ul>
+          <ul className="mt-3 max-h-40 space-y-1 overflow-y-auto text-xs">{SUCURSALES.map((s) => <li key={s.id} className="flex justify-between gap-2"><span className="truncate">{s.nombre}</span><span className="tnum text-muted">{productos.reduce((a, p) => a + stockTotal(p, s.id), 0)} u</span></li>)}<li className="flex justify-between font-semibold"><span>Total</span><span className="tnum">{productos.reduce((a, p) => a + stockTotal(p), 0)} u</span></li></ul>
         </Card>}
     </div>
   )

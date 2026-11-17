@@ -14,7 +14,7 @@ import { MuestraTema } from '../components/SelectorTema'
 import { InstalarApp } from '../components/InstalarApp'
 import { money } from '../lib/format'
 import { SECTORES, TAMANOS, type Empresa, type Sucursal } from '../data/base'
-import { PAISES, MONEDAS, SIMBOLOS, bandera, pais } from '../data/paises'
+import { PAISES, MONEDAS, SIMBOLOS, pais } from '../data/paises'
 import { EditorSucursal, sucursalVacia } from '../components/EditorSucursal'
 import { valorInventario } from '../lib/inventario'
 
@@ -87,7 +87,7 @@ export function FormEmpresa({ e, setE }: { e: Empresa; setE: (e: Empresa) => voi
   const p = pais(e.pais)
   return <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
     <Campo label="Razón social"><input className="inp" value={e.nombre} onChange={(x) => setE({ ...e, nombre: x.target.value })} placeholder="Ej.: Distribuidora Pacífico S.A." /></Campo>
-    <Campo label="País (sede principal)"><select className="inp" value={e.pais} onChange={(x) => { const n = pais(x.target.value); setE({ ...e, pais: x.target.value, moneda: n?.moneda ?? e.moneda }) }}>{PAISES.map((q) => <option key={q.codigo} value={q.codigo}>{bandera(q.codigo)} {q.nombre}</option>)}</select></Campo>
+    <Campo label="País (sede principal)"><select className="inp" value={e.pais} onChange={(x) => { const n = pais(x.target.value); setE({ ...e, pais: x.target.value, moneda: n?.moneda ?? e.moneda }) }}>{PAISES.map((q) => <option key={q.codigo} value={q.codigo}>{q.nombre}</option>)}</select></Campo>
     <Campo label="Moneda de la empresa" ayuda="Costos, precios y reportes"><select className="inp" value={e.moneda} onChange={(x) => setE({ ...e, moneda: x.target.value })}>{MONEDAS.map((m) => <option key={m} value={m}>{m} ({SIMBOLOS[m]})</option>)}</select></Campo>
     <Campo label={`Identificación fiscal (${p?.idFiscal ?? 'ID'})`}><input className="inp" value={e.idFiscal} onChange={(x) => setE({ ...e, idFiscal: x.target.value })} /></Campo>
     <Campo label="Sector"><select className="inp" value={e.sector} onChange={(x) => setE({ ...e, sector: x.target.value })}><option value="">— Elegir —</option>{[...SECTORES, ...(e.sector && !SECTORES.includes(e.sector) ? [e.sector] : [])].map((q) => <option key={q}>{q}</option>)}</select></Campo>
@@ -104,7 +104,7 @@ function EmpresaTab() {
   const [sel, setSel] = useState<string | null>(null)
   const paises = new Set(sucursales.map((x) => x.pais)).size
   return <>
-    <Card titulo="Datos de la empresa" accion={<div className="flex items-center gap-3">{ok && <span className="text-sm text-exito">Guardado ✓</span>}<Button variante="primario" onClick={() => { guardarEmpresa({ ...e, configurada: true }); setOk(true) }}><Save size={15} />Guardar</Button></div>}>
+    <Card titulo="Datos de la empresa" accion={<div className="flex items-center gap-3">{ok && <span className="text-sm text-exito">Guardado</span>}<Button variante="primario" onClick={() => { guardarEmpresa({ ...e, configurada: true }); setOk(true) }}><Save size={15} />Guardar</Button></div>}>
       <FormEmpresa e={e} setE={(x) => { setOk(false); setE(x) }} />
       <p className="mt-3 text-xs text-muted">El nombre aparece en el menú y en el membrete de los reportes. La moneda se usa en todo el sistema.</p>
     </Card>
@@ -114,7 +114,7 @@ function EmpresaTab() {
         <div className="min-w-0 xl:col-span-3"><Scroll><table className="tabla"><thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th className="num">Inventario</th><th /></tr></thead>
           <tbody>{sucursales.map((x) => <tr key={x.id} className={cx(sel === x.id && 'bg-primario/10')} onClick={() => setSel(x.id)}>
             <td className="font-mono text-xs font-semibold">{x.id}</td><td className="font-medium">{x.nombre}</td><td><Badge tono={x.tipo === 'Matriz' ? 'violeta' : 'azul'}>{x.tipo}</Badge></td>
-            <td>{bandera(x.pais)} {x.ciudad}<div className="max-w-[220px] truncate text-[11px] text-muted">{x.direccion}</div></td><td className="num">{money(valorInventario(productos, x.id), 0)}</td>
+            <td>{x.ciudad}<div className="max-w-[220px] truncate text-[11px] text-muted">{x.direccion}</div></td><td className="num">{money(valorInventario(productos, x.id), 0)}</td>
             <td><div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setEd({ v: { ...x }, previa: x.id }) }}><Pencil size={15} /></Button>
               <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar la sucursal ${x.nombre}?`)) { const r = eliminarSucursal(x.id); if (r) alert(r) } }}><Trash2 size={15} /></Button></div></td>
           </tr>)}</tbody></table></Scroll>

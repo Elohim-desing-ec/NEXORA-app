@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line, LineChart, ReferenceLine, Tooltip, XAxis, YAxis, Cell } from 'recharts'
-import { CheckCircle2, Info, Trash2, Upload, Wallet, XCircle } from 'lucide-react'
+import { CheckCircle2, Info, Trash2, Upload, Wallet, XCircle, BriefcaseBusiness, Hand } from 'lucide-react'
 import { useEcon } from '../../store/useEcon'
 import { Badge, Button, Card, Kpi, Scroll, cx } from '../../components/ui'
 import { VerProc } from '../../components/Procedimiento'
@@ -140,7 +140,7 @@ export function Inflacion() {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       <Card titulo="Dólares constantes a TMAR real"><div className="text-2xl font-bold tnum">{money(K.VPN)}</div><p className="text-xs text-muted">Flujos sin inflar, descontados al {pct(p.i, 0)}.</p></Card>
       <Card titulo="Dólares corrientes a TMAR inflada"><div className="text-2xl font-bold tnum">{money(vpnNom)}</div><p className="text-xs text-muted">Ahorros inflados al {pct(f, 1)} anual y descontados al {pct(iF)}. ≈ Igual al anterior (salvo el residual, que se asumió nominal).</p></Card>
-      <Card titulo="⚠ Error: mezclar ambos"><div className="text-2xl font-bold text-peligro tnum">{money(vpnMal)}</div><p className="text-xs text-muted">Flujos constantes descontados a la tasa inflada: subestima el proyecto.</p></Card>
+      <Card titulo="Error: mezclar ambos"><div className="text-2xl font-bold text-peligro tnum">{money(vpnMal)}</div><p className="text-xs text-muted">Flujos constantes descontados a la tasa inflada: subestima el proyecto.</p></Card>
     </div>
   </>
 }
@@ -160,7 +160,7 @@ export function Recomendacion() {
   const si = criterios.filter((c) => c[0]).length
   const ok = si >= 6
   return <Card className={cx('border-2', ok ? 'border-exito/40' : 'border-peligro/40')}>
-    <div className="flex items-center gap-4"><div className={cx('grid h-16 w-16 place-items-center rounded-2xl text-3xl', ok ? 'bg-exito/20' : 'bg-peligro/20')}>{ok ? '💼' : '✋'}</div>
+    <div className="flex items-center gap-4"><div className={cx('grid h-16 w-16 place-items-center rounded-2xl text-3xl', ok ? 'bg-exito/20' : 'bg-peligro/20')}>{ok ? <BriefcaseBusiness size={30} className="text-exito" /> : <Hand size={30} className="text-peligro" />}</div>
       <div><div className="text-xs uppercase tracking-wide text-muted">¿Lo compraría con mi propio dinero?</div><div className={cx('text-4xl font-extrabold', ok ? 'text-exito' : 'text-peligro')}>{ok ? 'SÍ, lo compraría' : 'NO lo compraría'}</div><div className="text-sm text-muted">{si} de {criterios.length} criterios favorables</div></div></div>
     <ul className="mt-5 space-y-2">{criterios.map(([b, t], i) => <li key={i} className="flex items-start gap-2 rounded-lg bg-fg/5 px-3 py-2 text-sm">{b ? <CheckCircle2 size={17} className="mt-0.5 shrink-0 text-exito" /> : <XCircle size={17} className="mt-0.5 shrink-0 text-peligro" />}{t}</li>)}</ul>
     <p className="mt-4 text-sm leading-relaxed">{ok ? `Invertir ${money(K.P)} hoy elimina un sistema cuyo costo marginal ya supera al del retador, recupera el dinero en menos de ${Math.ceil(K.recDesc)} años y deja ${money(K.VPN)} de valor adicional. El riesgo principal es que el ahorro real sea menor, pero el margen de seguridad es amplio.` : 'Con los parámetros actuales los indicadores no justifican la inversión: conviene renegociar el precio, ampliar el alcance del ahorro o esperar.'}</p>

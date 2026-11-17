@@ -2,7 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { Loader2, MapPin, Search } from 'lucide-react'
 import { Campo, NumInput } from './ui'
 import { TIPOS_SUCURSAL, type Sucursal, type TipoSucursal } from '../data/base'
-import { PAISES, bandera, pais } from '../data/paises'
+import { PAISES, pais } from '../data/paises'
 import { buscarDireccion, type Lugar } from '../lib/geo'
 import type { Vuelo } from './Globo'
 
@@ -37,7 +37,7 @@ export function EditorSucursal({ v, set }: { v: Sucursal; set: (s: Sucursal) => 
         </div>
         <Campo label="Nombre"><input className="inp" value={v.nombre} onChange={(e) => set({ ...v, nombre: e.target.value })} placeholder="Ej.: Centro de distribución Bogotá" /></Campo>
         <div className="grid grid-cols-2 gap-3">
-          <Campo label="País"><select className="inp" value={v.pais} onChange={(e) => { const p = pais(e.target.value); set({ ...v, pais: e.target.value, lat: p?.lat ?? v.lat, lng: p?.lng ?? v.lng }); if (p) setVuelo({ lng: p.lng, lat: p.lat, zoom: 4, t: Date.now() }) }}>{PAISES.map((p) => <option key={p.codigo} value={p.codigo}>{bandera(p.codigo)} {p.nombre}</option>)}</select></Campo>
+          <Campo label="País"><select className="inp" value={v.pais} onChange={(e) => { const p = pais(e.target.value); set({ ...v, pais: e.target.value, lat: p?.lat ?? v.lat, lng: p?.lng ?? v.lng }); if (p) setVuelo({ lng: p.lng, lat: p.lat, zoom: 4, t: Date.now() }) }}>{PAISES.map((p) => <option key={p.codigo} value={p.codigo}>{p.nombre}</option>)}</select></Campo>
           <Campo label="Ciudad"><input className="inp" value={v.ciudad} onChange={(e) => set({ ...v, ciudad: e.target.value })} /></Campo>
         </div>
         <Campo label="Dirección"><input className="inp" value={v.direccion} onChange={(e) => set({ ...v, direccion: e.target.value })} /></Campo>
@@ -45,7 +45,7 @@ export function EditorSucursal({ v, set }: { v: Sucursal; set: (s: Sucursal) => 
           <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-cian"><MapPin size={13} />Ubicación real</div>
           <div className="flex gap-2"><input className="inp" placeholder="Buscar dirección, ciudad o lugar…" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscar() } }} />
             <button type="button" onClick={buscar} className="grid w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-r from-primario to-violeta text-black" aria-label="Buscar dirección">{cargando ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}</button></div>
-          {res.length > 0 && <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">{res.map((l, k) => <li key={k}><button type="button" onClick={() => elegir(l)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-primario/15">{bandera(l.pais)} {l.nombre}</button></li>)}</ul>}
+          {res.length > 0 && <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">{res.map((l, k) => <li key={k}><button type="button" onClick={() => elegir(l)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-primario/15">{l.nombre}</button></li>)}</ul>}
           {msg && <p className="mt-2 text-xs text-alerta">{msg}</p>}
           <div className="mt-2 grid grid-cols-2 gap-2"><Campo label="Latitud"><NumInput step={0.0001} value={v.lat} onChange={(x) => set({ ...v, lat: x })} /></Campo><Campo label="Longitud"><NumInput step={0.0001} value={v.lng} onChange={(x) => set({ ...v, lng: x })} /></Campo></div>
           <p className="mt-1 text-[11px] text-muted">Datos de OpenStreetMap. También puede hacer clic en el globo para ubicarla.</p>
