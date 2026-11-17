@@ -80,7 +80,7 @@ export default function Login() {
     return () => { vivo = false }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const otraCuenta = async () => { await supabase.auth.signOut(); setCuenta(null); setBloqueo(null); setError('') }
+  const otraCuenta = async () => { await supabase.auth.signOut({ scope: 'local' }); setCuenta(null); setBloqueo(null); setError('') }
 
   const entrar = async (e: FormEvent) => {
     e.preventDefault(); setOcupado(true); setError('')

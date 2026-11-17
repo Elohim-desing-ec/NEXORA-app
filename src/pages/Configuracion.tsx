@@ -2,7 +2,8 @@ import { lazy, Suspense, useRef, useState } from 'react'
 import { CreditCard, Database, Download, Eraser, FileUp, Pencil, Plus, Trash2, Users, BookOpen, ArrowRight, Building2, Save, HardDriveDownload, HardDriveUpload, Palette, Check } from 'lucide-react'
 import { useApp, ROLES, type Usuario, type FilaImport, rolesDe, MAX_ROLES, SOLO_LECTURA, esCuenta, type Rol } from '../store/useApp'
 import { SelectorRoles, seccionesQueVe } from '../components/SelectorRoles'
-import { guardarMiembro, quitarMiembro } from '../lib/cuenta'
+import { guardarMiembro, mensajeError, quitarMiembro } from '../lib/cuenta'
+import { useTx } from '../lib/idioma'
 import { refrescarEquipo } from '../lib/nube'
 import { Badge, Button, Campo, Card, Modal, Scroll, Tabs, Titulo, cx } from '../components/ui'
 import { descargarPlantilla, leerArchivo } from '../lib/importar'
@@ -24,6 +25,7 @@ const ve = seccionesQueVe
 
 function Usuarios() {
   const { usuarios, usuario, guardarUsuario, eliminarUsuario, licencia } = useApp()
+  const tx = useTx()
   const [edit, setEdit] = useState<Usuario | null>(null), [err, setErr] = useState(''), [ocupado, setOcupado] = useState(false)
   /** ¿Es el titular de la cuenta (no se le quita ni se le cambia el rol principal desde aquí)? */
   const esTitular = (u: Usuario) => esCuenta(u) && !!licencia?.esDueno && u.id === usuario?.id
@@ -32,7 +34,7 @@ function Usuarios() {
     if (esCuenta(u) && !esTitular(u)) { // persona del equipo en la nube: el rol se guarda en la nube
       if (!licencia?.esDueno || !licencia.empresaId) return setErr('Solo el titular de la cuenta puede cambiar los roles del equipo.')
       setOcupado(true)
-      try { await guardarMiembro(licencia.empresaId, { email: u.email, nombre: u.nombre, rol: u.rol, roles: u.roles ?? [] }) } catch (e) { setOcupado(false); return setErr(String((e as Error).message ?? e)) }
+      try { await guardarMiembro(licencia.empresaId, { email: u.email, nombre: u.nombre, rol: u.rol, roles: u.roles ?? [] }) } catch (e) { setOcupado(false); return setErr(mensajeError(e, tx)) }
       setOcupado(false)
     }
     const r = guardarUsuario(u)
@@ -45,7 +47,7 @@ function Usuarios() {
     if (!confirm(esCuenta(u) ? `¿Quitar a ${u.nombre} del equipo? Ya no podrá ingresar a NEXORA.` : `¿Eliminar a ${u.nombre}?`)) return
     if (esCuenta(u)) {
       if (!licencia?.esDueno || !licencia.empresaId) return alert('Solo el titular de la cuenta puede quitar personas del equipo.')
-      try { await quitarMiembro(licencia.empresaId, u.email) } catch (e) { return alert(String((e as Error).message ?? e)) }
+      try { await quitarMiembro(licencia.empresaId, u.email) } catch (e) { return alert(mensajeError(e, tx)) }
       await refrescarEquipo()
       return
     }

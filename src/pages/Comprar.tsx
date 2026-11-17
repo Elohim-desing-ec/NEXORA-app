@@ -144,8 +144,8 @@ export default function Comprar() {
                       {vigente?.plan ? <Button variante="primario" className="w-full !py-2.5" disabled={entrando} onClick={entrarAhora}>{tx('Ingresar a NEXORA', 'Enter NEXORA', 'Entrar no NEXORA')} <ArrowRight size={16} /></Button>
                         : <Button variante="primario" className="w-full !py-2.5" onClick={() => { location.hash = '#/planes' }}>{tx('Ver planes', 'See plans', 'Ver planos')} <ArrowRight size={16} /></Button>}
                     </div>
-                  : <PasoPrueba cuenta={cuenta!} onListo={pruebaLista} onOtraCuenta={() => supabase.auth.signOut()} />
-                : <PasoPayphone cuenta={cuenta!} plan={plan.nombre as PlanComprable} periodo={periodo} total={periodo === 'anual' ? plan.anual : plan.mensual} acceso={acceso} onOtraCuenta={() => supabase.auth.signOut()} />)
+                  : <PasoPrueba cuenta={cuenta!} onListo={pruebaLista} onOtraCuenta={() => supabase.auth.signOut({ scope: 'local' })} />
+                : <PasoPayphone cuenta={cuenta!} plan={plan.nombre as PlanComprable} periodo={periodo} total={periodo === 'anual' ? plan.anual : plan.mensual} acceso={acceso} onOtraCuenta={() => supabase.auth.signOut({ scope: 'local' })} />)
             : <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="py-4 text-center">
                 <PartyPopper className="mx-auto text-primario" size={40} />
                 <h2 className="mt-3 font-display text-2xl font-bold">{tx('¡Su prueba gratis empezó!', 'Your free trial started!', 'Seu teste grátis começou!')}</h2>

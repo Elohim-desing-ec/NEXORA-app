@@ -200,7 +200,7 @@ async function conectar(a: Acceso, usuario: User) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'miembros', filter: `empresa_id=eq.${a.empresaId}` }, () => { refrescarEquipo() })
     .subscribe((st) => { if (st === 'SUBSCRIBED') sincronizarAhora() }) // al (re)conectarse, ponerse al día
   document.addEventListener('visibilitychange', alCambiarVisibilidad)
-  intervalo = setInterval(sincronizarAhora, 60000) // por si el celular cortó la conexión en vivo
+  intervalo = setInterval(() => { sincronizarAhora(); refrescarEquipo() }, 60000) // por si el celular cortó la conexión en vivo
   if (pendientes.size) await subir()
   else fijar('al-dia')
 }
@@ -226,18 +226,39 @@ export async function refrescarEquipo() {
   if (!id) return
   try {
     const personas = await equipoEmpresa(id)
-    if (!personas.length) return
+    if (!personas.length) { // ya no tiene acceso a esta empresa (lo quitaron del equipo o venció el plan)
+      const a = await miAcceso()
+      if (!a || a.empresaId !== id || !a.vigente) await salir()
+      return
+    }
     useApp.getState().sincronizarEquipo(personas.map((p) => ({ email: p.email, nombre: p.nombre, esDueno: p.es_dueno, rol: comoRol(p.rol) ?? 'Vendedor', roles: (p.roles ?? []).map(comoRol).filter((x): x is Rol => !!x) })))
     const yo = useApp.getState().usuario
     if (yo && esCuenta(yo) && !personas.some((p) => yo.id === `cuenta:${p.email.toLowerCase()}`)) await salir()
   } catch { /* sin conexión: se mantiene la lista guardada */ }
 }
 
+/** Sale de la app en este dispositivo sin tocar la nube (la sesión de la cuenta ya no es válida). */
+function cerrarLocal() {
+  desconectarNube()
+  useApp.setState({ licencia: null })
+  useApp.getState().logout()
+}
+
+// Si la sesión de la cuenta se cierra o vence (p. ej., la contraseña cambió), la app no sigue abierta "a medias":
+// sin sesión la nube ignora en silencio lo que se guarda o se borra.
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((ev) => {
+    const yo = useApp.getState().usuario
+    if (ev === 'SIGNED_OUT' && yo && esCuenta(yo)) setTimeout(cerrarLocal, 0)
+  })
+}
+
 /** Cierra la sesión de la app y de la cuenta NEXORA (guardando lo pendiente). */
 export async function salir() {
   await subir()
   desconectarNube()
-  await supabase.auth.signOut().catch(() => undefined)
+  // Solo en este dispositivo: cerrar aquí no debe cerrar la sesión del celular ni de la otra computadora
+  await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
   useApp.getState().logout()
 }
 
@@ -263,7 +284,9 @@ export async function entrarConAcceso(u: User): Promise<Resultado> {
 export async function reanudar() {
   const { data } = await supabase.auth.getSession()
   const u = data.session?.user
-  if (!u || !useApp.getState().usuario) return
+  const yo = useApp.getState().usuario
+  if (!yo) return
+  if (!u) { if (esCuenta(yo)) cerrarLocal(); return } // la sesión de la cuenta ya no existe: se vuelve a pedir el ingreso
   try {
     const a = await miAcceso()
     if (!a?.vigente || !a.plan) { desconectarNube(); useApp.setState({ licencia: null }); useApp.getState().logout(); return }

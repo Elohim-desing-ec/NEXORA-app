@@ -131,13 +131,23 @@ export async function listarMiembros(empresaId: string): Promise<Miembro[]> {
   if (error) throw error
   return data ?? []
 }
-export async function guardarMiembro(empresaId: string, m: { email: string; nombre: string; rol: string; roles?: string[] }) {
-  const { error } = await supabase.from('miembros').upsert({ empresa_id: empresaId, email: m.email.trim().toLowerCase(), nombre: m.nombre.trim(), rol: m.rol, roles: m.roles ?? [] })
-  if (error) throw error
+/** Los cambios del equipo necesitan la sesión de la cuenta abierta (sin ella la nube los ignora en silencio). */
+async function exigirSesion() {
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) throw new Error('sin-sesion')
 }
-export async function quitarMiembro(empresaId: string, email: string) {
-  const { error } = await supabase.from('miembros').delete().eq('empresa_id', empresaId).eq('email', email)
+export async function guardarMiembro(empresaId: string, m: { email: string; nombre: string; rol: string; roles?: string[] }) {
+  await exigirSesion()
+  const { data, error } = await supabase.from('miembros').upsert({ empresa_id: empresaId, email: m.email.trim().toLowerCase(), nombre: m.nombre.trim(), rol: m.rol, roles: m.roles ?? [] }).select('email')
   if (error) throw error
+  if (!data?.length) throw new Error('solo-titular')
+}
+/** Quita a una persona del equipo y confirma que la nube de verdad la quitó. */
+export async function quitarMiembro(empresaId: string, email: string) {
+  await exigirSesion()
+  const { data, error } = await supabase.from('miembros').delete().eq('empresa_id', empresaId).eq('email', email.trim().toLowerCase()).select('email')
+  if (error) throw error
+  if (!data?.length) throw new Error('solo-titular')
 }
 
 /** Correo desde el Gmail de NEXORA (función `correo` en Supabase). false si aún no está configurado. */
@@ -160,6 +170,8 @@ export function mensajeError(e: unknown, tx: (es: string, en: string, pt: string
   if (/not authorized/i.test(m)) return tx('Por ahora no podemos enviar correos a esa dirección. Escríbanos para ayudarle.', 'We can\'t send email to that address yet. Contact us for help.', 'Ainda não podemos enviar e-mails para esse endereço. Fale conosco.')
   if (/ya usó su prueba/i.test(m)) return tx('Esta cuenta ya usó su prueba gratis. Elija un plan para continuar.', 'This account already used its free trial. Choose a plan to continue.', 'Esta conta já usou o teste grátis. Escolha um plano para continuar.')
   if (/ya tiene un plan activo/i.test(m)) return tx('Esta cuenta ya tiene un plan activo', 'This account already has an active plan', 'Esta conta já tem um plano ativo')
+  if (m === 'sin-sesion' || /jwt expired|invalid jwt|not authenticated/i.test(m)) return tx('Su sesión se cerró. Salga y vuelva a ingresar con su cuenta para hacer este cambio.', 'Your session ended. Sign out and sign in again to make this change.', 'Sua sessão terminou. Saia e entre novamente para fazer esta alteração.')
+  if (m === 'solo-titular' || /row-level security/i.test(m)) return tx('Solo el titular de la cuenta puede cambiar o quitar personas del equipo. Si usted es el titular, salga y vuelva a ingresar.', 'Only the account owner can change or remove team members. If you are the owner, sign out and sign in again.', 'Somente o titular da conta pode alterar ou remover pessoas da equipe. Se você é o titular, saia e entre novamente.')
   if (/duplicate key|already exists/i.test(m)) return tx('Esa persona ya está en su equipo', 'That person is already on your team', 'Essa pessoa já está na sua equipe')
   if (/pagos-no-configurados/.test(m)) return tx('Los pagos con Payphone se están activando. Pruebe NEXORA gratis mientras tanto o escríbanos.', 'Payphone payments are being set up. Try NEXORA free meanwhile or contact us.', 'Os pagamentos com Payphone estão sendo ativados. Teste o NEXORA grátis enquanto isso.')
   if (/rate limit|too many/i.test(m)) return tx('Demasiados intentos. Espere unos minutos.', 'Too many attempts. Wait a few minutes.', 'Muitas tentativas. Aguarde alguns minutos.')
