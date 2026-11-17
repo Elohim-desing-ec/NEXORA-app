@@ -17,3 +17,20 @@ export function aNumero(v: string | number | null | undefined): { v: number; z: 
   return null
 }
 
+
+/**
+ * Lee un monto escrito a mano, como lo escribe la gente: «50», «50,50», «50.50», «1.500», «1.500,50», «$ 1500».
+ * Con un solo punto seguido de 3 cifras («1.500») es separador de miles, como se muestra en NEXORA.
+ * Devuelve null si el texto no es un monto.
+ */
+export function leerMonto(texto: string): number | null {
+  let t = texto.replace(/[$\s]|USD/gi, '')
+  if (!t) return null
+  const coma = t.lastIndexOf(','), punto = t.lastIndexOf('.')
+  if (coma >= 0 && punto >= 0) t = coma > punto ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '') // el último es el decimal
+  else if (coma >= 0) t = (t.match(/,/g)!.length > 1 ? t.replace(/,/g, '') : t.replace(',', '.'))
+  else if (punto >= 0 && (t.match(/\./g)!.length > 1 || /^[1-9]\d{0,2}\.\d{3}$/.test(t))) t = t.replace(/\./g, '')
+  if (!/^\d*\.?\d*$/.test(t) || t === '.') return null
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}

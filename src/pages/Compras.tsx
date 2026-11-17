@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle2, Pencil, Plus, Trash2, Truck, Trophy, Building2, ClipboardList } from 'lucide-react'
 import { useApp, tieneRol, soloLectura as esSoloLectura } from '../store/useApp'
-import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, Titulo, Tabs } from '../components/ui'
+import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo, Tabs } from '../components/ui'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
 
@@ -85,7 +85,7 @@ export default function Compras() {
           {nueva.items.map((it, k) => <div key={k} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-fg/10 p-2 sm:grid-cols-[1fr_90px_110px_auto] sm:rounded-none sm:border-0 sm:p-0">
             <div className="col-span-3 sm:col-span-1"><Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo></div>
             <Campo label="Cant."><NumInput value={it.cantidad} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, cantidad: Math.max(1, Math.round(v)) }; setNueva({ ...nueva, items }) }} /></Campo>
-            <Campo label="Costo"><NumInput step={0.01} value={it.costo} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, costo: v }; setNueva({ ...nueva, items }) }} /></Campo>
+            <Campo label="Costo"><MontoInput value={it.costo} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, costo: v }; setNueva({ ...nueva, items }) }} /></Campo>
             <Button variante="fantasma" className="text-peligro" onClick={() => setNueva({ ...nueva, items: nueva.items.filter((_, j) => j !== k) })}><Trash2 size={15} /></Button>
           </div>)}
           <div className="flex items-center justify-between"><Button onClick={() => setNueva({ ...nueva, items: [...nueva.items, item()] })}><Plus size={15} />Ítem</Button>

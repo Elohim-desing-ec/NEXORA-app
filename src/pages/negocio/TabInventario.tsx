@@ -3,7 +3,7 @@ import { ArrowRight, Plus, Search, Tag } from 'lucide-react'
 import { useApp, rolesDe } from '../../store/useApp'
 import type { Producto } from '../../data/base'
 import { perfilDe } from '../../lib/sectores'
-import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, cx } from '../../components/ui'
+import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, cx } from '../../components/ui'
 import { money, num, pct, plural } from '../../lib/format'
 import { stockTotal, valorInventario } from '../../lib/inventario'
 import { EDITAN, estadoStock, statsProductos, type EstadoStock } from '../../lib/resumen'
@@ -129,8 +129,8 @@ export default function TabInventario() {
             <Campo label="Categoría"><input className="inp" list="categoriasNegocio" placeholder={perfilDe(empresa.sector).categorias[0]} value={nuevo.categoria} onChange={(e) => setNuevo({ ...nuevo, categoria: e.target.value })} /></Campo>
             <Campo label="Sucursal donde entra"><select className="inp" value={nuevo.sucursal} onChange={(e) => setNuevo({ ...nuevo, sucursal: e.target.value })}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.ciudad}</option>)}</select></Campo>
             <Campo label="Stock inicial"><NumInput min={0} value={nuevo.stock} onChange={(v) => setNuevo({ ...nuevo, stock: v })} /></Campo>
-            <Campo label="Costo unitario"><NumInput step={0.01} min={0} value={nuevo.costo} onChange={(v) => setNuevo({ ...nuevo, costo: v })} /></Campo>
-            <Campo label="Precio de venta"><NumInput step={0.01} min={0} value={nuevo.precio} onChange={(v) => setNuevo({ ...nuevo, precio: v })} /></Campo>
+            <Campo label="Costo unitario"><MontoInput value={nuevo.costo} onChange={(v) => setNuevo({ ...nuevo, costo: v })} /></Campo>
+            <Campo label="Precio de venta"><MontoInput value={nuevo.precio} onChange={(v) => setNuevo({ ...nuevo, precio: v })} /></Campo>
             <Campo label="Stock mínimo" ayuda="Para avisar cuando queda poco"><NumInput min={0} value={nuevo.min} onChange={(v) => setNuevo({ ...nuevo, min: v })} /></Campo>
           </div>
           <datalist id="categoriasNegocio">{categorias.map((c) => <option key={c} value={c} />)}</datalist>
@@ -145,8 +145,8 @@ export default function TabInventario() {
         {precio && <div className="space-y-4">
           <Campo label="Producto"><select className="inp" value={precio.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value); if (p) setPrecio(p) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.nombre}</option>)}</select></Campo>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Campo label="Costo unitario"><NumInput step={0.01} min={0} value={precio.costo} onChange={(v) => setPrecio({ ...precio, costo: v })} /></Campo>
-            <Campo label="Precio de venta"><NumInput step={0.01} min={0} value={precio.precio} onChange={(v) => setPrecio({ ...precio, precio: v })} /></Campo>
+            <Campo label="Costo unitario"><MontoInput value={precio.costo} onChange={(v) => setPrecio({ ...precio, costo: v })} /></Campo>
+            <Campo label="Precio de venta"><MontoInput value={precio.precio} onChange={(v) => setPrecio({ ...precio, precio: v })} /></Campo>
           </div>
           <Calculadora key={precio.id} costo={precio.costo} precio={precio.precio} onPrecio={(v) => setPrecio({ ...precio, precio: v })} />
           <p className="text-xs text-muted">Las ventas ya registradas conservan el precio con el que se vendieron.</p>

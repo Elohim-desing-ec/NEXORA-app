@@ -3,7 +3,7 @@ import { ArrowLeftRight, Barcode, FileSpreadsheet, History, Pencil, Plus, Printe
 import { QRCodeSVG } from 'qrcode.react'
 import JsBarcode from 'jsbarcode'
 import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
-import { Badge, Button, Campo, Card, Modal, NumInput, Scroll, Titulo } from '../components/ui'
+import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
 import { enQuiebre, kardex, stockTotal } from '../lib/inventario'
 import { CATEGORIAS, type Producto, type Sucursal, type SucursalId } from '../data/base'
@@ -122,8 +122,8 @@ export default function Productos() {
           <Campo label="Nombre"><input className="inp" value={edit.nombre} onChange={(e) => set('nombre', e.target.value)} /></Campo>
           <Campo label="Categoría" ayuda="Elija una o escriba una nueva"><input className="inp" list="cats" value={edit.categoria} onChange={(e) => set('categoria', e.target.value)} /><datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist></Campo>
           <Campo label="Proveedor"><select className="inp" value={edit.proveedorId} onChange={(e) => set('proveedorId', e.target.value)}><option value="">— Sin proveedor —</option>{proveedores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></Campo>
-          <Campo label="Costo ($)"><NumInput step={0.01} value={edit.costo} onChange={(v) => set('costo', v)} /></Campo>
-          <Campo label="Precio ($)"><NumInput step={0.01} value={edit.precio} onChange={(v) => set('precio', v)} /></Campo>
+          <Campo label="Costo ($)"><MontoInput value={edit.costo} onChange={(v) => set('costo', v)} /></Campo>
+          <Campo label="Precio ($)"><MontoInput value={edit.precio} onChange={(v) => set('precio', v)} /></Campo>
           <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Stock actual por sucursal ({SUCURSALES.length})</div>
             <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto rounded-xl bg-fg/5 p-2 sm:grid-cols-3">{SUCURSALES.map((x) => <Campo key={x.id} label={`${x.id} · ${x.ciudad}`}><NumInput value={edit.stock[x.id] ?? 0} onChange={(v) => set('stock', { ...edit.stock, [x.id]: Math.max(0, Math.round(v)) })} /></Campo>)}</div></div>
           <Campo label="Stock mínimo (por sucursal)"><NumInput value={edit.min} onChange={(v) => set('min', v)} /></Campo>
@@ -162,7 +162,7 @@ export default function Productos() {
             <Campo label="Sucursal"><select className="inp" value={aj.s} onChange={(e) => setAj({ ...aj, s: e.target.value as SucursalId, err: undefined })}>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad} ({(aj.p.stock[s.id] ?? 0)} u)</option>)}</select></Campo>
             <Campo label="Cantidad"><NumInput value={aj.cant} onChange={(v) => setAj({ ...aj, cant: Math.round(v), err: undefined })} /></Campo>
           </div>
-          {aj.tipo === 'Compra' && <Campo label="Costo unitario ($)"><NumInput step={0.01} value={aj.costo} onChange={(v) => setAj({ ...aj, costo: v })} /></Campo>}
+          {aj.tipo === 'Compra' && <Campo label="Costo unitario ($)"><MontoInput value={aj.costo} onChange={(v) => setAj({ ...aj, costo: v })} /></Campo>}
           <Campo label="Nota (opcional)"><input className="inp" value={aj.nota} onChange={(e) => setAj({ ...aj, nota: e.target.value })} placeholder="Ej.: factura 001-002-345, motivo del ajuste" /></Campo>
           {aj.err && <p className="text-xs text-peligro">{aj.err}</p>}
           <Button variante="primario" className="w-full" onClick={() => { const e = registrar(aj.p.id, aj.s, aj.tipo, aj.cant, aj.nota, aj.costo); if (e) setAj({ ...aj, err: e }); else setAj(null) }}>Registrar {aj.tipo.toLowerCase()}</Button>

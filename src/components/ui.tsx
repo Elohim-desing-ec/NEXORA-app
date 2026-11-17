@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes } from 'react'
 import { AnimatePresence, motion, animate } from 'framer-motion'
 import katex from 'katex'
 import { X } from 'lucide-react'
+import { leerMonto } from '../lib/numeros'
 
 const cx = (...c: (string | false | undefined | null)[]) => c.filter(Boolean).join(' ')
 export { cx }
@@ -73,6 +74,19 @@ export function Campo({ label, children, ayuda }: { label: string; children: Rea
 }
 
 /** Input numérico que acepta coma decimal. */
+/**
+ * Campo de dinero: acepta «50», «50,50», «1.500» o «$ 1.500,75» (no el formato raro del campo numérico del navegador).
+ * Empieza vacío en vez de «0» y se marca en rojo si lo escrito no es un monto.
+ */
+export function MontoInput({ value, onChange, className, placeholder = '0,00', ...r }: { value: number; onChange: (v: number) => void; className?: string; placeholder?: string } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  const aTexto = (v: number) => (v ? String(Math.round(v * 100) / 100).replace('.', ',') : '')
+  const [txt, setTxt] = useState(() => aTexto(value))
+  const malo = txt.trim() !== '' && leerMonto(txt) === null
+  useEffect(() => { if ((leerMonto(txt) ?? 0) !== value) setTxt(aTexto(value)) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <input {...r} className={cx('inp', malo && '!border-peligro', className)} inputMode="decimal" autoComplete="off" placeholder={placeholder} value={txt} aria-invalid={malo || undefined}
+    onChange={(e) => { setTxt(e.target.value); const v = leerMonto(e.target.value); if (v !== null) onChange(v); else if (!e.target.value.trim()) onChange(0) }} />
+}
+
 export function NumInput({ value, onChange, step = 1, min, max, className }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; className?: string }) {
   const [txt, setTxt] = useState(String(value))
   useEffect(() => { if (parseFloat(txt.replace(',', '.')) !== value) setTxt(String(value)) }, [value]) // eslint-disable-line

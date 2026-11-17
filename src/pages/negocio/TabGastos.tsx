@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useApp, rolesDe } from '../../store/useApp'
 import type { Gasto } from '../../data/base'
-import { Badge, Button, Campo, Card, Modal, NumInput, Scroll } from '../../components/ui'
+import { Badge, Button, Campo, Card, Modal, MontoInput, Scroll } from '../../components/ui'
 import { fecha, money, pct, plural } from '../../lib/format'
 import { CATEGORIAS_GASTO, EDITAN, MESES, anios, enPeriodo, hoyISO, nombrePeriodo } from '../../lib/resumen'
 
@@ -71,7 +71,7 @@ export default function TabGastos() {
         {form && <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Fecha"><input type="date" className="inp" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} /></Campo>
-            <Campo label="Monto"><NumInput step={0.01} min={0} value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} /></Campo>
+            <Campo label="Monto"><MontoInput value={form.monto} onChange={(v) => setForm({ ...form, monto: v })} /></Campo>
             <div className="sm:col-span-2"><Campo label="Concepto"><input className="inp" placeholder="Arriendo del local" value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} /></Campo></div>
             <Campo label="Categoría"><select className="inp" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>{CATEGORIAS_GASTO.map((c) => <option key={c}>{c}</option>)}</select></Campo>
             <Campo label="Sucursal" ayuda="General = gasto de toda la empresa"><select className="inp" value={form.sucursal} onChange={(e) => setForm({ ...form, sucursal: e.target.value })}><option value="">General</option>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.ciudad}</option>)}</select></Campo>
