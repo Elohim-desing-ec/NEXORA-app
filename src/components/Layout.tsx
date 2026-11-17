@@ -193,7 +193,7 @@ function IconoNube() {
   const e = useEstadoNube()
   if (e === 'apagada') return null
   const texto = { conectando: tx('Conectando con la nube…', 'Connecting to the cloud…', 'Conectando à nuvem…'), 'al-dia': tx('Datos guardados en la nube', 'Data saved in the cloud', 'Dados salvos na nuvem'), guardando: tx('Guardando en la nube…', 'Saving to the cloud…', 'Salvando na nuvem…'), 'sin-conexion': tx('Sin conexión: se guardará al volver internet', 'Offline: will save when back online', 'Sem conexão: será salvo quando voltar') }[e]
-  return <span title={texto} aria-label={texto} role="status" className={cx('hidden shrink-0 rounded-xl p-2 sm:block', e === 'sin-conexion' ? 'text-peligro' : e === 'al-dia' ? 'text-exito' : 'animate-pulse text-muted')}>{e === 'sin-conexion' ? <CloudOff size={17} /> : <Cloud size={17} />}</span>
+  return <span title={texto} aria-label={texto} role="status" className={cx('shrink-0 rounded-xl p-1.5 sm:p-2', e === 'sin-conexion' ? 'text-peligro' : e === 'al-dia' ? 'text-exito' : 'animate-pulse text-muted')}>{e === 'sin-conexion' ? <CloudOff size={17} /> : <Cloud size={17} />}</span>
 }
 
 /** Franja con los días que quedan de la prueba gratis o de un plan por vencer. */

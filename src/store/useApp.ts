@@ -138,6 +138,11 @@ interface AppState extends Datos {
 }
 
 const sello = () => new Date().toISOString()
+/** Número correlativo con sufijo único (V-1012-K7): dos equipos que venden a la vez nunca repiten número. */
+const nuevoNumero = (prefijo: string, ids: string[]) => {
+  const max = ids.reduce((m, id) => Math.max(m, Number(id.match(new RegExp(`^${prefijo}-(\\d+)`))?.[1] ?? 0)), 1000)
+  return `${prefijo}-${max + 1}-${Math.random().toString(36).slice(2, 4).toUpperCase()}`
+}
 
 /**
  * Almacenamiento en IndexedDB: cientos de MB (localStorage solo admite ~5 MB), necesario para empresas
@@ -312,7 +317,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       return null
     },
     crearOrden: (o) => {
-      const id = `OC-${1001 + get().ordenes.length}`
+      const id = nuevoNumero('OC', get().ordenes.map((o) => o.id))
       set({ ordenes: [...get().ordenes, { ...o, id, fecha: sello(), estado: 'Borrador', creadaPor: get().usuario?.nombre ?? '' }] })
       log('Orden de compra creada', id, o.sucursal)
     },
@@ -378,7 +383,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const subtotal = lineas.reduce((a, l) => a + l.cantidad * l.precio, 0)
       const descuento = Math.min(Math.max(0, v.descuento), subtotal)
       const factor = subtotal ? 1 - descuento / subtotal : 1 // el descuento se reparte entre las líneas
-      const id = `V-${1001 + get().ventas.length}`, usuario = get().usuario?.nombre ?? 'Sistema'
+      const id = nuevoNumero('V', get().ventas.map((x) => x.id)), usuario = get().usuario?.nombre ?? 'Sistema'
       const lin: LineaVenta[] = lineas.map((l) => l.productoId
         ? { productoId: l.productoId, cantidad: l.cantidad, precio: l.precio, costo: productos.find((x) => x.id === l.productoId)!.costo }
         : { productoId: '', concepto: l.concepto!.trim(), cantidad: l.cantidad, precio: l.precio, costo: Math.max(0, l.costo ?? 0) })
