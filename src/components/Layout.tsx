@@ -10,6 +10,7 @@ import { Asistente } from './Asistente'
 import { cx } from './ui'
 import { plural } from '../lib/format'
 import { enQuiebre } from '../lib/inventario'
+import { avisosProveedores } from '../lib/proveedores'
 import { normalizar } from '../lib/preguntas'
 import { useTx } from '../lib/idioma'
 import { SelectorIdioma } from './SelectorIdioma'
@@ -93,7 +94,7 @@ function Paleta({ abierta, cerrar }: { abierta: boolean; cerrar: () => void }) {
 export function Layout({ children }: { children: ReactNode }) {
   const tx = useTx()
   const nombre = (id: string, es: string) => (TRAD[id] ? tx(es, TRAD[id][0], TRAD[id][1]) : es)
-  const { usuario, pagina, ir, tema, licencia, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, tareas, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
+  const { usuario, pagina, ir, tema, licencia, setTema, presentacion, setPresentacion, sucursal, setSucursal, productos, ordenes, tareas, proveedores, empresa, sucursales: SUCURSALES, menuColapsado: colapsado, setMenuColapsado: setColapsado } = useApp()
   const [movil, setMovil] = useState(false)
   const [paleta, setPaleta] = useState(false)
   const [notif, setNotif] = useState(false)
@@ -105,13 +106,18 @@ export function Layout({ children }: { children: ReactNode }) {
   if (!usuario) return null
   const permitidas = permisosDe(usuario)
   const hoy = new Date().toISOString().slice(0, 10)
-  const alertas = [
+  // Quien ve Compras recibe los avisos de proveedores (a quién pedir lo que falta y a qué distancia, etc.)
+  const conProveedores = permitidas.includes('compras') && proveedores.length > 0
+  const tieneProv = new Set(proveedores.map((p) => p.id))
+  const alertas: { t: string; m: string; ir?: Pagina }[] = [
     // Tareas asignadas a quien ingresó (las vencidas primero)
     ...tareas.filter((t) => t.asignados.includes(usuario.id) && (t.estado === 'pendiente' || t.estado === 'progreso')).sort((a, b) => (a.vence || '9999').localeCompare(b.vence || '9999')).slice(0, 5)
-      .map((t) => ({ t: t.vence && t.vence < hoy ? 'rojo' : 'ambar', m: `${tx('Tarea para usted', 'Task for you', 'Tarefa para você')}: ${t.titulo}${t.vence ? ` · ${t.vence < hoy ? tx('venció', 'overdue', 'venceu') : tx('vence', 'due', 'vence')} ${t.vence.slice(8)}/${t.vence.slice(5, 7)}` : ''}` })),
-    ...productos.filter((p) => enQuiebre(p)).slice(0, 6).map((p) => ({ t: 'rojo', m: `Quiebre de stock: ${p.nombre}` })),
-    ...ordenes.filter((o) => o.estado === 'Borrador').map((o) => ({ t: 'ambar', m: `${o.id} pendiente de aprobación` })),
-  ]
+      .map((t) => ({ t: t.vence && t.vence < hoy ? 'rojo' : 'ambar', m: `${tx('Tarea para usted', 'Task for you', 'Tarefa para você')}: ${t.titulo}${t.vence ? ` · ${t.vence < hoy ? tx('venció', 'overdue', 'venceu') : tx('vence', 'due', 'vence')} ${t.vence.slice(8)}/${t.vence.slice(5, 7)}` : ''}`, ir: 'espacio' as Pagina })),
+    ...productos.filter((p) => enQuiebre(p) && !(conProveedores && tieneProv.has(p.proveedorId))).slice(0, 6).map((p) => ({ t: 'rojo', m: `Quiebre de stock: ${p.nombre}`, ir: 'productos' as Pagina })),
+    ...(conProveedores ? avisosProveedores({ proveedores, productos, sucursales: SUCURSALES, ordenes }).slice(0, 8).map((a) => ({ ...a, ir: 'compras' as Pagina })) : []),
+    ...ordenes.filter((o) => o.estado === 'Borrador').map((o) => ({ t: 'ambar', m: `${o.id} pendiente de aprobación`, ir: 'compras' as Pagina })),
+  ].map((a) => (a.ir && a.ir !== 'espacio' && !permitidas.includes(a.ir) ? { ...a, ir: undefined } : a))
+  const urgentes = alertas.filter((a) => a.t !== 'info').length
   const item = (m: (typeof MENU)[number]) => (
     <button key={m.id} onClick={() => { ir(m.id); setMovil(false) }} aria-label={nombre(m.id, m.label)} className={cx('group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition', colapsado && 'lg:justify-center lg:px-0', pagina === m.id ? 'text-fg' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
       {pagina === m.id && <motion.span layoutId="nav" className="absolute inset-0 rounded-xl border border-primario/30 bg-gradient-to-r from-primario/25 to-violeta/10" />}
@@ -170,8 +176,8 @@ export function Layout({ children }: { children: ReactNode }) {
           <SelectorTema />
           <button aria-label="Cambiar tema" onClick={() => setTema(tema === 'oscuro' ? 'claro' : 'oscuro')} className="rounded-xl p-2 hover:bg-fg/10">{tema === 'oscuro' ? <Sun size={17} /> : <Moon size={17} />}</button>
           <div className="relative">
-            <button aria-label="Notificaciones" onClick={() => setNotif(!notif)} className="relative rounded-xl p-2 hover:bg-fg/10"><Bell size={17} />{alertas.length > 0 && <span className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-peligro" />}</button>
-            {notif && <div className="glass absolute right-0 top-11 w-72 p-2" style={{ background: 'color-mix(in srgb, var(--bg2) 92%, transparent)' }}>{alertas.length ? alertas.map((a, k) => <div key={k} className="flex items-start gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-fg/5"><span className={cx('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', a.t === 'rojo' ? 'bg-peligro' : 'bg-alerta')} />{a.m}</div>) : <div className="p-2 text-xs text-muted">{tx('Sin alertas', 'No alerts', 'Sem alertas')}</div>}</div>}
+            <button aria-label="Notificaciones" onClick={() => setNotif(!notif)} className="relative rounded-xl p-2 hover:bg-fg/10"><Bell size={17} />{urgentes > 0 && <span className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-peligro" />}</button>
+            {notif && <div className="glass absolute right-0 top-11 z-50 w-80 p-2 max-sm:fixed max-sm:inset-x-3 max-sm:top-20 max-sm:w-auto" style={{ background: 'color-mix(in srgb, var(--bg2) 98%, transparent)' }}>{alertas.length ? <div className="max-h-[60vh] overflow-y-auto">{alertas.map((a, k) => <button type="button" key={k} onClick={() => { if (a.ir) { ir(a.ir); setNotif(false) } }} className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-fg/5"><span className={cx('mt-1 h-1.5 w-1.5 shrink-0 rounded-full', a.t === 'rojo' ? 'bg-peligro' : a.t === 'verde' ? 'bg-exito' : a.t === 'info' ? 'bg-cian' : 'bg-alerta')} />{a.m}</button>)}</div> : <div className="p-2 text-xs text-muted">{tx('Sin alertas', 'No alerts', 'Sem alertas')}</div>}</div>}
           </div>
           <IconoNube />
           <div className="flex items-center gap-2 border-l border-fg/10 pl-2">

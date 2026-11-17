@@ -1,18 +1,22 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
-import { Building2, Globe2, Landmark, MapPin, RefreshCw, Rotate3d, TrendingUp, Plus } from 'lucide-react'
-import { useApp, tieneRol } from '../store/useApp'
+import { Building2, Globe2, Landmark, MapPin, RefreshCw, Rotate3d, TrendingUp, Plus, Truck } from 'lucide-react'
+import { useApp, tieneRol, permisosDe } from '../store/useApp'
 import { Badge, Button, Card, Kpi, Scroll, Titulo, cx } from '../components/ui'
 import type { EstiloGlobo, Vuelo, ArcoGlobo } from '../components/Globo'
 import { bandera, pais, SIMBOLOS } from '../data/paises'
 import { money, num, pct } from '../lib/format'
 import { stockTotal, valorInventario, ventasRecientes } from '../lib/inventario'
 import { tiposDeCambio, type Tasas } from '../lib/geo'
+import { infoNivel, sucursalCercana, textoKm, tieneUbicacion } from '../lib/proveedores'
 
 const Globo = lazy(() => import('../components/Globo'))
 const nf = (v: number, d = 0) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: d, minimumFractionDigits: d }).format(v)
 
 export default function RedGlobal() {
-  const { sucursales, productos, movimientos, empresa, usuario, ir } = useApp()
+  const { sucursales, productos, movimientos, empresa, usuario, ir, proveedores } = useApp()
+  const [verProv, setVerProv] = useState(true)
+  const provMapa = useMemo(() => proveedores.filter(tieneUbicacion).map((p) => ({ p, cerca: sucursalCercana(p, sucursales) })).sort((a, b) => (a.cerca?.km ?? 1e9) - (b.cerca?.km ?? 1e9)), [proveedores, sucursales])
+  const sinUbicar = proveedores.length - provMapa.length
   const [estilo, setEstilo] = useState<EstiloGlobo>('oscuro'), [rotar, setRotar] = useState(true)
   const [sel, setSel] = useState<string | null>(null), [vuelo, setVuelo] = useState<Vuelo | null>(null)
   const [fx, setFx] = useState<Tasas | null>(null), [fxError, setFxError] = useState(false)
@@ -39,6 +43,7 @@ export default function RedGlobal() {
     return `${SIMBOLOS[m] ?? m} ${nf(valor * fx.tasas[m])}`
   }
   const volar = (id: string) => { const s = sucursales.find((x) => x.id === id); if (s) { setSel(id); setVuelo({ lng: s.lng, lat: s.lat, zoom: 13, t: Date.now() }) } }
+  const volarProv = (id: string) => { const p = proveedores.find((x) => x.id === id); if (p && tieneUbicacion(p)) { setVerProv(true); setSel(`prov:${id}`); setVuelo({ lng: p.lng!, lat: p.lat!, zoom: 13, t: Date.now() }) } }
 
   if (!sucursales.length) return <div className="space-y-5"><Titulo titulo="Red global" sub="Sus sucursales en el mundo" />
     <Card><div className="py-10 text-center"><Globe2 className="mx-auto mb-3 text-cian" size={40} /><p className="text-sm text-muted">Aún no hay sucursales registradas.</p>{tieneRol(usuario, 'Gerente General') && <Button variante="primario" className="mt-4" onClick={() => ir('configuracion')}><Plus size={15} />Agregar sucursales</Button>}</div></Card></div>
@@ -59,14 +64,16 @@ export default function RedGlobal() {
         <Card className="!p-3 xl:col-span-2">
           <div className="relative">
             <Suspense fallback={<div className="espacio h-[560px] rounded-xl" />}>
-              <Globo className="h-[460px] sm:h-[560px]" puntos={d.filas.map((f) => ({ id: f.s.id, nombre: `${bandera(f.s.pais)} ${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` }))}
+              <Globo className="h-[460px] sm:h-[560px]" puntos={[...d.filas.map((f) => ({ id: f.s.id, nombre: `${bandera(f.s.pais)} ${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` })), ...(verProv ? provMapa.map(({ p, cerca }) => ({ id: `prov:${p.id}`, tipo: 'proveedor' as const, nombre: `🚚 ${p.nombre}`, lat: p.lat!, lng: p.lng!, valor: 1, detalle: [p.nivel && `${infoNivel(p.nivel)?.icono} ${p.nivel}`, p.provee, p.lugar, cerca && `A ${textoKm(cerca.km)} de ${cerca.s.nombre}`].filter(Boolean).join('\n') })) : [])]}
                 arcos={d.arcos} seleccion={sel} onSeleccion={setSel} estilo={estilo} autoRotar={rotar} volarA={vuelo} />
             </Suspense>
             <div className="absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">
               <div className="flex overflow-hidden rounded-xl border border-white/15 bg-black/70 text-xs text-white backdrop-blur">{(['oscuro', 'satelite', 'claro'] as const).map((e) => <button key={e} onClick={() => setEstilo(e)} className={cx('px-3 py-1.5 capitalize transition', estilo === e ? 'bg-gradient-to-r from-primario to-violeta font-semibold text-black' : 'hover:bg-white/10')}>{e === 'satelite' ? 'Satélite' : e}</button>)}</div>
               <button onClick={() => setRotar(!rotar)} className={cx('flex items-center gap-1 rounded-xl border border-white/15 px-3 py-1.5 text-xs text-white backdrop-blur', rotar ? 'bg-primario/30' : 'bg-black/70')}><Rotate3d size={13} />Rotación</button>
+              {proveedores.length > 0 && <button onClick={() => setVerProv(!verProv)} className={cx('flex items-center gap-1 rounded-xl border border-white/15 px-3 py-1.5 text-xs text-white backdrop-blur', verProv ? 'bg-sky-500/40' : 'bg-black/70')}><Truck size={13} />Proveedores</button>}
               <button onClick={() => { setSel(null); setVuelo({ lng: sucursales[0].lng, lat: sucursales[0].lat, zoom: 1.6, t: Date.now() }) }} className="flex items-center gap-1 rounded-xl border border-white/15 bg-black/70 px-3 py-1.5 text-xs text-white backdrop-blur"><Globe2 size={13} />Vista mundial</button>
             </div>
+            <div className="pointer-events-none absolute bottom-9 left-3 flex gap-3 rounded-lg bg-black/60 px-2.5 py-1 text-[11px] text-white backdrop-blur"><span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#F3D58A]" />Sucursales</span>{verProv && provMapa.length > 0 && <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#38BDF8]" />Proveedores</span>}</div>
             <p className="pointer-events-none absolute bottom-3 left-3 hidden text-[11px] text-white/70 sm:block">Arrastre para girar · rueda o pellizco para acercar · clic derecho + arrastrar para inclinar</p>
           </div>
         </Card>
@@ -79,6 +86,16 @@ export default function RedGlobal() {
             </button></li>)}</ul></div>)}</div>
         </Card>
       </div>
+      {proveedores.length > 0 && <Card titulo={<span className="flex items-center gap-2"><Truck size={15} className="text-sky-400" />Proveedores en el mapa ({provMapa.length} de {proveedores.length})</span>} accion={sinUbicar > 0 && permisosDe(usuario).includes('compras') ? <Button onClick={() => ir('compras')}><MapPin size={14} />Ubicar {sinUbicar}</Button> : undefined}>
+        {provMapa.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{provMapa.map(({ p, cerca }) => (
+          <button key={p.id} type="button" onClick={() => volarProv(p.id)} className={cx('rounded-xl px-3 py-2 text-left transition', sel === `prov:${p.id}` ? 'bg-sky-500/20' : 'bg-fg/5 hover:bg-fg/10')}>
+            <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate font-medium">{p.nombre}</span>{p.nivel && <span className="shrink-0 text-[11px] text-muted">{infoNivel(p.nivel)?.icono} {p.nivel}</span>}</div>
+            <div className="mt-0.5 flex justify-between gap-2 text-xs text-muted"><span className="truncate">{[p.provee, p.ciudad].filter(Boolean).join(' · ') || p.lugar || '—'}</span>{cerca && <span className="shrink-0 text-cian">{textoKm(cerca.km)} de {cerca.s.id}</span>}</div>
+          </button>))}</div>
+          : <p className="text-sm text-muted">Ningún proveedor tiene ubicación todavía. En Compras → Proveedores, edite uno y abra «Ubicación en el mapa».</p>}
+        <p className="mt-3 text-xs text-muted">La distancia es en línea recta hasta su sucursal más cercana. Úsela para decidir a quién pedir cuando falte mercadería.</p>
+      </Card>}
+
       <Card titulo="Consolidado por país" accion={<span className="flex items-center gap-1.5 text-xs text-muted"><RefreshCw size={12} />{fx ? `Tipos de cambio reales (${empresa.moneda} base) · ${new Date(fx.fecha).toLocaleDateString('es-EC')} · open.er-api.com` : fxError ? 'Tipos de cambio no disponibles (sin internet)' : 'Cargando tipos de cambio…'}</span>}>
         <Scroll><table className="tabla"><thead><tr><th>País</th><th className="num">Sucursales</th><th className="num">Ciudades</th><th className="num">Unidades</th><th className="num">Inventario ({empresa.moneda})</th><th className="num">En moneda local</th><th className="num">Ventas 30 d</th><th className="num">Participación</th></tr></thead>
           <tbody>{d.porPais.map((p) => { const m = pais(p.pais)?.moneda ?? ''; return <tr key={p.pais}><td>{bandera(p.pais)} {pais(p.pais)?.nombre ?? p.pais}</td><td className="num">{p.sucursales}</td><td className="num">{p.ciudades}</td><td className="num">{num(p.unidades, 0)}</td><td className="num font-semibold">{money(p.valor, 0)}</td>

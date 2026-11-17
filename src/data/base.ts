@@ -4,7 +4,11 @@ export type SucursalId = string
 export type TipoSucursal = 'Matriz' | 'Sucursal' | 'Bodega' | 'Centro de distribución' | 'Tienda'
 export const TIPOS_SUCURSAL: TipoSucursal[] = ['Matriz', 'Sucursal', 'Bodega', 'Centro de distribución', 'Tienda']
 export interface Sucursal { id: SucursalId; nombre: string; tipo: TipoSucursal; pais: string; ciudad: string; direccion: string; lat: number; lng: number; activa: boolean }
-export interface Proveedor { id: string; nombre: string; ruc: string; ciudad: string; contacto: string; telefono: string; email: string; cumplimiento: number; indicePrecio: number }
+export interface Proveedor { id: string; nombre: string; /** Opcional: un emprendedor puede no tener RUC */ ruc: string; ciudad: string; contacto: string; telefono: string; email: string; cumplimiento: number; indicePrecio: number
+  /** Emprendedor, Junior, Senior o Experimentado */ nivel?: 'Emprendedor' | 'Junior' | 'Senior' | 'Experimentado'
+  /** Qué le provee (ej.: camisetas estampadas) */ provee?: string
+  /** Desde su casa, taller, local, fábrica o en línea */ lugar?: string
+  /** Ubicación en el mapa (opcional) */ lat?: number; lng?: number; direccion?: string; pais?: string }
 /** pais = código ISO 3166 (EC, CO, US…); moneda = ISO 4217 (USD, COP, EUR…) usada para costos y reportes. */
 export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string> }
 export interface Producto {

@@ -21,7 +21,8 @@ const ESTILOS: Record<EstiloGlobo, string | StyleSpecification> = {
     layers: [{ id: 'sat', type: 'raster', source: 'sat' }],
   },
 }
-export interface PuntoGlobo { id: string; nombre: string; lat: number; lng: number; valor?: number; detalle?: string }
+/** tipo 'proveedor' se dibuja en celeste (las sucursales, en dorado). */
+export interface PuntoGlobo { id: string; nombre: string; lat: number; lng: number; valor?: number; detalle?: string; tipo?: 'proveedor' }
 /** Arco entre dos puntos [lng, lat]; peso = intensidad (ej. unidades transferidas). */
 export interface ArcoGlobo { de: [number, number]; a: [number, number]; peso: number }
 export interface Vuelo { lng: number; lat: number; zoom?: number; t: number }
@@ -62,7 +63,7 @@ export default function Globo({ puntos, arcos = [], seleccion, estilo = 'oscuro'
     const max = Math.max(1, ...datos.current.puntos.map((p) => p.valor ?? 0))
     return { type: 'FeatureCollection', features: datos.current.puntos.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)).map((p) => ({
       type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-      properties: { id: p.id, nombre: p.nombre, detalle: p.detalle ?? '', r: 6 + 12 * Math.sqrt((p.valor ?? 0) / max), sel: p.id === datos.current.seleccion },
+      properties: { id: p.id, nombre: p.nombre, detalle: p.detalle ?? '', r: 6 + 12 * Math.sqrt((p.valor ?? 0) / max), sel: p.id === datos.current.seleccion, prov: p.tipo === 'proveedor' },
     })) }
   }
   const geoArcos = (): FeatureCollection => {
@@ -82,8 +83,8 @@ export default function Globo({ puntos, arcos = [], seleccion, estilo = 'oscuro'
       map.addSource('arcos', { type: 'geojson', data: geoArcos() })
       map.addLayer({ id: 'arcos', type: 'line', source: 'arcos', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#F3D58A', 'line-width': ['get', 'w'], 'line-opacity': 0.75, 'line-blur': 0.6 } })
       map.addSource('puntos', { type: 'geojson', data: geoPuntos() })
-      map.addLayer({ id: 'puntos-halo', type: 'circle', source: 'puntos', paint: { 'circle-radius': ['*', ['get', 'r'], 2.4], 'circle-color': ['case', ['get', 'sel'], '#10B981', '#D4AF37'], 'circle-opacity': 0.22, 'circle-blur': 0.7, 'circle-pitch-alignment': 'map' } })
-      map.addLayer({ id: 'puntos', type: 'circle', source: 'puntos', paint: { 'circle-radius': ['get', 'r'], 'circle-color': ['case', ['get', 'sel'], '#10B981', '#F3D58A'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } })
+      map.addLayer({ id: 'puntos-halo', type: 'circle', source: 'puntos', paint: { 'circle-radius': ['*', ['get', 'r'], 2.4], 'circle-color': ['case', ['get', 'sel'], '#10B981', ['get', 'prov'], '#0EA5E9', '#D4AF37'], 'circle-opacity': 0.22, 'circle-blur': 0.7, 'circle-pitch-alignment': 'map' } })
+      map.addLayer({ id: 'puntos', type: 'circle', source: 'puntos', paint: { 'circle-radius': ['get', 'r'], 'circle-color': ['case', ['get', 'sel'], '#10B981', ['get', 'prov'], '#38BDF8', '#F3D58A'], 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5, 'circle-pitch-alignment': 'map' } })
       if (primera && datos.current.puntos.length) { // encuadra todas las sucursales
         primera = false
         const b = new LngLatBounds()
