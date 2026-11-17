@@ -4,6 +4,7 @@
  */
 import type { Movimiento, Producto, Venta } from '../data/base'
 import { enQuiebre, stockTotal } from './inventario'
+import { serviciosDe } from './resumen'
 import { money, num, pct, plural } from './format'
 
 export type Clave = 'vencimiento' | 'mermas' | 'rotacion' | 'margen' | 'porCobrar' | 'canales' | 'sucursales' | 'quiebres'
@@ -69,6 +70,7 @@ export function indicadoresSector(perfil: PerfilSector, d: { productos: Producto
     if (m.tipo === 'Merma' && t <= 30) merma30 -= m.cantidad * m.costoUnit
     if (m.tipo === 'Venta' && t <= 90) { v90 -= m.cantidad * (m.precioUnit ?? precio.get(m.productoId) ?? 0); c90 -= m.cantidad * m.costoUnit }
   }
+  for (const x of serviciosDe(ventas)) if (dias(x.fecha) <= 90) { v90 += x.monto; c90 += x.costo } // servicios y otros ingresos
   const valor = productos.reduce((a, p) => a + stockTotal(p) * p.costo, 0)
   const calc: Record<Clave, () => Indicador> = {
     vencimiento: () => {

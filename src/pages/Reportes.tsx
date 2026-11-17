@@ -12,8 +12,8 @@ import { totalOC } from './Compras'
 export default function Reportes() {
   const { productos, movimientos, ordenes, auditoria, proveedores: PROVEEDORES, sucursales } = useApp()
   const p = useEcon((s) => s.p), hayEval = useEcon((s) => !!s.activa)
-  const { sucursales: sucs, proveedores, empresa } = useApp()
-  const a = useMemo(() => analizarNegocio({ productos, movimientos, ordenes, sucursales: sucs, proveedores, p: hayEval ? p : undefined, empresa: empresa.nombre }), [productos, movimientos, ordenes, sucs, proveedores, p, hayEval, empresa.nombre])
+  const { sucursales: sucs, proveedores, empresa, ventas, gastos } = useApp()
+  const a = useMemo(() => analizarNegocio({ productos, movimientos, ordenes, sucursales: sucs, proveedores, p: hayEval ? p : undefined, empresa: empresa.nombre, ventas, gastos }), [productos, movimientos, ordenes, sucs, proveedores, p, hayEval, empresa.nombre, ventas, gastos])
   const estilo: Record<Nivel, [string, JSX.Element]> = { critico: ['border-peligro/40 bg-peligro/10', <AlertOctagon key="c" size={16} className="text-peligro" />], alerta: ['border-alerta/40 bg-alerta/10', <AlertTriangle key="a" size={16} className="text-alerta" />], oportunidad: ['border-cian/40 bg-cian/10', <Lightbulb key="o" size={16} className="text-cian" />], ok: ['border-exito/40 bg-exito/10', <CheckCircle2 key="k" size={16} className="text-exito" />] }
   const reportes = [
     { t: 'Inventario valorizado', d: 'Stock por sucursal, costo, precio, lote y vencimiento', f: (x: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', ...sucursales.map((x) => x.id), 'Total', 'Valor'], productos.map((q) => [q.sku, q.nombre, q.categoria, ...sucursales.map((x) => q.stock[x.id] ?? 0), stockTotal(q), money(stockTotal(q) * q.costo)]), x) },

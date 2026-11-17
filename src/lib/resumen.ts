@@ -69,8 +69,8 @@ export const nombrePeriodo = (anio: number, mes: number) => (mes < 0 ? `Todo ${a
 export const cambioTrasCierre = (c: Cierre, a: Agregado) => Math.abs(c.neta - a.neta) >= 0.005 || c.unidades !== a.unidades
 
 /** Años del selector: desde el dato más antiguo hasta el año actual. */
-export function anios(movs: Movimiento[], gastos: Gasto[], cierres: Cierre[]) {
-  const ys = [new Date().getFullYear(), ...movs.filter((m) => m.tipo === 'Venta').map((m) => periodoDe(m.fecha).anio), ...gastos.map((g) => periodoDe(g.fecha).anio), ...cierres.map((c) => c.anio)].filter((y) => y > 1900 && y < 3000)
+export function anios(movs: Movimiento[], gastos: Gasto[], cierres: Cierre[], ventas: Venta[] = []) {
+  const ys = [new Date().getFullYear(), ...movs.filter((m) => m.tipo === 'Venta').map((m) => periodoDe(m.fecha).anio), ...ventas.map((v) => periodoDe(v.fecha).anio), ...gastos.map((g) => periodoDe(g.fecha).anio), ...cierres.map((c) => c.anio)].filter((y) => y > 1900 && y < 3000)
   const lo = Math.min(...ys), hi = Math.max(...ys)
   return Array.from({ length: hi - lo + 1 }, (_, k) => hi - k)
 }

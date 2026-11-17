@@ -2,7 +2,8 @@
  * Salud del negocio: puntaje de 0 a 100 con 5 factores medibles y nivel de rendimiento (bajo, medio o alto).
  * Sirve igual para un emprendimiento que para una multinacional; las metas son referencias generales.
  */
-import type { Movimiento, Producto } from '../data/base'
+import type { Movimiento, Producto, Venta } from '../data/base'
+import { serviciosDe } from './resumen'
 import { enQuiebre, stockTotal } from './inventario'
 import { num, pct } from './format'
 
@@ -12,7 +13,8 @@ export interface Factor { nombre: string; valor: string; puntos: number; max: nu
 const lim = (x: number) => Math.max(0, Math.min(1, x))
 
 /** margenMeta: margen bruto de referencia del sector (40 % si no se indica). */
-export function saludNegocio(movs: Movimiento[], productos: Producto[], ahora = Date.now(), margenMeta = 0.4) {
+/** ventas (opcional): para contar también los servicios y otros ingresos que no pasan por el inventario. */
+export function saludNegocio(movs: Movimiento[], productos: Producto[], ahora = Date.now(), margenMeta = 0.4, ventas: Venta[] = []) {
   const precio = new Map(productos.map((p) => [p.id, p.precio]))
   let v90 = 0, c90 = 0, vAntes = 0, cmv30 = 0, movidas = 0, corregidas = 0
   for (const m of movs) {
@@ -22,6 +24,10 @@ export function saludNegocio(movs: Movimiento[], productos: Producto[], ahora = 
     const dias = (ahora - new Date(m.fecha).getTime()) / 864e5, q = -m.cantidad, v = q * (m.precioUnit ?? precio.get(m.productoId) ?? 0)
     if (dias <= 90) { v90 += v; c90 += q * m.costoUnit } else if (dias <= 180) vAntes += v
     if (dias <= 30) cmv30 += q * m.costoUnit
+  }
+  for (const x of serviciosDe(ventas)) {
+    const dias = (ahora - new Date(x.fecha).getTime()) / 864e5
+    if (dias <= 90) { v90 += x.monto; c90 += x.costo } else if (dias <= 180) vAntes += x.monto
   }
   const valor = productos.reduce((a, p) => a + stockTotal(p) * p.costo, 0)
   const margen = v90 ? (v90 - c90) / v90 : 0

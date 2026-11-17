@@ -19,7 +19,7 @@ export function Asistente() {
   const u = app.usuario
   const enviar = (texto: string) => {
     if (!texto.trim()) return
-    const r = asistente(texto, { productos: app.productos, movimientos: app.movimientos, ordenes: app.ordenes, proveedores: app.proveedores, sucursales: app.sucursales, empresa: app.empresa, rol: u.rol, nombre: u.nombre, p: econ.p, hayEval: !!econ.activa })
+    const r = asistente(texto, { productos: app.productos, movimientos: app.movimientos, ordenes: app.ordenes, proveedores: app.proveedores, sucursales: app.sucursales, empresa: app.empresa, rol: u.rol, nombre: u.nombre, p: econ.p, hayEval: !!econ.activa, ventas: app.ventas, gastos: app.gastos })
     setMsgs((m) => [...m, { de: 'yo', r: { texto } }, { de: 'ia', r }]); setQ('')
   }
   const inicio: Msg = { de: 'ia', r: { texto: `Hola, ${u.nombre.split(' ')[0]} 👋 Pregúnteme cómo usar NEXORA o consulte sus datos.`, sugerencias: SUGERENCIAS } }

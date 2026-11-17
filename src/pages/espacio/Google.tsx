@@ -47,7 +47,7 @@ export default function Google() {
 
   /** Resumen del negocio en texto: sirve para Gemini, Documentos y NotebookLM. */
   const resumenNegocio = () => {
-    const a = agregar(movimientos, productos, gastos, Y, M, 'TODAS', ventas), s = saludNegocio(movimientos, productos, Date.now(), perfil.margenMeta)
+    const a = agregar(movimientos, productos, gastos, Y, M, 'TODAS', ventas), s = saludNegocio(movimientos, productos, Date.now(), perfil.margenMeta, ventas)
     return [`Empresa: ${empresa.nombre || 'Mi empresa'} · ${empresa.sector || perfil.nombre}${empresa.tamano ? ` · ${empresa.tamano}` : ''} · ${sucursales.length} sucursal(es)`,
       `Periodo: ${nombrePeriodo(Y, M)}`,
       `Ventas: ${money(a.ventas)} · Costo de lo vendido: ${money(a.costo)} · Gastos: ${money(a.gastos)} · Ganancia neta: ${money(a.neta)} (margen ${pct(a.margen, 1)})`,

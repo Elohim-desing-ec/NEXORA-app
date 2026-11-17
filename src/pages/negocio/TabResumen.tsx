@@ -55,7 +55,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <select className="inp w-auto" aria-label="Año" value={anio} onChange={(e) => setAnio(+e.target.value)}>{anios(movimientos, gastos, cierres).map((y) => <option key={y}>{y}</option>)}</select>
+        <select className="inp w-auto" aria-label="Año" value={anio} onChange={(e) => setAnio(+e.target.value)}>{anios(movimientos, gastos, cierres, ventas).map((y) => <option key={y}>{y}</option>)}</select>
         <select className="inp w-auto" aria-label="Mes" value={mes} onChange={(e) => setMes(+e.target.value)}><option value={-1}>Todo el año</option>{MESES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
         {puede && <Button variante="primario" onClick={cerrar}><Lock size={15} />{cierre ? 'Actualizar cierre' : mes < 0 ? 'Cerrar año' : 'Cerrar mes'}</Button>}
       </div>

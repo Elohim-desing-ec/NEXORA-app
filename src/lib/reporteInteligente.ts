@@ -2,7 +2,8 @@
  * Reporte ejecutivo inteligente: analiza automáticamente los datos de la empresa y genera
  * hallazgos con acciones recomendadas (reducir pérdidas, automatizar compras, liberar capital).
  */
-import type { Movimiento, Orden, Producto, Proveedor, Sucursal } from '../data/base'
+import type { Gasto, Movimiento, Orden, Producto, Proveedor, Sucursal, Venta } from '../data/base'
+import { serviciosDe } from './resumen'
 import type { Params } from './finance'
 import * as F from './finance'
 import { anomalias, reorden } from './ai'
@@ -11,7 +12,7 @@ import { money, num, pct } from './format'
 
 export type Nivel = 'critico' | 'alerta' | 'oportunidad' | 'ok'
 export interface Hallazgo { nivel: Nivel; titulo: string; detalle: string; accion: string }
-export interface Datos { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; sucursales: Sucursal[]; proveedores: Proveedor[]; /** Evaluación económica abierta (si la empresa ya creó una) */ p?: Params; empresa: string }
+export interface Datos { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; sucursales: Sucursal[]; proveedores: Proveedor[]; /** Evaluación económica abierta (si la empresa ya creó una) */ p?: Params; empresa: string; /** Ventas (para servicios y cuentas por cobrar) y gastos del negocio */ ventas?: Venta[]; gastos?: Gasto[] }
 
 const dias = (iso: string) => (Date.now() - new Date(iso).getTime()) / 864e5
 
@@ -19,8 +20,14 @@ export function analizarNegocio(d: Datos) {
   const { productos: ps, movimientos: ms } = d
   const valor = valorInventario(ps), precio = new Map(ps.map((p) => [p.id, p.precio]))
   const ventas30 = ms.filter((m) => m.tipo === 'Venta' && dias(m.fecha) <= 30)
-  const ingresos30 = ventas30.reduce((a, m) => a - m.cantidad * (precio.get(m.productoId) ?? 0), 0)
-  const cmv30 = ventas30.reduce((a, m) => a - m.cantidad * m.costoUnit, 0)
+  const cmv30 = ventas30.reduce((a, m) => a - m.cantidad * m.costoUnit, 0) // solo inventario (para la rotación)
+  // Servicios y otros ingresos (no pasan por el inventario) y gastos del negocio de los últimos 30 días
+  const serv30 = serviciosDe(d.ventas ?? []).filter((x) => dias(x.fecha) <= 30)
+  const ingresos30 = ventas30.reduce((a, m) => a - m.cantidad * (m.precioUnit ?? precio.get(m.productoId) ?? 0), 0) + serv30.reduce((a, x) => a + x.monto, 0)
+  const costo30 = cmv30 + serv30.reduce((a, x) => a + x.costo, 0)
+  const gastos30 = (d.gastos ?? []).filter((g) => dias(`${g.fecha.slice(0, 10)}T12:00:00`) <= 30).reduce((a, g) => a + g.monto, 0)
+  const neta30 = ingresos30 - costo30 - gastos30
+  const porCobrar = (d.ventas ?? []).filter((v) => v.estado === 'Por cobrar')
   const mermas90 = ms.filter((m) => m.tipo === 'Merma' && dias(m.fecha) <= 90).reduce((a, m) => a - m.cantidad * m.costoUnit, 0)
   const cmv90 = ms.filter((m) => m.tipo === 'Venta' && dias(m.fecha) <= 90).reduce((a, m) => a - m.cantidad * m.costoUnit, 0)
   const quiebres = ps.filter((p) => enQuiebre(p))
@@ -52,15 +59,17 @@ export function analizarNegocio(d: Datos) {
   if (capitalExceso > 0) H.push({ nivel: 'oportunidad', titulo: `${money(capitalExceso, 0)} de capital inmovilizado en sobrestock`, detalle: `${sobrestock.length} producto(s) superan su stock máximo.`, accion: 'Transferir excedentes a sucursales con quiebre o pausar compras de estos productos.' })
   if (sinMov.length) H.push({ nivel: 'oportunidad', titulo: `${sinMov.length} producto(s) sin ventas en 90 días`, detalle: `Valor detenido: ${money(sinMov.reduce((a, p) => a + stockTotal(p) * p.costo, 0), 0)}.`, accion: 'Evaluar promociones, devolución al proveedor o liquidación.' })
   if (porVencer.length) H.push({ nivel: 'alerta', titulo: `${porVencer.length} producto(s) vencen en menos de 60 días`, detalle: porVencer.slice(0, 5).map((p) => p.nombre).join(', '), accion: 'Priorizar su venta (FEFO: primero en vencer, primero en salir).' })
+  if (gastos30 > 0 && neta30 < 0) H.push({ nivel: 'critico', titulo: `Sus gastos superan lo que gana: pérdida de ${money(-neta30, 0)} en 30 días`, detalle: `Ventas ${money(ingresos30, 0)} − costos ${money(costo30, 0)} − gastos ${money(gastos30, 0)}.`, accion: 'Revise los gastos más altos en Resumen → Gastos y suba ventas o precios donde el margen sea bajo.' })
+  if (porCobrar.length) H.push({ nivel: 'alerta', titulo: `${money(porCobrar.reduce((a, v) => a + v.total, 0), 0)} por cobrar en ${porCobrar.length} venta(s)`, detalle: porCobrar.slice(0, 5).map((v) => `${v.id}${v.cliente ? ` (${v.cliente})` : ''}`).join(', '), accion: 'Cobrar y marcar la venta como Pagada en Resumen → Ventas.' })
   if (pendientes.length) H.push({ nivel: 'alerta', titulo: `${pendientes.length} orden(es) de compra pendientes`, detalle: pendientes.map((o) => `${o.id} (${o.estado})`).join(', '), accion: 'Aprobar o recibir para que el stock se actualice.' })
   if (provBajos.length) H.push({ nivel: 'alerta', titulo: `${provBajos.length} proveedor(es) con cumplimiento menor al 80 %`, detalle: provBajos.map((p) => p.nombre).join(', '), accion: 'Negociar plazos o buscar proveedores alternativos.' })
   if (d.p && K && R) H.push({ nivel: R.reemplazarAhora && K.VPN > 0 ? 'ok' : 'alerta', titulo: `Evaluación «${F.etq(d.p).evaluacion}»: ahorro de ${money(K.A, 0)} por año`, detalle: `VPN ${money(K.VPN, 0)} · TIR ${pct(K.TIR, 1)} · recuperación ${num(K.recSimple)} años · veredicto: ${R.veredicto}.`, accion: 'Mantener el seguimiento del ahorro real frente al estimado.' })
-  if (H.length === (d.p ? 1 : 0) && ps.length) H.unshift({ nivel: 'ok', titulo: 'Operación saludable', detalle: 'No se detectaron quiebres, mermas relevantes ni anomalías.', accion: 'Continuar con el registro diario de movimientos.' })
+  if (H.length === (d.p ? 1 : 0) && (ps.length || ingresos30)) H.unshift({ nivel: 'ok', titulo: 'Operación saludable', detalle: 'No se detectaron quiebres, mermas relevantes ni anomalías.', accion: 'Continuar con el registro diario de movimientos.' })
 
   const criticos = H.filter((h) => h.nivel === 'critico').length
-  const resumen = ps.length
-    ? `${d.empresa || 'La empresa'} opera ${d.sucursales.length} sucursal(es) en ${new Set(d.sucursales.map((s) => s.pais)).size} país(es) con un inventario de ${money(valor, 0)} en ${ps.length} productos. En los últimos 30 días vendió ${money(ingresos30, 0)} con un margen bruto de ${money(ingresos30 - cmv30, 0)} (${pct(ingresos30 ? (ingresos30 - cmv30) / ingresos30 : 0, 1)}) y una rotación anualizada de ${num((cmv30 * 12) / Math.max(1, valor), 1)} veces. ${criticos ? `Hay ${criticos} situación(es) crítica(s) que requieren acción inmediata.` : 'No hay situaciones críticas.'} ${sugerencias.length ? `La IA recomienda reponer ${sugerencias.length} producto(s) por ${money(costoCompra, 0)}.` : ''}`
+  const resumen = ps.length || ingresos30 || gastos30
+    ? `${d.empresa || 'La empresa'} opera ${d.sucursales.length} sucursal(es) en ${new Set(d.sucursales.map((s) => s.pais)).size} país(es) con un inventario de ${money(valor, 0)} en ${ps.length} productos. En los últimos 30 días vendió ${money(ingresos30, 0)} con un margen bruto de ${money(ingresos30 - costo30, 0)} (${pct(ingresos30 ? (ingresos30 - costo30) / ingresos30 : 0, 1)}), gastó ${money(gastos30, 0)} en el negocio y su ganancia neta fue de ${money(neta30, 0)}, y una rotación anualizada de ${num((cmv30 * 12) / Math.max(1, valor), 1)} veces. ${criticos ? `Hay ${criticos} situación(es) crítica(s) que requieren acción inmediata.` : 'No hay situaciones críticas.'} ${sugerencias.length ? `La IA recomienda reponer ${sugerencias.length} producto(s) por ${money(costoCompra, 0)}.` : ''}`
     : 'Aún no hay productos registrados: el reporte se completará automáticamente a medida que se registren inventario y ventas.'
-  const kpis = [['Inventario', money(valor, 0)], ['Ventas 30 días', money(ingresos30, 0)], ['Margen bruto 30 días', money(ingresos30 - cmv30, 0)], ['Rotación anual', `${num((cmv30 * 12) / Math.max(1, valor), 1)}×`], ['Quiebres', String(quiebres.length)], ['Mermas 90 días', money(mermas90, 0)], ['Compra sugerida', money(costoCompra, 0)], ...(K ? [['Ahorro evaluado / año', money(K.A, 0)]] : [])] as [string, string][]
+  const kpis = [['Inventario', money(valor, 0)], ['Ventas 30 días', money(ingresos30, 0)], ['Margen bruto 30 días', money(ingresos30 - costo30, 0)], ['Gastos 30 días', money(gastos30, 0)], ['Ganancia neta 30 días', money(neta30, 0)], ['Rotación anual', `${num((cmv30 * 12) / Math.max(1, valor), 1)}×`], ['Quiebres', String(quiebres.length)], ['Mermas 90 días', money(mermas90, 0)], ['Compra sugerida', money(costoCompra, 0)], ...(K ? [['Ahorro evaluado / año', money(K.A, 0)]] : [])] as [string, string][]
   return { resumen, kpis, hallazgos: H, porSucursal, top }
 }

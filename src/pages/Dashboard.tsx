@@ -1,15 +1,15 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { motion } from 'framer-motion'
-import { Activity, AlertTriangle, Boxes, Briefcase, Coins, DollarSign, HeartPulse, PiggyBank, RefreshCw, ShieldCheck, ShoppingBag, Sparkles, TrendingDown } from 'lucide-react'
+import { Activity, AlertTriangle, Boxes, Briefcase, Coins, DollarSign, FileDown, Globe2, HandCoins, HeartPulse, LayoutGrid, PiggyBank, Receipt, RefreshCw, ShieldCheck, ShoppingCart, Sparkles, SquareKanban, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
-import { useApp, tieneRol } from '../store/useApp'
+import { useApp, tieneRol, permisosDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Badge, Card, Contador, Titulo, cx } from '../components/ui'
 import { COLORES, Degradados, Grafico, ejes, rejilla } from '../components/charts'
 import { money, num, pct, fechaHora, plural } from '../lib/format'
 import { enQuiebre, stockTotal, valorInventario } from '../lib/inventario'
 import { anomalias } from '../lib/ai'
-import { MESES, periodoDe, serviciosDe, variacion } from '../lib/resumen'
+import { MESES, agregar, gastosDe, hoyISO, periodoDe, serviciosDe, variacion } from '../lib/resumen'
 import { bandera } from '../data/paises'
 import { saludNegocio, type NivelSalud } from '../lib/salud'
 import { indicadoresSector, perfilDe } from '../lib/sectores'
@@ -117,8 +117,49 @@ function Medidor({ puntaje, nivel }: { puntaje: number; nivel: NivelSalud }) {
   )
 }
 
+/** Un vistazo a cada área de NEXORA (solo las que la persona puede ver), con lo que registró todo el equipo. */
+function TodoElNegocio() {
+  const { productos, ventas, gastos, ordenes, tareas, notas, clientes, auditoria, cierres, sucursal, sucursales, usuario, ir } = useApp()
+  const hoy = new Date(), Y = hoy.getFullYear(), M = hoy.getMonth(), hoyTxt = hoyISO()
+  const aqui = (s: string) => sucursal === 'TODAS' || s === sucursal
+  const g = gastosDe(gastos, Y, M, sucursal)
+  const porCat = new Map<string, number>(); for (const x of g) porCat.set(x.categoria || 'Otros', (porCat.get(x.categoria || 'Otros') ?? 0) + x.monto)
+  const mayor = [...porCat.entries()].sort((a, b) => b[1] - a[1])[0]
+  const vMes = ventas.filter((v) => v.estado !== 'Anulada' && aqui(v.sucursal) && periodoDe(v.fecha).anio === Y && periodoDe(v.fecha).mes === M)
+  const cobrar = ventas.filter((v) => v.estado === 'Por cobrar' && aqui(v.sucursal))
+  const abiertas = ordenes.filter((o) => o.estado !== 'Recibida' && aqui(o.sucursal))
+  const porRecibir = abiertas.reduce((a, o) => a + o.items.reduce((b, i) => b + i.cantidad * i.costo, 0), 0)
+  const unidades = productos.reduce((a, p) => a + stockTotal(p, sucursal), 0), bajos = productos.filter((p) => enQuiebre(p, sucursal)).length
+  const tAbiertas = tareas.filter((t) => t.estado === 'pendiente' || t.estado === 'progreso')
+  const vencidas = tAbiertas.filter((t) => t.vence && t.vence < hoyTxt).length, mias = tAbiertas.filter((t) => usuario && t.asignados.includes(usuario.id)).length
+  const deHoy = auditoria.filter((e) => new Date(e.fecha).toDateString() === hoy.toDateString())
+  const ver = permisosDe(usuario)
+  const areas: { id: Pagina; titulo: string; valor: string; detalle: string; icono: ReactNode; alerta?: boolean }[] = [
+    { id: 'resumen', titulo: 'Gastos del mes', valor: money(g.reduce((a, x) => a + x.monto, 0), 0), detalle: g.length ? `${plural(g.length, 'gasto', 'gastos')} · más alto: ${mayor[0]}` : 'Sin gastos este mes', icono: <Receipt size={16} /> },
+    { id: 'resumen', titulo: 'Por cobrar', valor: money(cobrar.reduce((a, v) => a + v.total, 0), 0), detalle: cobrar.length ? `${plural(cobrar.length, 'venta pendiente', 'ventas pendientes')} de pago` : 'Nadie le debe', icono: <HandCoins size={16} />, alerta: cobrar.length > 0 },
+    { id: 'resumen', titulo: 'Ventas registradas', valor: num(vMes.length, 0), detalle: `este mes · ${plural(clientes.length, 'cliente guardado', 'clientes guardados')}`, icono: <Wallet size={16} /> },
+    { id: 'compras', titulo: 'Compras pendientes', valor: num(abiertas.length, 0), detalle: abiertas.length ? `${money(porRecibir, 0)} por recibir · ${abiertas.filter((o) => o.estado === 'Borrador').length} por aprobar` : 'Ninguna orden abierta', icono: <ShoppingCart size={16} />, alerta: abiertas.some((o) => o.estado === 'Borrador') },
+    { id: 'productos', titulo: 'Inventario', valor: plural(productos.length, 'producto', 'productos'), detalle: `${num(unidades, 0)} u en stock${bajos ? ` · ${bajos} con stock bajo` : ''}`, icono: <Boxes size={16} />, alerta: bajos > 0 },
+    { id: 'red', titulo: 'Red global', valor: plural(sucursales.length, 'sucursal', 'sucursales'), detalle: plural(new Set(sucursales.map((s) => s.pais)).size, 'país', 'países'), icono: <Globe2 size={16} /> },
+    { id: 'espacio', titulo: 'Espacio de trabajo', valor: plural(tAbiertas.length, 'tarea abierta', 'tareas abiertas'), detalle: `${vencidas ? `${vencidas} vencida${vencidas > 1 ? 's' : ''} · ` : ''}${mias} suya${mias === 1 ? '' : 's'} · ${plural(notas.length, 'nota', 'notas')}`, icono: <SquareKanban size={16} />, alerta: vencidas > 0 },
+    { id: 'auditoria', titulo: 'Trazabilidad', valor: plural(deHoy.length, 'acción hoy', 'acciones hoy'), detalle: deHoy.length ? `Última: ${deHoy[deHoy.length - 1].accion} (${deHoy[deHoy.length - 1].usuario})` : 'Sin movimientos hoy', icono: <ShieldCheck size={16} /> },
+    { id: 'reportes', titulo: 'Reportes', valor: plural(cierres.length, 'cierre', 'cierres'), detalle: 'Ventas, gastos e inventario en Excel o PDF', icono: <FileDown size={16} /> },
+  ]
+  const visibles = areas.filter((a) => ver.includes(a.id))
+  if (!visibles.length) return null
+  return (
+    <Panel titulo={<span className="flex items-center gap-2"><LayoutGrid size={16} className="text-primario" />Todo su negocio</span>} sub="Lo que registra cualquier persona del equipo aparece aquí al instante. Toque un área para abrirla.">
+      <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">{visibles.map((a) => (
+        <button key={a.titulo} type="button" onClick={() => ir(a.id)} className="flex min-w-0 items-start gap-3 rounded-xl bg-fg/5 p-3 text-left transition hover:bg-primario/10">
+          <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-lg', a.alerta ? 'bg-peligro/15 text-peligro' : 'bg-primario/15 text-primario')}>{a.icono}</span>
+          <span className="min-w-0"><span className="block text-[11px] font-medium uppercase tracking-wide text-muted">{a.titulo}</span><span className="block truncate text-base font-semibold tnum">{a.valor}</span><span className="block text-xs text-muted">{a.detalle}</span></span>
+        </button>))}</div>
+    </Panel>
+  )
+}
+
 export default function Dashboard() {
-  const { productos, movimientos, ventas, sucursal, auditoria, empresa, sucursales: SUCURSALES, proveedores, usuario, ir, setSucursal } = useApp()
+  const { productos, movimientos, ventas, gastos, sucursal, auditoria, empresa, sucursales: SUCURSALES, proveedores, usuario, ir, setSucursal } = useApp()
   const perfil = perfilDe(empresa.sector)
   const p = useEcon((s) => s.p)
   const [vista, setVista] = useState<'resumen' | 'sucursal'>('resumen')
@@ -133,7 +174,7 @@ export default function Dashboard() {
     const precio = new Map(productos.map((x) => [x.id, x.precio])), cat = new Map(productos.map((x) => [x.id, x.categoria]))
     const valor = productos.reduce((s, x) => s + stockTotal(x, sucursal) * x.costo, 0)
     // Un solo recorrido de los movimientos: meses, categorías, ventas de 30 días por sucursal y valor del stock hace 30 días.
-    const meses = new Map<string, { ventas: number; costo: number; unidades: number; suc: Record<string, number> }>()
+    const meses = new Map<string, { ventas: number; costo: number; gastos: number; unidades: number; suc: Record<string, number> }>()
     const cats = new Map<string, { mes: number; mesAnt: number; anio: number; anioAnt: number; uMes: number; uMesAnt: number; uAnio: number; uAnioAnt: number }>()
     const v30: Record<string, number> = {}
     let cmv30 = 0, cambio30 = 0
@@ -144,7 +185,7 @@ export default function Dashboard() {
       if (m.tipo !== 'Venta') continue
       const q = -m.cantidad, v = q * (m.precioUnit ?? precio.get(m.productoId) ?? 0), pd = periodoDe(m.fecha)
       if (t > hace30) v30[m.sucursal] = (v30[m.sucursal] ?? 0) + v
-      const k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, unidades: 0, suc: {} }
+      const k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, gastos: 0, unidades: 0, suc: {} }
       mm.suc[m.sucursal] = (mm.suc[m.sucursal] ?? 0) + v
       if (aqui) { mm.ventas += v; mm.costo += q * m.costoUnit; mm.unidades += q }
       meses.set(k, mm)
@@ -161,26 +202,34 @@ export default function Dashboard() {
     for (const x of serviciosDe(ventas)) {
       const t = new Date(x.fecha).getTime(), aqui = sucursal === 'TODAS' || x.sucursal === sucursal, pd = periodoDe(x.fecha)
       if (t > hace30) v30[x.sucursal] = (v30[x.sucursal] ?? 0) + x.monto
-      const k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, unidades: 0, suc: {} }
+      const k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, gastos: 0, unidades: 0, suc: {} }
       mm.suc[x.sucursal] = (mm.suc[x.sucursal] ?? 0) + x.monto
       if (aqui) { mm.ventas += x.monto; mm.costo += x.costo }
       meses.set(k, mm)
       if (!aqui) continue
       const cc = cats.get('Servicios') ?? { mes: 0, mesAnt: 0, anio: 0, anioAnt: 0, uMes: 0, uMesAnt: 0, uAnio: 0, uAnioAnt: 0 }
-      if (pd.anio === Y && pd.mes === M) cc.mes += x.monto
-      if (pd.anio === ant.a && pd.mes === ant.m) cc.mesAnt += x.monto
-      if (pd.anio === Y) cc.anio += x.monto
-      if (pd.anio === Y - 1) cc.anioAnt += x.monto
+      if (pd.anio === Y && pd.mes === M) { cc.mes += x.monto; cc.uMes += x.cantidad }
+      if (pd.anio === ant.a && pd.mes === ant.m) { cc.mesAnt += x.monto; cc.uMesAnt += x.cantidad }
+      if (pd.anio === Y) { cc.anio += x.monto; cc.uAnio += x.cantidad }
+      if (pd.anio === Y - 1) { cc.anioAnt += x.monto; cc.uAnioAnt += x.cantidad }
       cats.set('Servicios', cc)
     }
-    const de = (a: number, m: number) => meses.get(`${a}-${m}`) ?? { ventas: 0, costo: 0, unidades: 0, suc: {} as Record<string, number> }
+    // Gastos (arriendo, sueldos, luz…): con una sucursal elegida, solo los de esa sucursal (igual que en Resumen)
+    let hayGastos = false
+    for (const g of gastos) {
+      if (sucursal !== 'TODAS' && g.sucursal !== sucursal) continue
+      const pd = periodoDe(g.fecha), k = `${pd.anio}-${pd.mes}`, mm = meses.get(k) ?? { ventas: 0, costo: 0, gastos: 0, unidades: 0, suc: {} }
+      mm.gastos += g.monto; hayGastos = true
+      meses.set(k, mm)
+    }
+    const de = (a: number, m: number) => meses.get(`${a}-${m}`) ?? { ventas: 0, costo: 0, gastos: 0, unidades: 0, suc: {} as Record<string, number> }
     const mes = de(Y, M), mesAnt = de(ant.a, ant.m)
     // Barras: este año (enero → mes actual) o los últimos 12 meses
     const lista = rango === 'anio' ? Array.from({ length: M + 1 }, (_, i) => ({ a: Y, m: i })) : Array.from({ length: 12 }, (_, k) => { const f = new Date(Y, M - 11 + k, 1); return { a: f.getFullYear(), m: f.getMonth() } })
     const v180: Record<string, number> = {}
     for (const { a, m } of lista) for (const [s, v] of Object.entries(de(a, m).suc)) v180[s] = (v180[s] ?? 0) + v
     const top = [...SUCURSALES].sort((a, b) => (v180[b.id] ?? 0) - (v180[a.id] ?? 0)).slice(0, 6).map((s) => s.id)
-    const barras = lista.map(({ a, m }) => { const x = de(a, m), otras = Object.entries(x.suc).filter(([s]) => !top.includes(s)).reduce((s, [, v]) => s + v, 0); return { mes: `${MESES[m].slice(0, 3)}${rango === 'doce' ? ` ${String(a).slice(2)}` : ''}`, ventas: x.ventas, costo: x.costo, ...Object.fromEntries(top.map((s) => [s, x.suc[s] ?? 0])), OTRAS: otras } })
+    const barras = lista.map(({ a, m }) => { const x = de(a, m), otras = Object.entries(x.suc).filter(([s]) => !top.includes(s)).reduce((s, [, v]) => s + v, 0); return { mes: `${MESES[m].slice(0, 3)}${rango === 'doce' ? ` ${String(a).slice(2)}` : ''}`, ventas: x.ventas, costo: x.costo, gastos: x.gastos, ...Object.fromEntries(top.map((s) => [s, x.suc[s] ?? 0])), OTRAS: otras } })
     // Categorías: top 3 del periodo
     const periodo = catP ?? ([...cats.values()].some((c) => c.mes > 0) ? 'mes' : 'anioC')
     const catLista = [...cats.entries()].map(([nombre, c]) => periodo === 'mes' ? { nombre, valor: c.mes, antes: c.mesAnt, u: c.uMes, uAntes: c.uMesAnt } : { nombre, valor: c.anio, antes: c.anioAnt, u: c.uAnio, uAntes: c.uAnioAnt }).filter((c) => c.valor > 0).sort((a, b) => b.valor - a.valor)
@@ -193,14 +242,16 @@ export default function Dashboard() {
       valor, valorAntes: valor - cambio30, mes, mesAnt, barras, top, periodo, catLista, catTotal: catLista.reduce((a, c) => a + c.valor, 0),
       catU: catLista.reduce((a, c) => a + c.u, 0), catUAntes: catLista.reduce((a, c) => a + c.uAntes, 0), porSuc,
       rotacion: (cmv30 * 12) / Math.max(1, valor), exactitud: movidas ? 1 - corregidas / movidas : 1,
-      salud: saludNegocio(movimientos, productos, Date.now(), perfil.margenMeta), sector: indicadoresSector(perfil, { productos, movimientos, ventas, sucursales: SUCURSALES }), quiebres: productos.filter((x) => enQuiebre(x, sucursal)), anom: anomalias(movimientos).slice(0, 5), hayVentas: meses.size > 0,
+      salud: saludNegocio(movimientos, productos, Date.now(), perfil.margenMeta, ventas), sector: indicadoresSector(perfil, { productos, movimientos, ventas, sucursales: SUCURSALES }), quiebres: productos.filter((x) => enQuiebre(x, sucursal)), anom: anomalias(movimientos).slice(0, 5), hayVentas: meses.size > 0, hayGastos,
+      // Resultado del mes con la misma cuenta que Resumen: ventas − costo de lo vendido − gastos
+      res: agregar(movimientos, productos, gastos, Y, M, sucursal, ventas), resAnt: agregar(movimientos, productos, gastos, ant.a, ant.m, sucursal, ventas),
     }
-  }, [productos, movimientos, ventas, sucursal, SUCURSALES, rango, metrica, catP, perfil])
+  }, [productos, movimientos, ventas, gastos, sucursal, SUCURSALES, rango, metrica, catP, perfil])
 
   const hayEval = useEcon((s) => !!s.activa)
   const ahorro = hayEval ? F.ahorroAnual(p) : 0, vpn = hayEval ? F.indicadores(p).VPN : 0
   const hoyTxt = new Date().toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const colores: Record<string, string> = { ventas: COLORES[0], costo: 'rgb(var(--muted))', OTRAS: '#A8A29E', ...Object.fromEntries(d.top.map((s, k) => [s, COLORES[k % COLORES.length]])) }
+  const colores: Record<string, string> = { ventas: COLORES[0], costo: 'rgb(var(--muted))', gastos: '#F43F5E', OTRAS: '#A8A29E', ...Object.fromEntries(d.top.map((s, k) => [s, COLORES[k % COLORES.length]])) }
   const top3 = d.catLista.slice(0, 3), act = activo !== null ? top3[activo] : null
   const maxSuc = Math.max(1, ...d.porSuc.map((x) => x.v)), bur = d.porSuc.slice(0, 4).filter((x) => x.v > 0)
 
@@ -226,26 +277,26 @@ export default function Dashboard() {
         {/* Indicadores principales */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Tarjeta i={0} destacada titulo="Ventas del mes" valor={d.mes.ventas} formato={f$} icono={<Coins size={20} />} cambio={<Cambio oscuro v={variacion(d.mes.ventas, d.mesAnt.ventas)} />} nota="vs mes anterior" onClick={() => ir('resumen')} />
-          <Tarjeta i={1} titulo="Valor del inventario" valor={d.valor} formato={f$} icono={<DollarSign size={20} />} cambio={<Cambio v={variacion(d.valor, d.valorAntes)} />} nota="vs hace 30 días" onClick={() => ir('productos')} />
-          <Tarjeta i={2} titulo="Unidades vendidas" valor={d.mes.unidades} formato={fU} icono={<ShoppingBag size={20} />} cambio={<Cambio v={variacion(d.mes.unidades, d.mesAnt.unidades)} />} nota="este mes vs el anterior" onClick={() => ir('resumen')} />
-          <Tarjeta i={3} titulo="Productos en quiebre" valor={d.quiebres.length} formato={fU} icono={<AlertTriangle size={20} />} cambio={d.quiebres.length ? <Etiqueta tono="rojo">{pct(d.quiebres.length / Math.max(1, productos.length), 0)} del catálogo</Etiqueta> : <Etiqueta tono="verde">Todo en orden</Etiqueta>} nota="Stock < 1/3 del mínimo" onClick={() => ir('productos')} />
+          <Tarjeta i={1} titulo="Ganancia neta del mes" valor={d.res.neta} formato={f$} icono={<TrendingUp size={20} />} cambio={<Cambio v={variacion(d.res.neta, d.resAnt.neta)} />} nota="ventas − costos − gastos" onClick={() => ir('resumen')} />
+          <Tarjeta i={2} titulo="Gastos del mes" valor={d.res.gastos} formato={f$} icono={<Receipt size={20} />} cambio={<Cambio invertir v={variacion(d.res.gastos, d.resAnt.gastos)} />} nota="arriendo, sueldos, servicios…" onClick={() => ir('resumen')} />
+          <Tarjeta i={3} titulo="Valor del inventario" valor={d.valor} formato={f$} icono={<DollarSign size={20} />} cambio={<Cambio v={variacion(d.valor, d.valorAntes)} />} nota="vs hace 30 días" onClick={() => ir('productos')} />
         </div>
 
         {/* Ventas mes a mes: barras dobles */}
-        <Panel titulo="Ventas mes a mes" sub={vista === 'resumen' ? 'Lo que vendió frente a lo que le costó' : 'Ventas de cada sucursal'}
-          accion={<div className="flex flex-wrap gap-2"><Selector id="vista" opciones={[['resumen', 'Ventas vs costo'], ['sucursal', 'Por sucursal']]} valor={vista} onChange={setVista} /><Selector id="rango" opciones={[['anio', 'Este año'], ['doce', '12 meses']]} valor={rango} onChange={setRango} /></div>}>
-          <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted">{(vista === 'resumen' ? ['costo', 'ventas'] : [...d.top, ...(d.barras.some((b) => b.OTRAS) ? ['OTRAS'] : [])]).map((k) => <span key={k} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colores[k] }} />{k === 'costo' ? 'Costo de lo vendido' : k === 'ventas' ? 'Ventas' : k === 'OTRAS' ? 'Otras' : k}</span>)}</div>
+        <Panel titulo="Ventas mes a mes" sub={vista === 'resumen' ? 'Lo que vendió, lo que le costó y sus gastos' : 'Ventas de cada sucursal'}
+          accion={<div className="flex flex-wrap gap-2"><Selector id="vista" opciones={[['resumen', 'Ventas, costo y gastos'], ['sucursal', 'Por sucursal']]} valor={vista} onChange={setVista} /><Selector id="rango" opciones={[['anio', 'Este año'], ['doce', '12 meses']]} valor={rango} onChange={setRango} /></div>}>
+          <div className="mb-2 flex flex-wrap gap-4 text-xs text-muted">{(vista === 'resumen' ? ['costo', 'gastos', 'ventas'] : [...d.top, ...(d.barras.some((b) => b.OTRAS) ? ['OTRAS'] : [])]).map((k) => <span key={k} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: colores[k] }} />{k === 'costo' ? 'Costo de lo vendido' : k === 'gastos' ? 'Gastos' : k === 'ventas' ? 'Ventas' : k === 'OTRAS' ? 'Otras' : k}</span>)}</div>
           <div className="relative">
             <Grafico alto={290}>
               <BarChart data={d.barras} barGap={5} barCategoryGap={vista === 'resumen' ? '28%' : '22%'}>
                 <Degradados /><CartesianGrid {...rejilla} /><XAxis dataKey="mes" {...ejes} /><YAxis {...ejes} width={44} tickFormatter={corto} />
                 <Tooltip content={<TooltipOscuro colores={colores} />} cursor={{ fill: 'rgb(var(--fg) / .05)', radius: 12 } as object} />
                 {vista === 'resumen'
-                  ? <><Bar dataKey="costo" name="Costo de lo vendido" fill="rgb(var(--fg) / .16)" radius={[8, 8, 8, 8]} maxBarSize={18} /><Bar dataKey="ventas" name="Ventas" fill="url(#g0)" radius={[8, 8, 8, 8]} maxBarSize={18} /></>
+                  ? <><Bar dataKey="costo" name="Costo de lo vendido" fill="rgb(var(--fg) / .16)" radius={[8, 8, 8, 8]} maxBarSize={18} /><Bar dataKey="gastos" name="Gastos" fill="#F43F5E" fillOpacity={0.75} radius={[8, 8, 8, 8]} maxBarSize={18} /><Bar dataKey="ventas" name="Ventas" fill="url(#g0)" radius={[8, 8, 8, 8]} maxBarSize={18} /></>
                   : [...d.top, 'OTRAS'].map((s, k, arr) => <Bar key={s} dataKey={s} name={s === 'OTRAS' ? 'Otras' : s} stackId="s" fill={colores[s]} radius={k === arr.length - 1 ? [8, 8, 0, 0] : [0, 0, 0, 0]} maxBarSize={30} />)}
               </BarChart>
             </Grafico>
-            {!d.hayVentas && <div className="pointer-events-none absolute inset-0 grid place-items-center"><p className="rounded-xl bg-fg/5 px-4 py-2 text-sm text-muted">Aún no hay ventas. Regístrelas en Resumen → Ventas.</p></div>}
+            {!d.hayVentas && <div className="pointer-events-none absolute inset-0 grid place-items-center"><p className="rounded-xl bg-fg/5 px-4 py-2 text-sm text-muted">Aún no hay ventas ni gastos. Regístrelos en Resumen.</p></div>}
           </div>
         </Panel>
 
@@ -264,7 +315,7 @@ export default function Dashboard() {
             <Anillos datos={top3} total={d.catTotal} activo={activo} onActivo={setActivo} />
             <div className="pointer-events-none absolute left-[58%] top-[14%]">
               <div className="font-display text-3xl font-bold tracking-tight"><Contador valor={act ? act.u : d.catU} formato={fU} /></div>
-              <div className="text-xs text-muted">{act ? act.nombre : 'unidades vendidas'}</div>
+              <div className="text-xs text-muted">{act ? act.nombre : 'unidades y servicios vendidos'}</div>
               <div className="mt-1.5"><Cambio v={act ? variacion(act.u, act.uAntes) : variacion(d.catU, d.catUAntes)} /></div>
             </div>
           </div>
@@ -301,6 +352,8 @@ export default function Dashboard() {
       </div>
 
       {/* Salud del negocio: rendimiento bajo, medio o alto, y qué hacer */}
+      <TodoElNegocio />
+
       <Panel titulo={<span className="flex items-center gap-2"><HeartPulse size={16} className="text-primario" />Salud del negocio</span>} sub={`${empresa.tamano || 'Emprendimientos y empresas de cualquier tamaño'}${empresa.sector ? ` · ${empresa.sector}` : ''} · qué tan bien rinde y qué hacer para mejorar (toda la empresa)`}
         accion={<button onClick={() => ir('reportes')} className="text-xs text-primario hover:underline">Ver reporte completo</button>}>
         <div className="grid grid-cols-1 items-center gap-6 lg:grid-cols-[250px_1fr_1fr]">

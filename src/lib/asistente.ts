@@ -2,7 +2,8 @@
  * Asistente NEXORA (funciona sin internet): entiende la intención de la pregunta por palabras clave,
  * consulta los datos reales del sistema y explica cómo usar cada módulo.
  */
-import type { Movimiento, Orden, Producto, Proveedor, Sucursal, Empresa } from '../data/base'
+import type { Gasto, Movimiento, Orden, Producto, Proveedor, Sucursal, Empresa, Venta } from '../data/base'
+import { agregar, gastosDe } from './resumen'
 import type { Pagina, Rol } from '../store/useApp'
 import type { Params } from './finance'
 import * as F from './finance'
@@ -10,7 +11,7 @@ import { money, num, pct, fecha } from './format'
 import { normalizar, responder as responderEcon } from './preguntas'
 import { enQuiebre, stockTotal } from './inventario'
 
-export interface Ctx { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; proveedores: Proveedor[]; sucursales: Sucursal[]; empresa: Empresa; rol: Rol; nombre: string; p: Params; /** ¿La empresa ya creó una evaluación económica? (si falta, se asume que sí) */ hayEval?: boolean }
+export interface Ctx { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; proveedores: Proveedor[]; sucursales: Sucursal[]; empresa: Empresa; rol: Rol; nombre: string; p: Params; /** ¿La empresa ya creó una evaluación económica? (si falta, se asume que sí) */ hayEval?: boolean; /** Ventas (incluye servicios) y gastos del negocio */ ventas?: Venta[]; gastos?: Gasto[] }
 export interface Resp { texto: string; ir?: { pagina: Pagina; label: string; tab?: string }; sugerencias?: string[] }
 
 /** Coincide al inicio de palabra ("vend" ⊂ "vendido", pero "tema" ⊄ "sistema"); palabras cortas, exactas. */
@@ -30,11 +31,28 @@ function productoEn(q: string, ps: Producto[]) {
   return mejor
 }
 
+/** Resultado de este mes con la misma cuenta que Resumen y el Dashboard. */
+const mesActual = (c: Ctx) => { const h = new Date(); return agregar(c.movimientos, c.productos, c.gastos ?? [], h.getFullYear(), h.getMonth(), 'TODAS', c.ventas ?? []) }
+
 const DATOS: Intencion[] = [
+  { tema: ['gasto', 'gaste', 'gastamos', 'egreso'], r: (c) => {
+    const h = new Date(), g = gastosDe(c.gastos ?? [], h.getFullYear(), h.getMonth())
+    return { texto: g.length ? `Este mes lleva ${money(g.reduce((a, x) => a + x.monto, 0))} en gastos:\n${g.slice(-6).map((x) => `• ${x.fecha} · ${x.concepto || x.categoria}: ${money(x.monto)}`).join('\n')}` : 'No hay gastos registrados este mes. Regístrelos en Resumen → Gastos.', ir: { pagina: 'resumen', label: 'Ir a Resumen' } }
+  } },
+  { tema: ['ganancia', 'utilidad', 'gane', 'ganamos', 'cuanto vendi', 'cuanto vendimos', 'ventas del mes', 'ingreso'], r: (c) => {
+    const a = mesActual(c)
+    return { texto: `Este mes: ventas ${money(a.ventas)}${a.servicios ? ` (de ellas ${money(a.servicios)} en servicios)` : ''} − costo de lo vendido ${money(a.costo)} − gastos ${money(a.gastos)} = ganancia neta ${money(a.neta)} (margen ${pct(a.margen, 1)}).`, ir: { pagina: 'resumen', label: 'Ver el Resumen' } }
+  } },
+  { tema: ['por cobrar', 'me deben', 'deuda', 'fiado', 'credito'], r: (c) => {
+    const l = (c.ventas ?? []).filter((v) => v.estado === 'Por cobrar')
+    return { texto: l.length ? `Tiene ${money(l.reduce((a, v) => a + v.total, 0))} por cobrar:\n${l.slice(0, 8).map((v) => `• ${v.id}${v.cliente ? ` · ${v.cliente}` : ''}: ${money(v.total)}`).join('\n')}` : 'Nadie le debe: todas las ventas están pagadas.', ir: { pagina: 'resumen', label: 'Ir a Ventas' } }
+  } },
   { tema: ['hola', 'buenas', 'buenos dias', 'ayuda', 'que puedes', 'que sabes', 'como funcionas'], r: (c) => ({ texto: `¡Hola, ${c.nombre.split(' ')[0]}! Soy el asistente de NEXORA. Puedo:\n• Explicarle cómo usar cada módulo (productos, ventas, compras, usuarios, reportes…).\n• Consultar sus datos: stock, quiebres, valor del inventario, más vendidos, vencimientos.\n• Responder preguntas del análisis económico (CAUE, VPN, TIR, depreciación…).`, sugerencias: SUGERENCIAS }) },
   { tema: ['resumen', 'como va', 'como estamos', 'estado del negocio', 'situacion'], r: (c) => {
-    const v = c.productos.reduce((s, p) => s + stockTotal(p) * p.costo, 0), q = c.productos.filter((p) => enQuiebre(p)).length
-    return { texto: c.productos.length ? `${c.empresa.nombre} tiene ${c.productos.length} productos con un inventario valorizado en ${money(v)}. ${q} producto(s) en quiebre de stock y ${c.ordenes.filter((o) => o.estado !== 'Recibida').length} orden(es) de compra pendientes. Se han registrado ${c.movimientos.filter((m) => m.tipo === 'Venta').length} ventas.` : 'Aún no hay productos registrados. Empiece en Inventario → "Nuevo producto" o cargue un Excel en Configuración → Mis datos.', ir: { pagina: 'dashboard', label: 'Ver dashboard' } }
+    const v = c.productos.reduce((s, p) => s + stockTotal(p) * p.costo, 0), q = c.productos.filter((p) => enQuiebre(p)).length, a = mesActual(c)
+    const mes = a.ventas || a.gastos ? `Este mes: ventas ${money(a.ventas)}, gastos ${money(a.gastos)}, ganancia neta ${money(a.neta)}.\n` : ''
+    if (!c.productos.length && mes) return { texto: mes.trim(), ir: { pagina: 'resumen', label: 'Ver el Resumen' } }
+    return { texto: c.productos.length ? mes + `${c.empresa.nombre} tiene ${c.productos.length} productos con un inventario valorizado en ${money(v)}. ${q} producto(s) en quiebre de stock y ${c.ordenes.filter((o) => o.estado !== 'Recibida').length} orden(es) de compra pendientes. Se han registrado ${c.movimientos.filter((m) => m.tipo === 'Venta').length} ventas.` : 'Aún no hay productos registrados. Empiece en Inventario → "Nuevo producto" o cargue un Excel en Configuración → Mis datos.', ir: { pagina: 'dashboard', label: 'Ver dashboard' } }
   } },
   { tema: ['valor del inventario', 'valor inventario', 'cuanto vale', 'inventario vale', 'capital'], r: (c) => ({ texto: `El inventario vale ${money(c.productos.reduce((s, p) => s + stockTotal(p) * p.costo, 0))} a costo promedio.\n${c.sucursales.map((s) => `• ${s.ciudad}: ${money(c.productos.reduce((a, p) => a + p.stock[s.id] * p.costo, 0))}`).join('\n')}`, ir: { pagina: 'productos', label: 'Ver inventario' } }) },
   { tema: ['quiebre', 'agotad', 'sin stock', 'faltan', 'bajo stock', 'reponer', 'minimo'], r: (c) => { const q = c.productos.filter((p) => enQuiebre(p)); return { texto: q.length ? `Hay ${q.length} producto(s) en quiebre (stock menor a 1/3 del mínimo en alguna sucursal):\n${q.slice(0, 8).map((p) => `• ${p.nombre}: ${Object.entries(p.stock).filter(([, v]) => v < p.min / 3).map(([k, v]) => `${k} ${v} u`).join(' · ')} (mín. ${p.min})`).join('\n')}` : 'No hay productos en quiebre de stock. 👍', ir: { pagina: 'ia', label: 'Ver sugerencias de compra' } } } },
@@ -53,7 +71,7 @@ const DATOS: Intencion[] = [
 const AYUDA: Intencion[] = [
   { tema: ['usuari', 'persona', 'emplead', 'ayudante', 'contrasen', 'clave', 'rol'], r: (c) => ({ texto: c.rol === 'Gerente General' ? 'Para agregar una persona: Configuración → Usuarios → "Agregar persona". Escriba su nombre, un usuario corto (ej. ana), una contraseña fácil (ej. ana2026) y su rol. Para cambiar una contraseña o un rol, pulse el lápiz ✏️ junto a la persona.' : 'Solo el Gerente General puede crear usuarios o cambiar contraseñas (Configuración → Usuarios). Pídaselo a él.', ir: { pagina: 'configuracion', label: 'Ir a Usuarios' } }) },
   { tema: ['excel', 'importar', 'plantilla', 'masiv', 'csv', 'muchos productos'], r: () => ({ texto: '1. Configuración → Mis datos → "Plantilla" (descarga un Excel).\n2. Llene una fila por producto: SKU, nombre, categoría, costo, precio, stock por sucursal, mínimo, máximo, lote y vencimiento.\n3. "Importar Excel" → revise la vista previa → Importar. Si el SKU ya existe, se actualiza.', ir: { pagina: 'configuracion', label: 'Ir a Mis datos' } }) },
-  { tema: ['venta', 'vend', 'factur', 'salida'], r: () => ({ texto: 'Inventario → "Registrar movimiento" (o el ícono 📦 de la fila) → elija Venta, la sucursal y la cantidad → Registrar. Se descuenta el stock, queda en el kardex y alimenta el pronóstico de la IA.', ir: { pagina: 'productos', label: 'Ir a Inventario' } }) },
+  { tema: ['venta', 'vend', 'factur', 'salida'], r: () => ({ texto: 'Resumen → Ventas. Agregue productos del inventario o un servicio / otro ingreso (un trabajo que le pagaron), el descuento y si está Pagada o Por cobrar, y pulse \"Registrar venta\". Se descuenta el stock de los productos y todo el equipo la ve al instante en el Dashboard.', ir: { pagina: 'resumen', label: 'Ir a Resumen' } }) },
   { tema: ['producto', 'articulo', 'item', 'mercaderia'], accion: ['agreg', 'crear', 'nuevo', 'registr', 'ingres', 'anad'], r: () => ({ texto: 'Inventario → "Nuevo producto". Llene SKU, nombre, categoría (puede escribir una nueva), proveedor, costo, precio, stock por sucursal, mínimo, máximo, lote y vencimiento. El stock inicial queda como "Saldo inicial" en el kardex.', ir: { pagina: 'productos', label: 'Ir a Inventario' } }) },
   { tema: ['proveedor'], r: () => ({ texto: 'Compras → "Nuevo proveedor": nombre, RUC, ciudad, contacto, teléfono y correo. El ranking se calcula con el cumplimiento real (órdenes recibidas / aprobadas) y el índice de precio.', ir: { pagina: 'compras', label: 'Ir a Compras' } }) },
   { tema: ['orden', 'compra', 'pedido', 'comprar', 'aprob', 'recib'], r: () => ({ texto: 'Compras → "Nueva orden": proveedor, sucursal y productos. Flujo: Borrador → Aprobada (Gerente o Analista) → Recibida (Gerente o Jefe de Bodega). Al recibir se suma el stock y se recalcula el costo promedio.\nPara una compra rápida sin orden: Inventario → "Registrar movimiento" → Compra.', ir: { pagina: 'compras', label: 'Ir a Compras' } }) },
