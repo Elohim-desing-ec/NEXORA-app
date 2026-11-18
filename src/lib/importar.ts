@@ -2,6 +2,7 @@
 import * as XLSX from 'xlsx'
 import type { FilaImport } from '../store/useApp'
 import type { Sucursal } from '../data/base'
+import { usaVencimiento, venceSugerido } from './inventario'
 
 const FIJAS = ['SKU', 'Nombre', 'Categoría', 'Costo', 'Precio', 'Mínimo', 'Máximo', 'Lote', 'Vence (AAAA-MM-DD)']
 
@@ -26,7 +27,7 @@ const norm = (s: unknown) => String(s ?? '').toLowerCase().normalize('NFD').repl
 const fecha = (v: unknown) => {
   if (typeof v === 'number') { const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}` }
   const s = String(v ?? '').trim()
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '' // vacío o «no vence»: se decide por la categoría
 }
 
 /** Lee .xlsx / .xls / .csv por NOMBRE de columna (el orden no importa) y devuelve filas válidas + errores. */
@@ -51,8 +52,9 @@ export async function leerArchivo(file: File, sucursales: Sucursal[]): Promise<{
     if (n(v(c.costo)) < 0 || n(v(c.precio)) < 0) { errores.push(`Fila ${i + 2}: costo o precio negativo`); return }
     const stock: Record<string, number> = {}
     for (const s of stockCols) if (s.suc) stock[s.suc.id] = Math.max(0, Math.round(n(r[s.k])))
-    filas.push({ sku: String(v(c.sku)).trim(), nombre: String(v(c.nombre)).trim(), categoria: String(v(c.cat) || 'General').trim(), costo: n(v(c.costo)), precio: n(v(c.precio)),
-      stock, min: n(v(c.min)), max: n(v(c.max)) || Math.max(1, n(v(c.min)) * 4), lote: String(v(c.lote) ?? ''), vence: fecha(v(c.vence)) })
+    const categoria = String(v(c.cat) || 'General').trim()
+    filas.push({ sku: String(v(c.sku)).trim(), nombre: String(v(c.nombre)).trim(), categoria, costo: n(v(c.costo)), precio: n(v(c.precio)),
+      stock, min: n(v(c.min)), max: n(v(c.max)) || Math.max(1, n(v(c.min)) * 4), lote: String(v(c.lote) ?? ''), vence: fecha(v(c.vence)) || (usaVencimiento(categoria) ? venceSugerido() : '') })
   })
   return { filas, errores }
 }

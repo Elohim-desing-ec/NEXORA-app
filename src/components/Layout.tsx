@@ -9,7 +9,7 @@ import { Logo } from './Logo'
 import { Asistente } from './Asistente'
 import { cx } from './ui'
 import { plural } from '../lib/format'
-import { enQuiebre } from '../lib/inventario'
+import { enQuiebre, etiquetaProducto } from '../lib/inventario'
 import { avisosProveedores } from '../lib/proveedores'
 import { normalizar } from '../lib/preguntas'
 import { useTx } from '../lib/idioma'
@@ -115,7 +115,7 @@ export function Layout({ children }: { children: ReactNode }) {
     // Tareas asignadas a quien ingresó (las vencidas primero)
     ...tareas.filter((t) => t.asignados.includes(usuario.id) && (t.estado === 'pendiente' || t.estado === 'progreso')).sort((a, b) => (a.vence || '9999').localeCompare(b.vence || '9999')).slice(0, 5)
       .map((t) => ({ t: t.vence && t.vence < hoy ? 'rojo' : 'ambar', m: `${tx('Tarea para usted', 'Task for you', 'Tarefa para você')}: ${t.titulo}${t.vence ? ` · ${t.vence < hoy ? tx('venció', 'overdue', 'venceu') : tx('vence', 'due', 'vence')} ${t.vence.slice(8)}/${t.vence.slice(5, 7)}` : ''}`, ir: 'espacio' as Pagina })),
-    ...productos.filter((p) => enQuiebre(p) && !(conProveedores && tieneProv.has(p.proveedorId))).slice(0, 6).map((p) => ({ t: 'rojo', m: `Quiebre de stock: ${p.nombre}`, ir: 'productos' as Pagina })),
+    ...productos.filter((p) => enQuiebre(p) && !(conProveedores && tieneProv.has(p.proveedorId))).slice(0, 6).map((p) => ({ t: 'rojo', m: `Quiebre de stock: ${etiquetaProducto(p)}`, ir: 'productos' as Pagina })),
     ...(conProveedores ? avisosProveedores({ proveedores, productos, sucursales: SUCURSALES, ordenes }).slice(0, 8).map((a) => ({ ...a, ir: 'compras' as Pagina })) : []),
     ...ordenes.filter((o) => o.estado === 'Borrador').map((o) => ({ t: 'ambar', m: `${o.id} pendiente de aprobación`, ir: 'compras' as Pagina })),
   ].map((a) => (a.ir && a.ir !== 'espacio' && !permitidas.includes(a.ir) ? { ...a, ir: undefined } : a))

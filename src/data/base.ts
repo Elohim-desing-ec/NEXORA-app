@@ -15,7 +15,8 @@ export interface Empresa { nombre: string; idFiscal: string; pais: string; moned
 export interface Producto {
   id: string; sku: string; nombre: string; categoria: string; costo: number; precio: number
   /** unidades por sucursal: { [códigoSucursal]: unidades } */
-  stock: Record<SucursalId, number>; min: number; max: number; lote: string; vence: string; proveedorId: string
+  stock: Record<SucursalId, number>; min: number; max: number; lote: string; /** AAAA-MM-DD; vacío = no vence (ropa, tecnología…) */ vence: string; proveedorId: string
+  /** Ropa y textiles (opcional) */ color?: string; talla?: string; cuello?: string
 }
 export type TipoMov = 'Saldo inicial' | 'Compra' | 'Venta' | 'Transferencia' | 'Ajuste' | 'Merma'
 /** cantidad con signo: + entra a la sucursal, − sale. */

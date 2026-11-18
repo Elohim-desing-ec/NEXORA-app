@@ -5,14 +5,14 @@ import JsBarcode from 'jsbarcode'
 import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
-import { enQuiebre, kardex, stockTotal } from '../lib/inventario'
+import { COLORES, CUELLOS, diasParaVencer, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
 import { CATEGORIAS, type Producto, type Sucursal, type SucursalId } from '../data/base'
 import type { TipoOperacion } from '../store/useApp'
 import { exportarTabla } from '../lib/export'
 import { perfilDe } from '../lib/sectores'
 import { BarraPeriodo, EstadoCierre } from '../components/BarraPeriodo'
 
-const vacio = (sucs: Sucursal[], categoria = CATEGORIAS[0]): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria, costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10), proveedorId: '' })
+const vacio = (sucs: Sucursal[], categoria = CATEGORIAS[0]): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria, costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: usaVencimiento(categoria) ? venceSugerido() : '', proveedorId: '' })
 
 function CodigoBarras({ valor }: { valor: string }) {
   const ref = useRef<SVGSVGElement>(null)
@@ -25,6 +25,9 @@ export default function Productos() {
   const soloLectura = esSoloLectura(usuario)
   const [q, setQ] = useState(''), [cat, setCat] = useState('Todas')
   const [edit, setEdit] = useState<Producto | null>(null)
+  // Prenda nueva: varias tallas a la vez, cada una con su cantidad por sucursal (se crea un producto por talla)
+  const [porTalla, setPorTalla] = useState<{ talla: string; stock: Record<SucursalId, number> }[]>([]), [otraTalla, setOtraTalla] = useState('')
+  const abrirEdicion = (p: Producto) => { setPorTalla([]); setOtraTalla(''); setEdit(p) }
   const [codigo, setCodigo] = useState<Producto | null>(null)
   const [trans, setTrans] = useState<{ p: Producto; de: SucursalId; a: SucursalId; cant: number; err?: string } | null>(null)
   const [aj, setAj] = useState<{ p: Producto; s: SucursalId; cant: number; tipo: TipoOperacion; nota: string; costo: number; err?: string } | null>(null)
@@ -37,9 +40,9 @@ export default function Productos() {
   const [pag, setPag] = useState(0), POR_PAG = 50
   const sector = useApp((s) => s.empresa.sector)
   const categorias = useMemo(() => [...new Set([...perfilDe(sector).categorias, ...productos.map((p) => p.categoria)])], [productos, sector])
-  const lista = useMemo(() => productos.filter((p) => (cat === 'Todas' || p.categoria === cat) && `${p.sku} ${p.nombre} ${p.lote}`.toLowerCase().includes(q.toLowerCase())), [productos, q, cat])
+  const lista = useMemo(() => productos.filter((p) => (cat === 'Todas' || p.categoria === cat) && `${p.sku} ${etiquetaProducto(p)} ${p.lote}`.toLowerCase().includes(q.toLowerCase())), [productos, q, cat])
   const filasK = kx ? kardex(kx.p.id, movimientos, kx.s) : []
-  const exportar = (f: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', 'Costo', 'Precio', ...SUCURSALES.map((x) => x.id), 'Total', 'Valor', 'Lote', 'Vence'], lista.map((p) => [p.sku, p.nombre, p.categoria, money(p.costo), money(p.precio), ...SUCURSALES.map((x) => p.stock[x.id] ?? 0), stockTotal(p), money(stockTotal(p) * p.costo), p.lote, p.vence]), f)
+  const exportar = (f: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', 'Costo', 'Precio', ...SUCURSALES.map((x) => x.id), 'Total', 'Valor', 'Lote', 'Vence'], lista.map((p) => [p.sku, etiquetaProducto(p), p.categoria, money(p.costo), money(p.precio), ...SUCURSALES.map((x) => p.stock[x.id] ?? 0), stockTotal(p), money(stockTotal(p) * p.costo), p.lote, p.vence || 'No vence']), f)
   const set = (k: keyof Producto, v: unknown) => edit && setEdit({ ...edit, [k]: v })
 
   /** Botones de cada producto (tabla en pantallas anchas y tarjeta en el celular). */
@@ -49,7 +52,7 @@ export default function Productos() {
     {!soloLectura && <>
       <Button variante="fantasma" className="!p-1.5" title="Transferir" onClick={() => setTrans({ p, de: SUCURSALES[0]?.id ?? '', a: SUCURSALES[1]?.id ?? SUCURSALES[0]?.id ?? '', cant: 1 })}><ArrowLeftRight size={15} /></Button>
       <Button variante="fantasma" className="!p-1.5" title="Registrar venta, compra, ajuste o merma" onClick={() => setAj({ p, s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: p.costo })}><PackageMinus size={15} /></Button>
-      <Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => setEdit(structuredClone(p))}><Pencil size={15} /></Button>
+      <Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => abrirEdicion(structuredClone(p))}><Pencil size={15} /></Button>
       <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => confirm(`¿Eliminar ${p.nombre}?`) && eliminarProducto(p.id)}><Trash2 size={15} /></Button>
     </>}
   </>
@@ -59,7 +62,7 @@ export default function Productos() {
       <Titulo titulo="Productos e inventario" sub={`${productos.length} productos · ${new Set(productos.map((p) => p.categoria)).size} categorías · ${SUCURSALES.length} sucursales${cols.length < SUCURSALES.length ? ' (elija una sucursal arriba para ver su columna)' : ''}`}>
         <Button onClick={() => exportar('xlsx')}><FileSpreadsheet size={15} />Excel</Button><Button onClick={() => exportar('pdf')}><Printer size={15} />PDF</Button>
         {!soloLectura && productos.length > 0 && <Button onClick={() => setAj({ p: productos[0], s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: productos[0].costo })}><PackageMinus size={15} />Registrar movimiento</Button>}
-        {!soloLectura && <Button variante="primario" disabled={!SUCURSALES.length} title={SUCURSALES.length ? '' : 'Primero registre una sucursal en Configuración'} onClick={() => setEdit(vacio(SUCURSALES, categorias[0]))}><Plus size={15} />Nuevo producto</Button>}
+        {!soloLectura && <Button variante="primario" disabled={!SUCURSALES.length} title={SUCURSALES.length ? '' : 'Primero registre una sucursal en Configuración'} onClick={() => abrirEdicion(vacio(SUCURSALES, categorias[0]))}><Plus size={15} />Nuevo producto</Button>}
       </Titulo>
       {/* Año, mes y cierre: los mismos de Resumen (y del Inventario de Resumen) */}
       <div className="flex flex-wrap items-center justify-between gap-2"><EstadoCierre /><BarraPeriodo /></div>
@@ -70,10 +73,10 @@ export default function Productos() {
         </div>
         {/* Celular: cada producto como tarjeta (la tabla completa tiene demasiadas columnas) */}
         <ul className="space-y-2 sm:hidden">{lista.slice(pag * POR_PAG, (pag + 1) * POR_PAG).map((p) => {
-          const t = stockTotal(p), vence = (new Date(p.vence).getTime() - Date.now()) / 864e5
+          const t = stockTotal(p), vence = diasParaVencer(p) ?? Infinity
           return <li key={p.id} className="rounded-xl border border-fg/10 bg-fg/[.03] p-3">
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0"><div className="font-medium leading-snug">{p.nombre}</div><div className="mt-0.5 text-xs text-muted"><span className="font-mono">{p.sku}</span> · {p.categoria}</div></div>
+              <div className="min-w-0"><div className="font-medium leading-snug">{etiquetaProducto(p)}</div><div className="mt-0.5 text-xs text-muted"><span className="font-mono">{p.sku}</span> · {p.categoria}</div></div>
               {enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}
             </div>
             <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
@@ -89,12 +92,12 @@ export default function Productos() {
         <div className="hidden sm:block"><Scroll><table className="tabla">
           <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th className="num">Costo</th><th className="num">Precio</th>{cols.map((s) => <th key={s} className="num">{s}</th>)}<th className="num">Total</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
           <tbody>{lista.slice(pag * POR_PAG, (pag + 1) * POR_PAG).map((p) => {
-            const t = stockTotal(p), vence = (new Date(p.vence).getTime() - Date.now()) / 864e5
+            const t = stockTotal(p), vence = diasParaVencer(p) ?? Infinity
             return <tr key={p.id}>
-              <td className="font-mono text-xs text-muted">{p.sku}</td><td className="font-medium">{p.nombre}</td><td className="text-muted">{p.categoria}</td>
+              <td className="font-mono text-xs text-muted">{p.sku}</td><td className="font-medium">{p.nombre}{(p.color || p.talla || p.cuello) && <div className="text-xs font-normal text-muted">{etiquetaProducto({ nombre: '', color: p.color, talla: p.talla, cuello: p.cuello })}</div>}</td><td className="text-muted">{p.categoria}</td>
               <td className="num">{money(p.costo)}</td><td className="num">{money(p.precio)}</td>
               {cols.map((s) => <td key={s} className={`num ${(p.stock[s] ?? 0) < p.min / 3 ? 'text-peligro font-semibold' : ''}`}>{p.stock[s] ?? 0}</td>)}
-              <td className="num font-semibold">{t}</td><td className={vence < 60 ? 'text-alerta' : 'text-muted'}>{fecha(p.vence)}</td>
+              <td className="num font-semibold">{t}</td><td className={vence < 60 ? 'text-alerta' : 'text-muted'}>{p.vence ? fecha(p.vence) : 'No vence'}</td>
               <td>{enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}</td>
               <td><div className="flex gap-0.5">{acciones(p)}</div></td>
             </tr>
@@ -106,10 +109,10 @@ export default function Productos() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">{([
         ['En quiebre', 'Menos de un tercio del mínimo', productos.filter((p) => enQuiebre(p, sucursal)), 'rojo'],
         ['Sobrestock', 'Más de 3 veces el máximo', productos.filter((p) => stockTotal(p, sucursal) > p.max * 3), 'ambar'],
-        ['Por vencer', 'Vence en los próximos 60 días', productos.filter((p) => stockTotal(p, sucursal) > 0 && p.vence && new Date(p.vence + 'T12:00:00').getTime() - Date.now() < 60 * 864e5).sort((a, b) => a.vence.localeCompare(b.vence)), 'violeta'],
+        ['Por vencer', 'Vence en los próximos 60 días', productos.filter((p) => stockTotal(p, sucursal) > 0 && (diasParaVencer(p) ?? Infinity) < 60).sort((a, b) => a.vence.localeCompare(b.vence)), 'violeta'],
       ] as const).map(([t, d, ps, tono]) => (
         <Card key={t} titulo={<span className="flex items-center gap-2">{t}<Badge tono={tono}>{ps.length}</Badge></span>} accion={<span className="text-xs text-muted">{d}</span>}>
-          <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{p.nombre}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge></button></li>)}
+          <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{etiquetaProducto(p)}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge></button></li>)}
             {!ps.length && <li className="text-muted">Nada por aquí</li>}</ul>
         </Card>))}</div>
       <Card titulo="Stock por sucursal" accion={<span className="text-xs text-muted">Valor a costo promedio y a precio de venta</span>}>
@@ -120,31 +123,63 @@ export default function Productos() {
       </Card>
 
       <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={productos.some((x) => x.id === edit?.id) ? 'Editar producto' : 'Nuevo producto'}>
-        {edit && <form className="grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!edit.sku || !edit.nombre) return alert('SKU y nombre son obligatorios'); if (edit.min > edit.max) return alert('El mínimo no puede superar al máximo'); guardarProducto(edit); setEdit(null) }}>
+        {edit && <form className="grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!edit.sku || !edit.nombre) return alert('SKU y nombre son obligatorios'); if (edit.min > edit.max) return alert('El mínimo no puede superar al máximo')
+          const base: Producto = { ...edit, sku: edit.sku.trim(), nombre: edit.nombre.trim(), color: edit.color?.trim() || undefined, talla: edit.talla?.trim() || undefined, cuello: usaCuello(edit.categoria) ? edit.cuello || undefined : undefined }
+          if (porTalla.length) { // una prenda por talla: SKU-TALLA (ej.: CAM-001-M)
+            const skus = porTalla.map((t) => `${base.sku}-${t.talla}`.toUpperCase())
+            const repetido = skus.find((k) => productos.some((p) => p.sku.toUpperCase() === k))
+            if (repetido) return alert(`Ya existe un producto con el código ${repetido}`)
+            porTalla.forEach((t, k) => guardarProducto({ ...base, id: `${base.id}-${k}`, sku: skus[k], talla: t.talla, stock: t.stock }))
+          } else guardarProducto(base)
+          setEdit(null) }}>
           <Campo label="SKU"><input className="inp" value={edit.sku} onChange={(e) => set('sku', e.target.value)} /></Campo>
           <Campo label="Nombre"><input className="inp" value={edit.nombre} onChange={(e) => set('nombre', e.target.value)} /></Campo>
-          <Campo label="Categoría" ayuda="Elija una o escriba una nueva"><input className="inp" list="cats" value={edit.categoria} onChange={(e) => set('categoria', e.target.value)} /><datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist></Campo>
+          <Campo label="Categoría" ayuda="Elija una o escriba una nueva"><input className="inp" list="cats" value={edit.categoria} onChange={(e) => { const c = e.target.value
+            // Producto nuevo: la fecha de vencimiento se pone o se quita según la categoría (ropa, tecnología… no vencen)
+            setEdit(productos.some((x) => x.id === edit.id) ? { ...edit, categoria: c } : { ...edit, categoria: c, vence: usaVencimiento(c) ? edit.vence || venceSugerido() : '' }) }} /><datalist id="cats">{categorias.map((c) => <option key={c} value={c} />)}</datalist></Campo>
           <Campo label="Proveedor"><select className="inp" value={edit.proveedorId} onChange={(e) => set('proveedorId', e.target.value)}><option value="">— Sin proveedor —</option>{proveedores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></Campo>
           <Campo label="Costo ($)"><MontoInput value={edit.costo} onChange={(v) => set('costo', v)} /></Campo>
           <Campo label="Precio ($)"><MontoInput value={edit.precio} onChange={(v) => set('precio', v)} /></Campo>
-          <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Stock actual por sucursal ({SUCURSALES.length})</div>
-            <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto rounded-xl bg-fg/5 p-2 sm:grid-cols-3">{SUCURSALES.map((x) => <Campo key={x.id} label={`${x.id} · ${x.ciudad}`}><NumInput value={edit.stock[x.id] ?? 0} onChange={(v) => set('stock', { ...edit.stock, [x.id]: Math.max(0, Math.round(v)) })} /></Campo>)}</div></div>
+          {esPrenda(edit.categoria) && <div className="space-y-3 rounded-xl border border-fg/10 p-3 sm:col-span-2">
+            <div className="text-xs font-medium text-muted">Detalles de la prenda</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Campo label="Color"><input className="inp" list="colores" value={edit.color ?? ''} onChange={(e) => set('color', e.target.value)} placeholder="Ej.: Blanco" /><datalist id="colores">{COLORES.map((c) => <option key={c} value={c} />)}</datalist></Campo>
+              {usaCuello(edit.categoria) && <Campo label="Tipo de cuello"><select className="inp" value={edit.cuello ?? ''} onChange={(e) => set('cuello', e.target.value)}><option value="">— Elegir —</option>{CUELLOS.map((c) => <option key={c}>{c}</option>)}</select></Campo>}
+              {productos.some((x) => x.id === edit.id) && <Campo label="Talla"><input className="inp" list="tallas" value={edit.talla ?? ''} onChange={(e) => set('talla', e.target.value.toUpperCase())} /><datalist id="tallas">{tallasDe(edit.categoria).map((t) => <option key={t} value={t} />)}</datalist></Campo>}
+            </div>
+            {!productos.some((x) => x.id === edit.id) && <div>
+              <div className="mb-1.5 text-xs font-medium text-muted">Tallas <span className="font-normal">(elija las que tiene; se crea un producto por talla con su cantidad)</span></div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[...new Set([...tallasDe(edit.categoria), ...porTalla.map((t) => t.talla)])].map((t) => { const si = porTalla.some((x) => x.talla === t); return (
+                  <button key={t} type="button" onClick={() => setPorTalla(si ? porTalla.filter((x) => x.talla !== t) : [...porTalla, { talla: t, stock: Object.fromEntries(SUCURSALES.map((x) => [x.id, 0])) }])} className={`min-w-[2.6rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${si ? 'border-primario/60 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5'}`}>{t}</button>) })}
+                <input className="inp !w-24 !py-1.5 text-xs" placeholder="Otra talla" value={otraTalla} onChange={(e) => setOtraTalla(e.target.value.toUpperCase())} onKeyDown={(e) => { const t = otraTalla.trim(); if (e.key === 'Enter') { e.preventDefault(); if (t && !porTalla.some((x) => x.talla === t)) setPorTalla([...porTalla, { talla: t, stock: Object.fromEntries(SUCURSALES.map((x) => [x.id, 0])) }]); setOtraTalla('') } }} />
+              </div>
+            </div>}
+          </div>}
+          {porTalla.length > 0 ? <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Cantidad por talla{SUCURSALES.length > 1 ? ' y sucursal' : ''}</div>
+            <div className="max-h-60 overflow-auto rounded-xl bg-fg/5 p-2"><table className="w-full text-sm"><thead><tr className="text-xs text-muted"><th className="px-1 py-1 text-left font-medium">Talla</th>{SUCURSALES.map((x) => <th key={x.id} className="px-1 py-1 text-left font-medium">{SUCURSALES.length > 1 ? `${x.id} · ${x.ciudad}` : 'Cantidad'}</th>)}</tr></thead>
+              <tbody>{porTalla.map((t, k) => <tr key={t.talla}><td className="px-1 py-1 font-semibold">{t.talla}</td>{SUCURSALES.map((x) => <td key={x.id} className="px-1 py-1"><NumInput value={t.stock[x.id] ?? 0} onChange={(v) => setPorTalla(porTalla.map((y, j) => (j === k ? { ...y, stock: { ...y.stock, [x.id]: Math.max(0, Math.round(v)) } } : y)))} /></td>)}</tr>)}</tbody></table></div>
+            <p className="mt-1 text-[11px] text-muted">Se crearán {porTalla.length === 1 ? '1 producto' : `${porTalla.length} productos`}: {porTalla.map((t) => `${(edit.sku || 'SKU').toUpperCase()}-${t.talla}`).join(', ')}</p></div>
+          : <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Stock actual por sucursal ({SUCURSALES.length})</div>
+            <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto rounded-xl bg-fg/5 p-2 sm:grid-cols-3">{SUCURSALES.map((x) => <Campo key={x.id} label={`${x.id} · ${x.ciudad}`}><NumInput value={edit.stock[x.id] ?? 0} onChange={(v) => set('stock', { ...edit.stock, [x.id]: Math.max(0, Math.round(v)) })} /></Campo>)}</div></div>}
           <Campo label="Stock mínimo (por sucursal)"><NumInput value={edit.min} onChange={(v) => set('min', v)} /></Campo>
           <Campo label="Stock máximo (por sucursal)"><NumInput value={edit.max} onChange={(v) => set('max', v)} /></Campo>
           <Campo label="Lote"><input className="inp" value={edit.lote} onChange={(e) => set('lote', e.target.value)} /></Campo>
-          <Campo label="Fecha de vencimiento"><input type="date" className="inp" value={edit.vence} onChange={(e) => set('vence', e.target.value)} /></Campo>
+          <Campo label="Fecha de vencimiento" ayuda={edit.vence ? undefined : 'Este producto no tiene fecha de vencimiento'}>
+            <div className="flex items-center gap-3"><input type="date" className="inp" disabled={!edit.vence} value={edit.vence} onChange={(e) => set('vence', e.target.value)} />
+              <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs"><input type="checkbox" checked={!edit.vence} onChange={(e) => set('vence', e.target.checked ? '' : venceSugerido())} />No vence</label></div></Campo>
           <div className="flex justify-end gap-2 sm:col-span-2"><Button type="button" onClick={() => setEdit(null)}>Cancelar</Button><Button variante="primario" type="submit">Guardar</Button></div>
         </form>}
       </Modal>
 
       <Modal abierto={!!codigo} onClose={() => setCodigo(null)} titulo="Etiqueta de producto" ancho="max-w-md">
         {codigo && <div className="space-y-4"><div id="etiqueta" className="flex flex-col items-center gap-3 rounded-xl bg-white p-5 text-slate-900">
-          <div className="text-center text-sm font-bold">{codigo.nombre}</div><CodigoBarras valor={codigo.sku} />
-          <QRCodeSVG value={JSON.stringify({ sku: codigo.sku, lote: codigo.lote, vence: codigo.vence })} size={110} /><div className="text-xs">Lote {codigo.lote} · Vence {codigo.vence} · {money(codigo.precio)}</div>
+          <div className="text-center text-sm font-bold">{etiquetaProducto(codigo)}</div><CodigoBarras valor={codigo.sku} />
+          <QRCodeSVG value={JSON.stringify({ sku: codigo.sku, lote: codigo.lote, vence: codigo.vence })} size={110} /><div className="text-xs">{codigo.lote && `Lote ${codigo.lote} · `}{codigo.vence ? `Vence ${fecha(codigo.vence)}` : 'No vence'} · {money(codigo.precio)}</div>
         </div><Button variante="primario" className="w-full" onClick={() => { const w = window.open('', '_blank', 'width=400,height=500'); if (w) { w.document.write(`<body style="font-family:sans-serif;display:flex;justify-content:center">${document.getElementById('etiqueta')!.outerHTML}</body>`); w.document.close(); w.print() } }}><Printer size={15} />Imprimir etiqueta</Button></div>}
       </Modal>
 
-      <Modal abierto={!!trans} onClose={() => setTrans(null)} titulo={`Transferir · ${trans?.p.nombre}`} ancho="max-w-md">
+      <Modal abierto={!!trans} onClose={() => setTrans(null)} titulo={`Transferir · ${trans ? etiquetaProducto(trans.p) : ""}`} ancho="max-w-md">
         {trans && <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Campo label="Origen"><select className="inp" value={trans.de} onChange={(e) => setTrans({ ...trans, de: e.target.value as SucursalId })}>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad} ({(trans.p.stock[s.id] ?? 0)})</option>)}</select></Campo>
@@ -158,7 +193,7 @@ export default function Productos() {
 
       <Modal abierto={!!aj} onClose={() => setAj(null)} titulo="Registrar movimiento de inventario" ancho="max-w-md">
         {aj && <div className="space-y-3">
-          <Campo label="Producto"><select className="inp" value={aj.p.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; setAj({ ...aj, p, costo: p.costo, err: undefined }) }}>{productos.map((x) => <option key={x.id} value={x.id}>{x.sku} · {x.nombre}</option>)}</select></Campo>
+          <Campo label="Producto"><select className="inp" value={aj.p.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; setAj({ ...aj, p, costo: p.costo, err: undefined }) }}>{productos.map((x) => <option key={x.id} value={x.id}>{x.sku} · {etiquetaProducto(x)}</option>)}</select></Campo>
           <div className="grid grid-cols-4 gap-1.5">{(['Venta', 'Compra', 'Ajuste', 'Merma'] as const).map((t) => <button key={t} type="button" onClick={() => setAj({ ...aj, tipo: t, err: undefined })} className={`rounded-xl border px-2 py-2 text-xs font-medium transition ${aj.tipo === t ? 'border-primario/60 bg-primario/15' : 'border-fg/10 bg-fg/5 hover:bg-fg/10'}`}>{t}</button>)}</div>
           <p className="text-xs text-muted">{{ Venta: 'Salida por venta: descuenta stock y alimenta el pronóstico de la IA.', Compra: 'Entrada directa de mercadería: suma stock y recalcula el costo promedio ponderado.', Ajuste: 'Corrección por conteo físico: positivo suma, negativo resta.', Merma: 'Pérdida por daño, robo o vencimiento: descuenta stock.' }[aj.tipo]}</p>
           <div className="grid grid-cols-2 gap-3">
@@ -172,7 +207,7 @@ export default function Productos() {
         </div>}
       </Modal>
 
-      <Modal abierto={!!kx} onClose={() => setKx(null)} titulo={`Kardex · ${kx?.p.nombre} (promedio ponderado)`} ancho="max-w-6xl">
+      <Modal abierto={!!kx} onClose={() => setKx(null)} titulo={`Kardex · ${kx ? etiquetaProducto(kx.p) : ""} (promedio ponderado)`} ancho="max-w-6xl">
         {kx && <div className="space-y-3">
           <div className="flex flex-wrap gap-2"><select className="inp !w-auto" value={kx.s} onChange={(e) => setKx({ ...kx, s: e.target.value as SucursalId })}><option value="TODAS">Consolidado</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
             <Button onClick={() => exportarTabla(`Kardex_${kx.p.sku}`, ['Fecha', 'Tipo', 'Suc.', 'Entrada', 'Salida', 'Costo unit.', 'Saldo', 'CPP', 'Valor'], filasK.map((f) => [fechaHora(f.fecha), f.tipo, f.sucursal, f.entrada, f.salida, num(f.costoUnit, 4), f.saldo, num(f.cpp, 4), money(f.valor)]), 'xlsx')}><FileSpreadsheet size={15} />Excel</Button></div>

@@ -5,7 +5,7 @@ import type { Producto } from '../../data/base'
 import { perfilDe } from '../../lib/sectores'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, cx } from '../../components/ui'
 import { money, num, pct, plural } from '../../lib/format'
-import { stockTotal, valorInventario } from '../../lib/inventario'
+import { etiquetaProducto, stockTotal, usaVencimiento, valorInventario, venceSugerido } from '../../lib/inventario'
 import { EDITAN, estadoStock, statsProductos, type EstadoStock } from '../../lib/resumen'
 import { BarraPeriodo, EstadoCierre } from '../../components/BarraPeriodo'
 
@@ -50,7 +50,7 @@ export default function TabInventario() {
   }, [productos, movimientos, sucursal])
 
   const t = q.trim().toLowerCase()
-  const lista = d.filas.filter((f) => (!t || `${f.p.sku} ${f.p.nombre} ${f.p.categoria}`.toLowerCase().includes(t)) && (!cat || f.p.categoria === cat) && (!est || f.estado === est))
+  const lista = d.filas.filter((f) => (!t || `${f.p.sku} ${etiquetaProducto(f.p)} ${f.p.categoria}`.toLowerCase().includes(t)) && (!cat || f.p.categoria === cat) && (!est || f.estado === est))
   const categorias = [...new Set([...perfilDe(empresa.sector).categorias, ...productos.map((p) => p.categoria)])]
 
   const abrirNuevo = () => { setError(''); setNuevo({ sku: '', nombre: '', categoria: '', sucursal: sucursal !== 'TODAS' ? sucursal : sucursales[0]?.id ?? '', stock: 0, min: 10, costo: 0, precio: 0 }) }
@@ -67,7 +67,7 @@ export default function TabInventario() {
       id: `P${Date.now()}`, sku, nombre: nuevo.nombre.trim(), categoria: nuevo.categoria.trim() || 'General', costo: r2(nuevo.costo), precio: r2(nuevo.precio),
       // Solo la sucursal elegida: las demás "no lo manejan" (no cuentan como agotadas). Con transferencias o compras se agrega a otras.
       stock: { [nuevo.sucursal]: nuevo.stock }, min: Math.max(0, nuevo.min), max: Math.max(nuevo.min, 100),
-      lote: '', vence: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10), proveedorId: '',
+      lote: '', vence: usaVencimiento(nuevo.categoria) ? venceSugerido() : '', proveedorId: '', // ropa, tecnología…: sin vencimiento
     })
     setNuevo(null)
   }
@@ -102,7 +102,7 @@ export default function TabInventario() {
           <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th className="num">Stock</th><th className="num">Costo</th><th className="num">Precio</th><th className="num">Ganancia / u</th><th className="num">Margen</th><th className="num">Vendidas</th><th className="num">Ganancia generada</th><th className="num">Valor stock</th><th>Estado</th>{puede && <th></th>}</tr></thead>
           <tbody>{lista.map((f) => (
             <tr key={f.p.id}>
-              <td className="font-mono text-xs">{f.p.sku}</td><td className="max-w-[16rem] truncate font-medium" title={f.p.nombre}>{f.p.nombre}</td><td className="text-muted">{f.p.categoria}</td>
+              <td className="font-mono text-xs">{f.p.sku}</td><td className="max-w-[16rem] truncate font-medium" title={etiquetaProducto(f.p)}>{etiquetaProducto(f.p)}</td><td className="text-muted">{f.p.categoria}</td>
               <td className="num font-semibold">{num(f.stock, 0)}</td><td className="num">{money(f.p.costo)}</td><td className="num">{money(f.p.precio)}</td>
               <td className={cx('num', f.gu < 0 && 'text-peligro')}>{money(f.gu)}</td><td className="num">{pct(f.p.precio ? f.gu / f.p.precio : 0, 0)}</td>
               <td className="num">{num(f.vendidas, 0)}</td><td className="num">{money(f.ganancia)}</td><td className="num">{money(f.valor)}</td>
@@ -146,7 +146,7 @@ export default function TabInventario() {
 
       <Modal abierto={!!precio} onClose={() => setPrecio(null)} titulo="Agregar precio" ancho="max-w-xl">
         {precio && <div className="space-y-4">
-          <Campo label="Producto"><select className="inp" value={precio.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value); if (p) setPrecio(p) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.sku} · {p.nombre}</option>)}</select></Campo>
+          <Campo label="Producto"><select className="inp" value={precio.id} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value); if (p) setPrecio(p) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.sku} · {etiquetaProducto(p)}</option>)}</select></Campo>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Costo unitario"><MontoInput value={precio.costo} onChange={(v) => setPrecio({ ...precio, costo: v })} /></Campo>
             <Campo label="Precio de venta"><MontoInput value={precio.precio} onChange={(v) => setPrecio({ ...precio, precio: v })} /></Campo>

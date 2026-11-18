@@ -7,6 +7,7 @@ import { IconoNivel } from '../components/Iconos'
 import { LUGARES_TRABAJO, NIVELES_PROVEEDOR, cumplimientoReal, nivelSugerido, sucursalCercana, textoKm, tieneUbicacion, type NivelProveedor } from '../lib/proveedores'
 import { pais } from '../data/paises'
 import { ubicarCiudad } from '../lib/geo'
+import { etiquetaProducto } from '../lib/inventario'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
 
@@ -154,7 +155,7 @@ export default function Compras() {
             <Campo label="Sucursal de destino"><select className="inp" value={nueva.sucursal} onChange={(e) => setNueva({ ...nueva, sucursal: e.target.value as SucursalId })}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select></Campo>
           </div>
           {nueva.items.map((it, k) => <div key={k} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-fg/10 p-2 sm:grid-cols-[1fr_90px_110px_auto] sm:rounded-none sm:border-0 sm:p-0">
-            <div className="col-span-3 sm:col-span-1"><Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo></div>
+            <div className="col-span-3 sm:col-span-1"><Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{etiquetaProducto(p)}</option>)}</select></Campo></div>
             <Campo label="Cant."><NumInput value={it.cantidad} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, cantidad: Math.max(1, Math.round(v)) }; setNueva({ ...nueva, items }) }} /></Campo>
             <Campo label="Costo"><MontoInput value={it.costo} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, costo: v }; setNueva({ ...nueva, items }) }} /></Campo>
             <Button variante="fantasma" className="text-peligro" onClick={() => setNueva({ ...nueva, items: nueva.items.filter((_, j) => j !== k) })}><Trash2 size={15} /></Button>

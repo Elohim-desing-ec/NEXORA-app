@@ -57,3 +57,28 @@ export function ventasRecientes(movs: Movimiento[], productos: Producto[], dias 
   for (const m of movs) if (m.tipo === 'Venta' && new Date(m.fecha).getTime() > desde) r[m.sucursal] = (r[m.sucursal] ?? 0) - m.cantidad * (precio.get(m.productoId) ?? 0)
   return r
 }
+
+// ---------- Vencimiento y prendas ----------
+const sinTildes = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+/** Categorías que suelen vencer (alimentos, medicinas, limpieza…). Las demás (ropa, tecnología, ferretería…) arrancan sin fecha de vencimiento. */
+const PERECIBLES = ['aliment', 'bebida', 'farmac', 'medicament', 'insumos medicos', 'curacion', 'suplement', 'carne', 'marisco', 'fruta', 'verdura', 'lacteo', 'abarrote', 'panaderia', 'cuidado personal', 'limpieza', 'higiene', 'agroquimic', 'fertiliz', 'semilla', 'cosecha']
+export const usaVencimiento = (categoria: string) => { const c = sinTildes(categoria); return PERECIBLES.some((k) => c.includes(k)) }
+/** Días que faltan para que venza (negativo: ya venció). null: el producto no vence. */
+export const diasParaVencer = (p: Pick<Producto, 'vence'>, ahora = Date.now()) => (p.vence ? (new Date(`${p.vence.slice(0, 10)}T12:00:00`).getTime() - ahora) / 864e5 : null)
+/** Fecha de vencimiento sugerida para un producto nuevo de una categoría que vence (dentro de un año). */
+export const venceSugerido = () => new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10)
+
+/** Ropa y textiles: se registran con color, talla y tipo de cuello. */
+const PRENDAS = ['textil', 'camiseta', 'camisa', 'blusa', 'pantalon', 'vestido', 'calzado', 'zapato', 'ropa', 'prenda', 'chompa', 'buzo', 'uniforme', 'temporada']
+export const esPrenda = (categoria: string) => { const c = sinTildes(categoria); return PRENDAS.some((k) => c.includes(k)) }
+const esCalzado = (categoria: string) => /calzado|zapato/.test(sinTildes(categoria))
+/** El tipo de cuello solo aplica a prendas de arriba (no a pantalones ni calzado). */
+export const usaCuello = (categoria: string) => esPrenda(categoria) && !esCalzado(categoria) && !/pantalon/.test(sinTildes(categoria))
+export const tallasDe = (categoria: string) => (esCalzado(categoria) ? ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'] : ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+export const CUELLOS = ['Redondo', 'En V', 'Polo', 'Camisero', 'Tortuga', 'Sin cuello']
+export const COLORES = ['Blanco', 'Negro', 'Gris', 'Azul', 'Azul marino', 'Rojo', 'Verde', 'Amarillo', 'Rosado', 'Morado', 'Beige', 'Café']
+/** Nombre con sus detalles de prenda, para distinguir tallas y colores: «Camiseta básica · Blanco · Talla M · Cuello en V». */
+export const etiquetaProducto = (p: Pick<Producto, 'nombre' | 'color' | 'talla' | 'cuello'>) =>
+  [p.nombre, p.color, p.talla && `Talla ${p.talla}`, p.cuello && (p.cuello === 'Sin cuello' ? p.cuello : `Cuello ${p.cuello.charAt(0).toLowerCase()}${p.cuello.slice(1)}`)].filter(Boolean).join(' · ')
+

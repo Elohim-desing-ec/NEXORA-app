@@ -4,6 +4,7 @@ import { useApp, rolesDe } from '../../store/useApp'
 import { CANALES, type EstadoVenta } from '../../data/base'
 import { Badge, Button, Campo, Card, MontoInput, NumInput, Scroll, cx } from '../../components/ui'
 import { fecha, money, num, plural } from '../../lib/format'
+import { etiquetaProducto } from '../../lib/inventario'
 import { EDITAN, MESES, anios, enPeriodo, fechaVenta, filasVentas, hoyISO } from '../../lib/resumen'
 
 /** Línea del formulario: un producto del inventario o un servicio u otro ingreso (concepto libre, sin stock). */
@@ -97,7 +98,7 @@ export default function TabVentas() {
                   <div key={l.k} className="grid grid-cols-[1fr_1fr_auto] gap-2 border-b border-fg/5 pb-2 last:border-0 sm:grid-cols-[1fr_5.5rem_7rem_auto] sm:border-0 sm:pb-0">
                     <label className="col-span-3 block min-w-0 sm:col-span-1">{etiqueta('Producto')}<select className="inp" value={l.productoId} onChange={(e) => elegir(l.k, e.target.value)}>
                       <option value="">Elija un producto…</option>
-                      {productos.map((x) => <option key={x.id} value={x.id} disabled={(x.stock[suc] ?? 0) <= 0}>{x.sku} · {x.nombre} ({x.stock[suc] ?? 0} u)</option>)}
+                      {productos.map((x) => <option key={x.id} value={x.id} disabled={(x.stock[suc] ?? 0) <= 0}>{x.sku} · {etiquetaProducto(x)} ({x.stock[suc] ?? 0} u)</option>)}
                     </select></label>
                     <label className="block min-w-0">{etiqueta('Cantidad')}<NumInput min={1} value={l.cantidad} onChange={(v) => set(l.k, { cantidad: Math.max(0, Math.round(v)) })} /></label>
                     <label className="block min-w-0">{etiqueta('Precio c/u ($)')}<MontoInput value={l.precio} onChange={(v) => set(l.k, { precio: v })} /></label>

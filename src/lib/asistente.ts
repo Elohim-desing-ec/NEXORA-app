@@ -9,7 +9,7 @@ import type { Params } from './finance'
 import * as F from './finance'
 import { money, num, pct, fecha } from './format'
 import { normalizar, responder as responderEcon } from './preguntas'
-import { enQuiebre, stockTotal } from './inventario'
+import { diasParaVencer, enQuiebre, etiquetaProducto, stockTotal } from './inventario'
 
 export interface Ctx { productos: Producto[]; movimientos: Movimiento[]; ordenes: Orden[]; proveedores: Proveedor[]; sucursales: Sucursal[]; empresa: Empresa; rol: Rol; nombre: string; p: Params; /** ¿La empresa ya creó una evaluación económica? (si falta, se asume que sí) */ hayEval?: boolean; /** Ventas (incluye servicios) y gastos del negocio */ ventas?: Venta[]; gastos?: Gasto[] }
 export interface Resp { texto: string; ir?: { pagina: Pagina; label: string; tab?: string }; sugerencias?: string[] }
@@ -61,7 +61,7 @@ const DATOS: Intencion[] = [
     const top = [...v.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
     return { texto: top.length ? `Productos más vendidos:\n${top.map(([id, u], k) => `${k + 1}. ${c.productos.find((p) => p.id === id)?.nombre ?? '—'}: ${u} u`).join('\n')}` : 'Aún no hay ventas registradas. Regístrelas en Inventario → "Registrar movimiento" → Venta.' }
   } },
-  { tema: ['vence', 'vencimiento', 'caduc', 'expira'], r: (c) => { const l = c.productos.filter((p) => (new Date(p.vence).getTime() - Date.now()) / 864e5 < 60).sort((a, b) => a.vence.localeCompare(b.vence)); return { texto: l.length ? `Productos que vencen en menos de 60 días:\n${l.slice(0, 8).map((p) => `• ${p.nombre} (lote ${p.lote}): ${fecha(p.vence)}`).join('\n')}` : 'Ningún producto vence en los próximos 60 días.' } } },
+  { tema: ['vence', 'vencimiento', 'caduc', 'expira'], r: (c) => { const l = c.productos.filter((p) => (diasParaVencer(p) ?? Infinity) < 60).sort((a, b) => a.vence.localeCompare(b.vence)); return { texto: l.length ? `Productos que vencen en menos de 60 días:\n${l.slice(0, 8).map((p) => `• ${etiquetaProducto(p)}${p.lote ? ` (lote ${p.lote})` : ''}: ${fecha(p.vence)}`).join('\n')}` : 'Ningún producto vence en los próximos 60 días.' } } },
   { tema: ['pendiente', 'por aprobar', 'por recibir'], r: (c) => { const o = c.ordenes.filter((x) => x.estado !== 'Recibida'); return { texto: o.length ? `Órdenes pendientes:\n${o.map((x) => `• ${x.id} · ${c.proveedores.find((p) => p.id === x.proveedorId)?.nombre ?? '—'} · ${x.estado}`).join('\n')}` : 'No hay órdenes de compra pendientes.', ir: { pagina: 'compras', label: 'Ir a Compras' } } } },
   { tema: ['cuantas sucursales', 'cuantos paises', 'en que paises', 'donde estamos'], r: (c) => { const ps = [...new Set(c.sucursales.map((s) => s.pais))]; return { texto: c.sucursales.length ? `${c.empresa.nombre || 'La empresa'} tiene ${c.sucursales.length} sucursal(es) en ${ps.length} país(es):\n${c.sucursales.map((s) => `• ${s.id} · ${s.nombre} (${s.ciudad}, ${s.pais})`).join('\n')}` : 'Aún no hay sucursales registradas (Configuración → Empresa).', ir: { pagina: 'red', label: 'Ver en el globo' } } } },
   { tema: ['cuantos productos', 'numero de productos', 'cantidad de productos', 'cuantos articulos'], r: (c) => ({ texto: `Hay ${c.productos.length} productos en ${new Set(c.productos.map((p) => p.categoria)).size} categorías y ${c.proveedores.length} proveedores registrados.` }) },

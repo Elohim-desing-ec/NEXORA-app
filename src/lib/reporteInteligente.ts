@@ -37,7 +37,7 @@ export function analizarNegocio(d: Datos) {
   const capitalExceso = sobrestock.reduce((a, x) => a + x.exceso * x.p.costo, 0)
   const vendidos90 = new Set(ms.filter((m) => m.tipo === 'Venta' && dias(m.fecha) <= 90).map((m) => m.productoId))
   const sinMov = ps.filter((p) => stockTotal(p) > 0 && !vendidos90.has(p.id) && ms.some((m) => m.productoId === p.id && dias(m.fecha) > 30))
-  const porVencer = ps.filter((p) => stockTotal(p) > 0 && -dias(p.vence) < 60)
+  const porVencer = ps.filter((p) => stockTotal(p) > 0 && !!p.vence && -dias(p.vence) < 60) // sin fecha: no vence
   const anom = anomalias(ms).filter((a) => dias(a.m.fecha) <= 30 && a.z > 2.5)
   const pendientes = d.ordenes.filter((o) => o.estado !== 'Recibida')
   const provBajos = d.proveedores.filter((p) => p.cumplimiento < 80)

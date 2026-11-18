@@ -6,7 +6,7 @@ import { Button, Card, Titulo, cx } from '../components/ui'
 import { exportarAnalisisExcel, exportarAnalisisPDF, exportarReporteEjecutivo, exportarTabla } from '../lib/export'
 import { analizarNegocio, type Nivel } from '../lib/reporteInteligente'
 import { money, fecha, fechaHora } from '../lib/format'
-import { stockTotal } from '../lib/inventario'
+import { etiquetaProducto, stockTotal } from '../lib/inventario'
 import { totalOC } from './Compras'
 
 export default function Reportes() {
@@ -16,7 +16,7 @@ export default function Reportes() {
   const a = useMemo(() => analizarNegocio({ productos, movimientos, ordenes, sucursales: sucs, proveedores, p: hayEval ? p : undefined, empresa: empresa.nombre, ventas, gastos }), [productos, movimientos, ordenes, sucs, proveedores, p, hayEval, empresa.nombre, ventas, gastos])
   const estilo: Record<Nivel, [string, JSX.Element]> = { critico: ['border-peligro/40 bg-peligro/10', <AlertOctagon key="c" size={16} className="text-peligro" />], alerta: ['border-alerta/40 bg-alerta/10', <AlertTriangle key="a" size={16} className="text-alerta" />], oportunidad: ['border-cian/40 bg-cian/10', <Lightbulb key="o" size={16} className="text-cian" />], ok: ['border-exito/40 bg-exito/10', <CheckCircle2 key="k" size={16} className="text-exito" />] }
   const reportes = [
-    { t: 'Inventario valorizado', d: 'Stock por sucursal, costo, precio, lote y vencimiento', f: (x: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', ...sucursales.map((x) => x.id), 'Total', 'Valor'], productos.map((q) => [q.sku, q.nombre, q.categoria, ...sucursales.map((x) => q.stock[x.id] ?? 0), stockTotal(q), money(stockTotal(q) * q.costo)]), x) },
+    { t: 'Inventario valorizado', d: 'Stock por sucursal, costo, precio, lote y vencimiento', f: (x: 'xlsx' | 'pdf') => exportarTabla('Inventario', ['SKU', 'Producto', 'Categoría', ...sucursales.map((x) => x.id), 'Total', 'Valor', 'Lote', 'Vence'], productos.map((q) => [q.sku, etiquetaProducto(q), q.categoria, ...sucursales.map((x) => q.stock[x.id] ?? 0), stockTotal(q), money(stockTotal(q) * q.costo), q.lote, q.vence || 'No vence']), x) },
     { t: 'Kardex general', d: 'Últimos 1.000 movimientos de inventario', f: (x: 'xlsx' | 'pdf') => exportarTabla('Kardex', ['Fecha', 'Producto', 'Sucursal', 'Tipo', 'Cantidad', 'Costo unit.', 'Usuario'], movimientos.slice(-1000).map((m) => [fechaHora(m.fecha), productos.find((q) => q.id === m.productoId)?.nombre ?? '', m.sucursal, m.tipo, m.cantidad, money(m.costoUnit), m.usuario]), x) },
     { t: 'Órdenes de compra', d: 'Estado, proveedor y montos', f: (x: 'xlsx' | 'pdf') => exportarTabla('Compras', ['N.°', 'Fecha', 'Proveedor', 'Sucursal', 'Estado', 'Total'], ordenes.map((o) => [o.id, fecha(o.fecha), PROVEEDORES.find((q) => q.id === o.proveedorId)?.nombre ?? '', o.sucursal, o.estado, money(totalOC(o))]), x) },
     { t: 'Bitácora de auditoría', d: 'Eventos con usuario, fecha y sucursal', f: (x: 'xlsx' | 'pdf') => exportarTabla('Auditoria', ['Fecha', 'Usuario', 'Acción', 'Detalle', 'Sucursal'], auditoria.map((e) => [fechaHora(e.fecha), e.usuario, e.accion, e.detalle, e.sucursal]), x) },
