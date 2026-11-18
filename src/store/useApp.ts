@@ -74,6 +74,22 @@ export const tieneRol = (u: Pick<Usuario, 'rol' | 'roles'> | null | undefined, .
 export const permisosDe = (u?: Pick<Usuario, 'rol' | 'roles'> | null): Pagina[] => [...new Set(rolesDe(u).flatMap((r) => PERMISOS[r]))]
 export const soloLectura = (u?: Pick<Usuario, 'rol' | 'roles'> | null) => rolesDe(u).every((r) => SOLO_LECTURA.includes(r))
 
+/**
+ * Papelera: todo lo que desaparece de una lista (lo elimine alguien aquí o lo quite la sincronización con la nube)
+ * se guarda en este equipo y se puede recuperar con un clic. No se sube a la nube: cada equipo guarda la suya.
+ */
+export const COLECCIONES_PAPELERA = { proveedores: 'Proveedor', productos: 'Producto', ventas: 'Venta', gastos: 'Gasto', clientes: 'Cliente', sucursales: 'Sucursal', ordenes: 'Orden de compra', cierres: 'Cierre', tareas: 'Tarea', notas: 'Nota' } as const
+export type ColeccionPapelera = keyof typeof COLECCIONES_PAPELERA
+export interface EntradaPapelera { id: string; coleccion: ColeccionPapelera; registro: { id: string } & Record<string, unknown>; fecha: string; /** Quién lo quitó: el nombre de la persona o «Sincronización» */ por: string }
+/** Nombre para mostrar de un registro de la papelera. */
+export const nombreEnPapelera = (e: EntradaPapelera) => {
+  const r = e.registro as Record<string, unknown>
+  const t = [r.nombre, r.concepto, r.titulo, r.cliente].find((x) => typeof x === 'string' && x.trim()) as string | undefined
+  return [r.sku, t ?? r.id].filter(Boolean).join(' · ')
+}
+/** De dónde viene el cambio que se está aplicando: la nube lo marca; `pausa` no anota nada (p. ej. al cambiar de empresa). */
+export const origenCambio = { nube: false, pausa: false }
+
 /** Fila de producto para importar desde Excel/CSV. */
 export interface FilaImport { sku: string; nombre: string; categoria: string; costo: number; precio: number; stock: Record<SucursalId, number>; min: number; max: number; lote: string; vence: string }
 export type TipoOperacion = 'Venta' | 'Compra' | 'Ajuste' | 'Merma'
@@ -86,6 +102,10 @@ interface AppState extends Datos {
    * Vive aquí, junto a los datos, para guardarse en la MISMA escritura (ver lib/nube.ts y lib/fusion.ts).
    */
   nubeBase?: { empresa: string; huellas: Partial<Record<string, Huella>> }
+  papelera: EntradaPapelera[]
+  /** Devuelve el registro a su lista (y se sube a la nube). null si se recuperó; si no, el motivo. */
+  recuperar: (id: string) => string | null
+  vaciarPapelera: () => void
   usuario: Usuario | null
   tema: 'oscuro' | 'claro'
   presentacion: boolean
@@ -200,6 +220,18 @@ export const useApp = create<AppState>()(persist((set, get) => {
     menuColapsado: typeof window !== 'undefined' && window.innerWidth < 1440,
     setMenuColapsado: (menuColapsado) => set({ menuColapsado }),
     empresa: EMPRESA_BASE, sucursales: [], proveedores: [], tareas: [], notas: [], clientes: [], ...VACIO,
+    papelera: [],
+    recuperar: (id) => {
+      const e = get().papelera.find((x) => x.id === id)
+      if (!e) return 'Ya no está en la papelera'
+      const lista = get()[e.coleccion] as { id: string }[]
+      const papelera = get().papelera.filter((x) => x.id !== id)
+      if (lista.some((x) => x.id === e.registro.id)) { set({ papelera }); return 'Ya estaba de vuelta en su lista' }
+      set({ [e.coleccion]: [...lista, e.registro], papelera } as Partial<AppState>)
+      log('Recuperado de la papelera', `${COLECCIONES_PAPELERA[e.coleccion]}: ${nombreEnPapelera(e)}`)
+      return null
+    },
+    vaciarPapelera: () => { set({ papelera: [] }); log('Papelera vaciada', '') },
     login: (usuario) => { set({ usuario, pagina: 'dashboard' }); log('Inicio de sesión', `${usuario.nombre} (${rolesDe(usuario).join(', ')})`) },
     logout: () => { log('Cierre de sesión', get().usuario?.nombre ?? ''); set({ usuario: null }) },
     licencia: null,
@@ -497,3 +529,18 @@ export const useApp = create<AppState>()(persist((set, get) => {
 
 /** ¿Ya se cargaron los datos guardados? (IndexedDB es asíncrono) */
 export const hidratado = () => useApp.persist.hasHydrated()
+
+// Papelera: anota lo que desaparece de cada lista, venga de donde venga (eliminado aquí o quitado al sincronizar).
+useApp.subscribe((s, p) => {
+  if (origenCambio.pausa) return
+  const nuevas: EntradaPapelera[] = []
+  const fecha = new Date().toISOString(), por = origenCambio.nube ? 'Sincronización (otro equipo o persona)' : s.usuario?.nombre ?? 'Este equipo'
+  for (const c of Object.keys(COLECCIONES_PAPELERA) as ColeccionPapelera[]) {
+    const antes = p[c] as { id: string }[], ahora = s[c] as { id: string }[]
+    if (antes === ahora || !Array.isArray(antes) || !Array.isArray(ahora)) continue
+    const quedan = new Set(ahora.map((x) => x.id))
+    for (const x of antes) if (x && !quedan.has(x.id)) nuevas.push({ id: crypto.randomUUID(), coleccion: c, registro: x as EntradaPapelera['registro'], fecha, por })
+  }
+  if (nuevas.length) useApp.setState({ papelera: [...nuevas, ...(s.papelera ?? [])].slice(0, 1000) })
+})
+

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { diasRestantes } from '../lib/cuenta'
-import { salir, useEstadoNube } from '../lib/nube'
+import { guardarYa, salir, useEstadoNube } from '../lib/nube'
+import { useVersionNueva } from '../lib/version'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
+import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, RefreshCw, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Logo } from './Logo'
@@ -188,6 +189,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <button aria-label="Cerrar sesión" onClick={() => { salir() }} className="rounded-lg p-2 text-muted hover:bg-fg/10 hover:text-peligro"><LogOut size={16} /></button>
           </div>
         </header>
+        <AvisoVersion />
         {licencia && (licencia.plan === 'Prueba' || (diasRestantes(licencia.vence) ?? 99) <= 5) && <AvisoPlan plan={licencia.plan} vence={licencia.vence} titular={!!licencia.esDueno} />}
         <main className="mx-3 mt-5 mb-24 min-w-0 lg:mb-10 lg:ml-0"><motion.div key={pagina} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>{children}</motion.div></main>
       </div>
@@ -218,3 +220,20 @@ function AvisoPlan({ plan, vence, titular }: { plan: string; vence: string | nul
     </div>
   )
 }
+
+/** Se publicó una versión nueva: se guarda lo pendiente y se recarga. */
+function AvisoVersion() {
+  const tx = useTx()
+  const nueva = useVersionNueva()
+  const [ocupado, setOcupado] = useState(false)
+  if (!nueva) return null
+  const actualizar = async () => { setOcupado(true); try { await guardarYa() } finally { location.reload() } }
+  return (
+    <div className="no-print mx-3 mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-cian/40 bg-cian/10 px-3 py-2 text-xs lg:ml-0" role="status">
+      <RefreshCw size={15} className="shrink-0 text-cian" />
+      <span className="flex-1">{tx('Hay una versión nueva de NEXORA. Actualice para trabajar con lo último (sus datos se conservan).', 'A new version of NEXORA is available. Update to get the latest (your data is kept).', 'Há uma nova versão do NEXORA. Atualize para usar a mais recente (seus dados são mantidos).')}</span>
+      <button onClick={actualizar} disabled={ocupado} className="rounded-lg bg-cian px-3 py-1 font-semibold text-black hover:brightness-110 disabled:opacity-60">{ocupado ? tx('Actualizando…', 'Updating…', 'Atualizando…') : tx('Actualizar', 'Update', 'Atualizar')}</button>
+    </div>
+  )
+}
+

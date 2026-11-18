@@ -154,6 +154,20 @@ describe('simulación: lo que se agrega no se borra', () => {
     expect(nombres(pc.app.getState().proveedores)).toEqual(['A', 'B', 'C', 'D'])
     expect(nombres(cel.app.getState().proveedores)).toEqual(['A', 'B', 'C', 'D'])
   })
+
+  it('lo que elimina otro equipo queda en la papelera de este y se puede recuperar', async () => {
+    const pc = await abrir(new Map(), 'pc')
+    const cel = await abrir(new Map(), 'cel')
+    pc.app.getState().guardarProveedor(prov('Don Luis')); await vi.advanceTimersByTimeAsync(5000)
+    const id = cel.app.getState().proveedores.find((p) => p.nombre === 'Don Luis')!.id
+    cel.app.getState().eliminarProveedor(id); await vi.advanceTimersByTimeAsync(5000)
+    expect(nombres(pc.app.getState().proveedores)).toEqual([])
+    const e = pc.app.getState().papelera.find((x) => x.registro.id === id)!
+    expect(e.por).toContain('Sincronización')
+    expect(pc.app.getState().recuperar(e.id)).toBeNull(); await vi.advanceTimersByTimeAsync(5000)
+    expect(enNube('proveedores')).toEqual(['Don Luis'])
+    expect(nombres(cel.app.getState().proveedores)).toEqual(['Don Luis'])
+  })
 })
 
 /**

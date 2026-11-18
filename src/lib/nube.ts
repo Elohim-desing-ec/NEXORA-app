@@ -9,7 +9,7 @@
  */
 import { useSyncExternalStore } from 'react'
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
-import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
+import { useApp, ROLES, esCuenta, origenCambio, type Rol } from '../store/useApp'
 import { EMPRESA_BASE } from '../data/base'
 import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
 import { esAnterior, fusionar, huella, igual, type Huella } from './fusion'
@@ -63,7 +63,8 @@ function aplicar(parcial: Partial<Record<Clave, unknown>>, nubeVista?: Partial<R
     extra.nubeBase = { empresa: empresaId, huellas }
   }
   remoto = true
-  try { useApp.setState({ ...parcial, ...extra } as never) } finally { remoto = false }
+  origenCambio.nube = true // lo que esto quite de una lista va a la papelera como «Sincronización»
+  try { useApp.setState({ ...parcial, ...extra } as never) } finally { remoto = false; origenCambio.nube = false }
 }
 
 /** Combina lo que llegó de la nube con lo de este equipo (las colecciones con cambios por subir las combina subir()). */
@@ -126,6 +127,8 @@ async function subir() {
   else fijar('al-dia')
 }
 const programar = () => { clearTimeout(reloj); reloj = setTimeout(subir, 800) }
+/** Sube ya lo que falte (p. ej. antes de recargar para actualizar la app). */
+export const guardarYa = () => subir()
 
 /** Revisa qué cambió en la nube (solo descarga esas colecciones) y sube lo pendiente. */
 export function sincronizarAhora() {
@@ -178,7 +181,10 @@ async function conectar(a: Acceso, usuario: User) {
   const yaConocido = leerUltima() === a.empresaId
   versiones = {}
   if (!yaConocido) useApp.setState({ nubeBase: { empresa: a.empresaId, huellas: {} } }) // otra empresa en este equipo: sin historia
-  if (!yaConocido && (data.length || !a.esDueno)) aplicar(vacios())
+  if (!yaConocido && (data.length || !a.esDueno)) { // datos de otra empresa o de pruebas: no van a la papelera
+    origenCambio.pausa = true
+    try { aplicar(vacios()) } finally { origenCambio.pausa = false }
+  }
   if (data.length) combinarDesdeNube(data)
   else if (a.esDueno) { // primera vez de la empresa: el titular sube lo que hay en este navegador
     const e = useApp.getState().empresa
