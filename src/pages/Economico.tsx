@@ -13,6 +13,7 @@ import { etq, reemplazo, type Concepto } from '../lib/finance'
 import { PLANTILLAS, crearParams, gastosAnuales, type Plantilla } from '../lib/evaluaciones'
 import { money } from '../lib/format'
 import { PROYECTO } from '../data/proyecto'
+import { pedirEliminar } from '../components/Eliminacion'
 
 export const TABS = [
   { id: 'comparacion', label: 'a · Costos', C: A.Comparacion }, { id: 'reemplazo', label: 'b · Reemplazo', C: A.Reemplazo },
@@ -142,7 +143,7 @@ export default function Economico() {
           </motion.button>))}
         <div className="ml-auto flex gap-1.5">
           <Button className="text-xs" onClick={duplicarEvaluacion} title="Duplicar la evaluación abierta"><Copy size={13} />Duplicar</Button>
-          {activa && <Button variante="peligro" className="text-xs" onClick={() => { if (confirm(`¿Eliminar la evaluación «${E.evaluacion}»?`)) eliminarEvaluacion(activa) }}><Trash2 size={13} /></Button>}
+          {activa && <Button variante="peligro" className="text-xs" onClick={() => pedirEliminar({ titulo: `¿Eliminar la evaluación «${E.evaluacion}»?`, detalle: 'Esta acción no se puede deshacer.', listo: 'Evaluación eliminada', accion: () => eliminarEvaluacion(activa) })}><Trash2 size={13} /></Button>}
           <Button variante="primario" className="text-xs" onClick={() => setNueva('nexora')}><Plus size={13} />Nueva evaluación</Button>
         </div>
       </div>

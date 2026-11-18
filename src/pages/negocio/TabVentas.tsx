@@ -6,6 +6,7 @@ import { Badge, Button, Campo, Card, MontoInput, NumInput, Scroll, cx } from '..
 import { fecha, money, num, plural } from '../../lib/format'
 import { etiquetaProducto } from '../../lib/inventario'
 import { EDITAN, MESES, anios, enPeriodo, fechaVenta, filasVentas, hoyISO } from '../../lib/resumen'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 /** Línea del formulario: un producto del inventario o un servicio u otro ingreso (concepto libre, sin stock). */
 interface Linea { k: number; productoId: string; cantidad: number; precio: number; servicio?: boolean; concepto?: string; costo?: number }
@@ -174,7 +175,7 @@ export default function TabVentas() {
               <td className={cx('num font-semibold', f.estado === 'Anulada' && 'line-through')}>{money(f.total)}</td><td className="num">{money(f.ganancia)}</td>
               {puede && <td className="whitespace-nowrap text-right">{f.venta && f.estado !== 'Anulada' && <>
                 <Button variante="fantasma" className="px-2 py-1 text-xs" onClick={() => cambiarEstadoVenta(f.id, f.estado === 'Pagada' ? 'Por cobrar' : 'Pagada')}>{f.estado === 'Pagada' ? 'Por cobrar' : 'Cobrada'}</Button>
-                <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => { if (confirm(`¿Anular la venta ${f.id} de ${money(f.total)}? El stock regresa a ${f.sucursal}.`)) { const e = anularVenta(f.id); if (e) alert(e) } }}><Trash2 size={13} />Anular</Button></>}</td>}
+                <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => pedirEliminar({ titulo: `¿Anular la venta ${f.id}?`, detalle: `${money(f.total)}. El stock regresa a ${f.sucursal}.`, boton: 'Anular', listo: `Venta ${f.id} anulada`, accion: () => anularVenta(f.id) })}><Trash2 size={13} />Anular</Button></>}</td>}
             </tr>))}
             {!lista.length && <tr><td colSpan={10} className="py-6 text-center text-muted">{d.todas.length ? 'Ninguna venta coincide con los filtros.' : 'Todavía no hay ventas.'}</td></tr>}
           </tbody>

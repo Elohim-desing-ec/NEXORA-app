@@ -7,6 +7,7 @@ import { stockTotal } from '../../lib/inventario'
 import { exportarLibro } from '../../lib/export'
 import { cargarRespaldo, descargarRespaldo } from '../../lib/respaldo'
 import { MESES, agregar, anios, estadoStock, filasVentas, nombrePeriodo, statsProductos } from '../../lib/resumen'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 const r2 = (v: number) => Math.round(v * 100) / 100
 type Filas = (string | number)[][]
@@ -71,7 +72,7 @@ export default function TabDatos() {
 
       {tieneRol(usuario, 'Gerente General') && <Card titulo={<span className="flex items-center gap-2"><Eraser size={15} className="text-peligro" />Empezar de cero</span>}>
         <p className="mb-4 text-sm text-muted">Borra productos, movimientos, órdenes, ventas, gastos y cierres para comenzar un inventario nuevo. Usuarios, sucursales, proveedores y empresa se conservan. Exporte un respaldo antes.</p>
-        <Button variante="peligro" onClick={() => { if (confirm('¿Borrar TODOS los productos, ventas, gastos y cierres? Esta acción no se puede deshacer.')) { vaciarDatos(); setMsg('Datos borrados. Puede empezar de cero.') } }}><Eraser size={15} />Borrar todo</Button>
+        <Button variante="peligro" onClick={() => pedirEliminar({ titulo: '¿Borrar todos los datos?', detalle: 'Se borran productos, ventas, gastos y cierres. Quedan en la Papelera por si los necesita.', boton: 'Borrar todo', listo: 'Datos borrados', accion: () => { vaciarDatos(); setMsg('Datos borrados. Puede empezar de cero.') } })}><Eraser size={15} />Borrar todo</Button>
       </Card>}
     </div>
   )

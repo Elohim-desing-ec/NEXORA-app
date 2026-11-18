@@ -5,6 +5,7 @@ import type { Gasto } from '../../data/base'
 import { Badge, Button, Campo, Card, Modal, MontoInput, Scroll } from '../../components/ui'
 import { fecha, money, pct, plural } from '../../lib/format'
 import { CATEGORIAS_GASTO, EDITAN, MESES, anios, enPeriodo, hoyISO, nombrePeriodo } from '../../lib/resumen'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 const nuevoGasto = (): Gasto => ({ id: crypto.randomUUID(), fecha: hoyISO(), concepto: '', categoria: CATEGORIAS_GASTO[0], monto: 0, sucursal: '', nota: '' })
 
@@ -59,7 +60,7 @@ export default function TabGastos() {
             <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Sucursal</th><th className="num">Monto</th>{puede && <th></th>}</tr></thead>
             <tbody>{lista.map((g) => (
               <tr key={g.id}><td>{fecha(g.fecha + 'T12:00:00')}</td><td className="max-w-[16rem] truncate" title={g.nota || g.concepto}>{g.concepto}{g.nota && <span className="block truncate text-[11px] text-muted">{g.nota}</span>}</td><td><Badge>{g.categoria}</Badge></td><td>{g.sucursal || 'General'}</td><td className="num font-semibold">{money(g.monto)}</td>
-                {puede && <td className="whitespace-nowrap text-right"><button aria-label="Editar gasto" className="rounded-lg p-1.5 hover:bg-fg/10" onClick={() => { setError(''); setForm(g) }}><Pencil size={14} /></button><button aria-label="Eliminar gasto" className="rounded-lg p-1.5 text-peligro hover:bg-peligro/10" onClick={() => confirm(`¿Eliminar el gasto "${g.concepto}" de ${money(g.monto)}?`) && eliminarGasto(g.id)}><Trash2 size={14} /></button></td>}
+                {puede && <td className="whitespace-nowrap text-right"><button aria-label="Editar gasto" className="rounded-lg p-1.5 hover:bg-fg/10" onClick={() => { setError(''); setForm(g) }}><Pencil size={14} /></button><button aria-label="Eliminar gasto" className="rounded-lg p-1.5 text-peligro hover:bg-peligro/10" onClick={() => pedirEliminar({ titulo: `¿Eliminar el gasto «${g.concepto}»?`, detalle: `${money(g.monto)}. Queda en la Papelera por si lo necesita.`, listo: 'Gasto eliminado', accion: () => eliminarGasto(g.id) })}><Trash2 size={14} /></button></td>}
               </tr>))}
               {!lista.length && <tr><td colSpan={6} className="py-6 text-center text-muted">No hay gastos con estos filtros.</td></tr>}
             </tbody>

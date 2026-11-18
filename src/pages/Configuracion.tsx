@@ -17,6 +17,7 @@ import { SECTORES, TAMANOS, type Empresa, type Sucursal } from '../data/base'
 import { PAISES, MONEDAS, SIMBOLOS, pais } from '../data/paises'
 import { EditorSucursal, sucursalVacia } from '../components/EditorSucursal'
 import { valorInventario } from '../lib/inventario'
+import { pedirEliminar } from '../components/Eliminacion'
 
 const Globo = lazy(() => import('../components/Globo'))
 const CuentaEquipo = lazy(() => import('./config/CuentaEquipo'))
@@ -42,16 +43,18 @@ function Usuarios() {
     setEdit(null)
     if (esCuenta(u)) refrescarEquipo()
   }
-  const eliminar = async (u: Usuario) => {
+  const eliminar = (u: Usuario) => {
     if (esTitular(u)) return alert('Usted es el titular de la cuenta: no puede quitarse a sí mismo.')
-    if (!confirm(esCuenta(u) ? `¿Quitar a ${u.nombre} del equipo? Ya no podrá ingresar a NEXORA.` : `¿Eliminar a ${u.nombre}?`)) return
-    if (esCuenta(u)) {
-      if (!licencia?.esDueno || !licencia.empresaId) return alert('Solo el titular de la cuenta puede quitar personas del equipo.')
-      try { await quitarMiembro(licencia.empresaId, u.email) } catch (e) { return alert(mensajeError(e, tx)) }
-      await refrescarEquipo()
-      return
-    }
-    const e = eliminarUsuario(u.id); if (e) alert(e)
+    pedirEliminar({
+      titulo: esCuenta(u) ? `¿Quitar a ${u.nombre} del equipo?` : `¿Eliminar a ${u.nombre}?`, detalle: esCuenta(u) ? 'Ya no podrá ingresar a NEXORA.' : undefined,
+      boton: esCuenta(u) ? 'Quitar' : 'Eliminar', listo: esCuenta(u) ? `${u.nombre} ya no está en el equipo` : `${u.nombre} eliminado`,
+      accion: async () => {
+        if (!esCuenta(u)) return eliminarUsuario(u.id)
+        if (!licencia?.esDueno || !licencia.empresaId) return 'Solo el titular de la cuenta puede quitar personas del equipo.'
+        try { await quitarMiembro(licencia.empresaId, u.email) } catch (e) { return mensajeError(e, tx) }
+        await refrescarEquipo()
+      },
+    })
   }
   const tono = (r: Rol) => (r === 'Gerente General' ? 'violeta' : SOLO_LECTURA.includes(r) ? 'ambar' : /Financ|Contador/.test(r) ? 'cian' : /Ventas|Vendedor|Cajero|Marketing/.test(r) ? 'verde' : r === 'Ayudante' ? 'gris' : 'azul')
   return <>
@@ -116,7 +119,7 @@ function EmpresaTab() {
             <td className="font-mono text-xs font-semibold">{x.id}</td><td className="font-medium">{x.nombre}</td><td><Badge tono={x.tipo === 'Matriz' ? 'violeta' : 'azul'}>{x.tipo}</Badge></td>
             <td>{x.ciudad}<div className="max-w-[220px] truncate text-[11px] text-muted">{x.direccion}</div></td><td className="num">{money(valorInventario(productos, x.id), 0)}</td>
             <td><div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => { setErr(''); setEd({ v: { ...x }, previa: x.id }) }}><Pencil size={15} /></Button>
-              <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar la sucursal ${x.nombre}?`)) { const r = eliminarSucursal(x.id); if (r) alert(r) } }}><Trash2 size={15} /></Button></div></td>
+              <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => pedirEliminar({ titulo: `¿Eliminar la sucursal ${x.nombre}?`, detalle: 'Queda en la Papelera por si la necesita.', listo: `Sucursal ${x.nombre} eliminada`, accion: () => eliminarSucursal(x.id) })}><Trash2 size={15} /></Button></div></td>
           </tr>)}</tbody></table></Scroll>
           {!sucursales.length && <p className="py-8 text-center text-sm text-muted">Agregue su primera sucursal: puede estar en cualquier país.</p>}</div>
       </div>
@@ -160,7 +163,7 @@ function Datos() {
       </Card>
       <Card hover titulo={<span className="flex items-center gap-2"><Eraser size={15} className="text-peligro" />Vaciar inventario</span>}>
         <p className="mb-3 text-sm text-muted">Borra productos, movimientos, órdenes, ventas, gastos y cierres (usuarios, proveedores y empresa se conservan). Descargue un respaldo antes.</p>
-        <Button variante="peligro" onClick={() => { if (confirm('¿Borrar TODO el inventario, movimientos, órdenes, ventas, gastos y cierres? Esta acción no se puede deshacer.')) { vaciarDatos(); setMsg('Inventario vaciado.') } }}><Eraser size={15} />Vaciar inventario</Button>
+        <Button variante="peligro" onClick={() => pedirEliminar({ titulo: '¿Vaciar todo el inventario?', detalle: 'Se borran productos, movimientos, órdenes, ventas, gastos y cierres. Productos, órdenes, ventas, gastos y cierres quedan en la Papelera.', boton: 'Vaciar', listo: 'Inventario vaciado', accion: () => { vaciarDatos(); setMsg('Inventario vaciado.') } })}><Eraser size={15} />Vaciar inventario</Button>
       </Card>
     </div>
     <Modal abierto={!!prev} onClose={() => setPrev(null)} titulo={`Vista previa · ${prev?.nombre}`} ancho="max-w-5xl">

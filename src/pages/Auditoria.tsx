@@ -4,6 +4,7 @@ import { useApp, soloLectura, COLECCIONES_PAPELERA, nombreEnPapelera } from '../
 import { Badge, Button, Card, Scroll, Titulo, Tabs } from '../components/ui'
 import { fechaHora, money } from '../lib/format'
 import { stockTotal, valorInventario } from '../lib/inventario'
+import { pedirEliminar } from '../components/Eliminacion'
 
 const Globo = lazy(() => import('../components/Globo'))
 
@@ -18,7 +19,7 @@ export default function Auditoria() {
     <div className="space-y-5">
       <Titulo titulo="Trazabilidad y auditoría" sub="Quién hizo qué, cuándo y dónde — registro inmutable de cada acción" />
       <Tabs items={[{ id: 'bitacora', label: 'Bitácora', icon: <ScrollText size={14} /> }, { id: 'papelera', label: `Papelera${papelera.length ? ` (${papelera.length})` : ''}`, icon: <Trash2 size={14} /> }, { id: 'mapa', label: 'Mapa de sucursales', icon: <Globe2 size={14} /> }]} valor={tab} onChange={setTab} />
-        {tab === 'papelera' && <Card titulo="Papelera" accion={papelera.length > 0 && !soloLectura(usuario) && <Button variante="fantasma" className="text-xs text-peligro" onClick={() => { if (confirm('¿Vaciar la papelera de este equipo? Lo que está aquí ya no se podrá recuperar.')) vaciarPapelera() }}>Vaciar papelera</Button>}>
+        {tab === 'papelera' && <Card titulo="Papelera" accion={papelera.length > 0 && !soloLectura(usuario) && <Button variante="fantasma" className="text-xs text-peligro" onClick={() => pedirEliminar({ titulo: '¿Vaciar la papelera?', detalle: 'Lo que está aquí ya no se podrá recuperar en este equipo.', boton: 'Vaciar', listo: 'Papelera vaciada', accion: () => vaciarPapelera() })}>Vaciar papelera</Button>}>
           <p className="mb-3 text-sm text-muted">Todo lo que desaparece de una lista (lo haya eliminado alguien o lo haya quitado la sincronización) queda aquí. Pulse «Recuperar» y vuelve a su lugar en todos los equipos. Cada equipo guarda su propia papelera (las últimas 1.000 cosas).</p>
           {aviso && <p className="mb-3 rounded-lg bg-exito/10 px-3 py-2 text-sm text-exito">{aviso}</p>}
           <div className="max-h-[560px] overflow-auto"><Scroll><table className="tabla">

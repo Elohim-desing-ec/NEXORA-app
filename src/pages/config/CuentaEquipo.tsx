@@ -12,6 +12,7 @@ import { refrescarEquipo, salir } from '../../lib/nube'
 import { descargarRecibo } from '../../lib/recibo'
 import { urlGmail } from '../../lib/google'
 import { useTx } from '../../lib/idioma'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 const fecha = (d: string) => new Date(d).toLocaleDateString('es-EC', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -71,9 +72,14 @@ export default function CuentaEquipo() {
     } catch (err) { setError(mensajeError(err, tx)) } finally { setOcupado(false) }
   }
 
-  const quitar = async (m: Miembro) => {
-    if (!acceso || !confirm(`¿Quitar a ${m.nombre || m.email} del equipo? Ya no podrá ingresar a NEXORA.`)) return
-    try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)); refrescarEquipo() } catch (err) { setError(mensajeError(err, tx)) }
+  const quitar = (m: Miembro) => {
+    if (!acceso) return
+    pedirEliminar({
+      titulo: `¿Quitar a ${m.nombre || m.email} del equipo?`, detalle: 'Ya no podrá ingresar a NEXORA.', boton: 'Quitar', listo: `${m.nombre || m.email} ya no está en el equipo`,
+      accion: async () => {
+        try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)); refrescarEquipo() } catch (err) { return mensajeError(err, tx) }
+      },
+    })
   }
 
   const guardarEdicion = async (e: FormEvent) => {

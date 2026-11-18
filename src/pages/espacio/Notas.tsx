@@ -8,6 +8,7 @@ import { CLAVES_NOTA, IconoNota, claveNota } from '../../components/Iconos'
 import { fecha } from '../../lib/format'
 import { Marca, servicioDe } from '../../components/Marca'
 import { abrir } from '../../lib/google'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 const uid = () => crypto.randomUUID()
 /** Fondos de nota: adhesivos de color (texto oscuro) o vidrio con el tema. */
@@ -105,7 +106,7 @@ function Editor({ inicial, carpetas, onGuardar, onEliminar, onVolver }: { inicia
           <div className="flex flex-wrap items-center gap-1.5 pb-1">
             <Button variante="fantasma" className="px-2 py-1 text-xs" onClick={onVolver}><ArrowLeft size={14} />Notas</Button>
             <Button variante="fantasma" className={cx('px-2 py-1 text-xs', n.fijada && 'text-primario')} onClick={() => setN({ ...n, fijada: !n.fijada })}><Pin size={14} />{n.fijada ? 'Fijada' : 'Fijar'}</Button>
-            <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => { if (confirm('¿Eliminar esta nota?')) { borrada.current = true; onEliminar() } }}><Trash2 size={14} /></Button>
+            <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => pedirEliminar({ titulo: '¿Eliminar esta nota?', detalle: 'Queda en la Papelera por si la necesita.', listo: 'Nota eliminada', accion: () => { borrada.current = true; onEliminar() } })}><Trash2 size={14} /></Button>
           </div>
         </div>
         <input autoFocus={!n.titulo} className="mt-4 w-full bg-transparent font-display text-4xl font-bold tracking-tight outline-none placeholder:text-muted/50 focus-visible:!outline-none" placeholder="Sin título" value={n.titulo} onChange={(e) => setN({ ...n, titulo: e.target.value })}

@@ -9,6 +9,7 @@ import { contactosGoogle, usuarioDesde, type ContactoImportado } from '../../lib
 import { MESES, hoyISO } from '../../lib/resumen'
 import { fecha, fechaHora } from '../../lib/format'
 import { COLORES_TAREA, iniciales } from './Tablero'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 const suave = [0.16, 1, 0.3, 1] as const
 const digitos = (t?: string) => (t ?? '').replace(/[^\d]/g, '')
@@ -192,7 +193,7 @@ export default function Equipo() {
             <div className="flex gap-1">{c.email && <button title="Gmail" onClick={() => abrir(urlGmail([c.email], '', `Hola ${c.nombre.split(' ')[0]}:\n\n`))} className="rounded-lg p-1.5 hover:bg-fg/10"><Mail size={14} /></button>}
               {digitos(c.telefono) && <button title="WhatsApp" onClick={() => abrir(`https://wa.me/${digitos(c.telefono)}`)} className="rounded-lg p-1 hover:bg-fg/10"><Marca slug="whatsapp" tam={22} className="!shadow-none" /></button>}
               <button title="Editar" onClick={() => setCliente(c)} className="rounded-lg p-1.5 hover:bg-fg/10"><Pencil size={13} /></button>
-              <button title="Eliminar" onClick={() => confirm(`¿Eliminar a ${c.nombre}?`) && eliminarCliente(c.id)} className="rounded-lg p-1.5 text-peligro hover:bg-peligro/10"><Trash2 size={13} /></button></div>
+              <button title="Eliminar" onClick={() => pedirEliminar({ titulo: `¿Eliminar a ${c.nombre}?`, detalle: 'El cliente queda en la Papelera por si lo necesita.', listo: `${c.nombre} eliminado`, accion: () => eliminarCliente(c.id) })} className="rounded-lg p-1.5 text-peligro hover:bg-peligro/10"><Trash2 size={13} /></button></div>
           </div>))}
           {!clientes.length && <p className="col-span-full text-sm text-muted">Agregue sus clientes o impórtelos desde Google Contactos.</p>}</div>
       </section>

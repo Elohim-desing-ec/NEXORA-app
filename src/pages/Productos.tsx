@@ -12,6 +12,7 @@ import type { TipoOperacion } from '../store/useApp'
 import { exportarTabla } from '../lib/export'
 import { categoriasPara } from '../lib/sectores'
 import { BarraPeriodo, EstadoCierre } from '../components/BarraPeriodo'
+import { pedirEliminar } from '../components/Eliminacion'
 
 const vacio = (sucs: Sucursal[], categoria: string): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria, costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: usaVencimiento(categoria) ? venceSugerido() : '', proveedorId: '' })
 
@@ -60,7 +61,7 @@ export default function Productos() {
       <Button variante="fantasma" className="!p-1.5" title="Transferir" onClick={() => setTrans({ p, de: SUCURSALES[0]?.id ?? '', a: SUCURSALES[1]?.id ?? SUCURSALES[0]?.id ?? '', cant: 1 })}><ArrowLeftRight size={15} /></Button>
       <Button variante="fantasma" className="!p-1.5" title="Registrar venta, compra, ajuste o merma" onClick={() => setAj({ p, s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: p.costo })}><PackageMinus size={15} /></Button>
       <Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => abrirEdicion(structuredClone(p))}><Pencil size={15} /></Button>
-      <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => confirm(`¿Eliminar ${p.nombre}?`) && eliminarProducto(p.id)}><Trash2 size={15} /></Button>
+      <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => pedirEliminar({ titulo: `¿Eliminar ${etiquetaProducto(p)}?`, detalle: 'El producto queda en la Papelera; su kardex se conserva.', listo: `${p.nombre} eliminado`, accion: () => eliminarProducto(p.id) })}><Trash2 size={15} /></Button>
     </>}
   </>
 

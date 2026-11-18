@@ -10,6 +10,7 @@ import { ubicarCiudad } from '../lib/geo'
 import { etiquetaProducto } from '../lib/inventario'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
+import { pedirEliminar } from '../components/Eliminacion'
 
 export const totalOC = (o: Orden) => o.items.reduce((s, i) => s + i.cantidad * i.costo, 0)
 const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: '', ciudad: '', contacto: '', telefono: '', email: '', cumplimiento: 100, indicePrecio: 1, nivel: 'Junior', provee: '', lugar: '' })
@@ -56,7 +57,7 @@ export default function Compras() {
             <td><Badge tono={tono[o.estado]}>{o.estado}</Badge></td>
             <td>{o.estado === 'Borrador' && <Button variante="exito" disabled={!puedeAprobar} title={puedeAprobar ? '' : 'Requiere Gerente o Analista'} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><CheckCircle2 size={14} />Aprobar</Button>}
               {o.estado === 'Aprobada' && <Button disabled={!puedeRecibir} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><Truck size={14} />Recibir</Button>}</td>
-            <td>{puedeEditar && o.estado !== 'Recibida' && <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar orden" aria-label={`Eliminar orden ${o.id}`} onClick={() => { if (confirm(`¿Eliminar la orden ${o.id} (${o.estado}) de ${money(totalOC(o))}? Queda en la Papelera por si necesita recuperarla.`)) { const e = eliminarOrden(o.id); if (e) alert(e) } }}><Trash2 size={15} /></Button>}</td>
+            <td>{puedeEditar && o.estado !== 'Recibida' && <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar orden" aria-label={`Eliminar orden ${o.id}`} onClick={() => pedirEliminar({ titulo: `¿Eliminar la orden ${o.id}?`, detalle: `${o.estado} · ${money(totalOC(o))}. Queda en la Papelera por si la necesita.`, listo: `Orden ${o.id} eliminada`, accion: () => eliminarOrden(o.id) })}><Trash2 size={15} /></Button>}</td>
           </tr>)}</tbody></table></Scroll>
           {!ordenes.length && <p className="py-8 text-center text-sm text-muted">Aún no hay órdenes de compra.</p>}</Card>
       </>}
@@ -77,7 +78,7 @@ export default function Compras() {
             <td className="text-sm">{p.lugar || '—'}{p.ciudad && <div className="text-xs text-muted">{p.ciudad}</div>}</td>
             <td className="text-sm">{p.contacto && <div>{p.contacto}</div>}{p.telefono && <a href={`tel:${p.telefono.replace(/\s/g, '')}`} className="flex items-center gap-1 text-primario hover:underline"><Phone size={12} />{p.telefono}</a>}{p.email && <div className="text-xs text-muted">{p.email}</div>}{!p.contacto && !p.telefono && !p.email && <span className="text-muted">—</span>}</td>
             <td className="text-xs">{tieneUbicacion(p) ? <span className="flex items-center gap-1 text-cian"><MapPin size={12} />{cerca ? `a ${p.ubicacionAprox ? '~' : ''}${textoKm(cerca.km)} de ${cerca.s.nombre}` : 'En el mapa'}{p.ubicacionAprox && <span className="text-muted">(su ciudad)</span>}</span> : puedeEditar ? <button type="button" onClick={() => { abrirProv({ ...p }); setVerMapa(true) }} className="text-muted hover:text-primario hover:underline">+ Agregar</button> : <span className="text-muted">—</span>}</td>
-            <td>{puedeEditar && <div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => abrirProv({ ...p })}><Pencil size={15} /></Button><Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar ${p.nombre}?`)) { const e = eliminarProveedor(p.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div>}</td></tr>
+            <td>{puedeEditar && <div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => abrirProv({ ...p })}><Pencil size={15} /></Button><Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => pedirEliminar({ titulo: `¿Eliminar a ${p.nombre}?`, detalle: 'El proveedor queda en la Papelera por si lo necesita.', listo: `${p.nombre} eliminado`, accion: () => eliminarProveedor(p.id) })}><Trash2 size={15} /></Button></div>}</td></tr>
         })}</tbody></table></Scroll>
         {!proveedores.length && <p className="py-6 text-center text-sm text-muted">Registre sus proveedores con "Nuevo proveedor": desde quien recién empieza en su casa hasta una fábrica.</p>}</Card>
         <Card titulo={<span className="flex items-center gap-2"><Trophy size={15} className="text-alerta" />Ranking de proveedores</span>}>

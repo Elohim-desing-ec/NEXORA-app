@@ -7,6 +7,7 @@ import { Button, Campo, Modal, cx } from '../../components/ui'
 import { abrir, urlCalendario, urlGmail, URLS } from '../../lib/google'
 import { hoyISO } from '../../lib/resumen'
 import { fecha } from '../../lib/format'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 export const COLUMNAS: { id: EstadoTarea; nombre: string; punto: string }[] = [
   { id: 'pendiente', nombre: 'Pendiente', punto: 'bg-sky-400' }, { id: 'progreso', nombre: 'En progreso', punto: 'bg-primario' }, { id: 'hecho', nombre: 'Hecho', punto: 'bg-exito' }, { id: 'archivado', nombre: 'Archivado', punto: 'bg-fg/30' },
@@ -153,7 +154,7 @@ export default function Tablero() {
           </div>
           {error && <p className="text-sm text-peligro">{error}</p>}
           <div className="flex justify-between gap-2">
-            {tareas.some((x) => x.id === form.id) ? <Button variante="peligro" onClick={() => { if (confirm(`¿Eliminar la tarea «${form.titulo}»?`)) { eliminarTarea(form.id); setForm(null) } }}><Trash2 size={14} />Eliminar</Button> : <span />}
+            {tareas.some((x) => x.id === form.id) ? <Button variante="peligro" onClick={() => { const t = form; pedirEliminar({ titulo: `¿Eliminar la tarea «${t.titulo}»?`, detalle: 'Queda en la Papelera por si la necesita.', listo: 'Tarea eliminada', accion: () => { eliminarTarea(t.id); setForm(null) } }) }}><Trash2 size={14} />Eliminar</Button> : <span />}
             <div className="flex gap-2"><Button onClick={() => setForm(null)}>Cancelar</Button><Button variante="primario" onClick={guardar}>Guardar tarea</Button></div>
           </div>
         </div>}

@@ -13,6 +13,7 @@ import { useRecuperando } from './lib/cuenta'
 import { desconectarNube, reanudar } from './lib/nube'
 import { tomarPestana, usarAqui, usePestana } from './lib/pestana'
 import { Logo } from './components/Logo'
+import { Eliminacion } from './components/Eliminacion'
 import Dashboard from './pages/Dashboard'
 
 /**
@@ -83,7 +84,7 @@ export default function App() {
     const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ventas: Ventas, gastos: Gastos, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]
     vista = <Layout><Suspense fallback={<Cargando />}><Pag />{tieneRol(usuario, 'Gerente General') && !empresa.configurada && <Bienvenida />}</Suspense></Layout>
   }
-  return <>{vista}<DefsGraficos /><AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>
+  return <>{vista}{usuario && <Eliminacion />}<DefsGraficos /><AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>
 }
 
 /** NEXORA ya está abierto en otra pestaña o ventana de este navegador. */

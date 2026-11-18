@@ -10,6 +10,7 @@ import { exportarTabla } from '../../lib/export'
 import { EDITAN, MESES, agregar, cambioTrasCierre, estadoStock, gastosDe, idCierre, nombrePeriodo, usePeriodo, variacion, type Agregado } from '../../lib/resumen'
 import { BarraPeriodo } from '../../components/BarraPeriodo'
 import type { TabNegocio } from '../Resumen'
+import { pedirEliminar } from '../../components/Eliminacion'
 
 function Delta({ v }: { v: number | null }) {
   if (v === null) return <Badge>sin datos</Badge>
@@ -133,7 +134,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
               <td><b>{nombrePeriodo(c.anio, c.mes)}</b> {c.mes < 0 && <Badge tono="azul">Año</Badge>} {cambioTrasCierre(c, d.consolidado(c.anio, c.mes)) && <Badge tono="ambar">Cambió después</Badge>}</td>
               <td className="num">{money(c.ventas)}</td><td className="num">{money(c.costo)}</td><td className="num">{money(c.gastos)}</td><td className={cx('num font-semibold', c.neta < 0 && 'text-peligro')}>{money(c.neta)}</td>
               <td className="num">{num(c.unidades, 0)}</td><td className="num">{num(c.stockUnidades, 0)}</td><td className="num">{money(c.stockValor)}</td><td>{fecha(c.cerradoEl)}{c.cerradoPor && <span className="text-xs text-muted"> · {c.cerradoPor}</span>}</td>
-              <td className="whitespace-nowrap text-right"><Button variante="fantasma" className="px-2 py-1 text-xs" onClick={() => { setAnio(c.anio); setMes(c.mes) }}>Ver</Button>{puede && <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => confirm(`¿Quitar el cierre de ${nombrePeriodo(c.anio, c.mes)}? Las ventas y gastos no se borran.`) && quitarCierre(c.id)}>Quitar</Button>}</td>
+              <td className="whitespace-nowrap text-right"><Button variante="fantasma" className="px-2 py-1 text-xs" onClick={() => { setAnio(c.anio); setMes(c.mes) }}>Ver</Button>{puede && <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => pedirEliminar({ titulo: `¿Quitar el cierre de ${nombrePeriodo(c.anio, c.mes)}?`, detalle: 'Las ventas y gastos no se borran. El cierre queda en la Papelera.', boton: 'Quitar', listo: 'Cierre quitado', accion: () => quitarCierre(c.id) })}>Quitar</Button>}</td>
             </tr>))}
             {!lista.length && <tr><td colSpan={10} className="py-6 text-center text-muted">Todavía no ha cerrado ningún mes. Elija el periodo arriba y pulse «Cerrar mes» al terminar cada mes.</td></tr>}
           </tbody>
