@@ -9,12 +9,10 @@
  */
 import { useSyncExternalStore } from 'react'
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
-import { get as idbGet, set as idbSet } from 'idb-keyval'
-import { useApp, ROLES, esCuenta, escritorLocal, type Rol } from '../store/useApp'
-import { PESTANA } from './pestana'
+import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
 import { EMPRESA_BASE } from '../data/base'
 import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
-import { baseConfiable, esAnterior, fusionar, igual } from './fusion'
+import { esAnterior, fusionar, huella, igual, type Huella } from './fusion'
 
 const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
 
@@ -44,35 +42,33 @@ let reloj: ReturnType<typeof setTimeout> | undefined
 let relojSinc: ReturnType<typeof setTimeout> | undefined
 let intervalo: ReturnType<typeof setInterval> | undefined
 const pendientes = new Set<Clave>()
-/** Lo último que este equipo sabe que estaba en la nube (por colección): sirve para combinar sin perder nada. */
-let base: Partial<Record<Clave, unknown>> = {}
 /** Fecha de la última versión de cada colección que llegó de la nube (para descargar solo lo que cambió). */
 let versiones: Partial<Record<Clave, string>> = {}
 
-const nombreBase = (id: string) => `nexora-nube-base-${id}`
-let relojBase: ReturnType<typeof setTimeout> | undefined
-const guardarBase = (ya = false) => {
-  clearTimeout(relojBase)
-  const id = empresaId, copia = base
-  const escribir = () => { if (id) idbSet(nombreBase(id), { pestana: PESTANA, datos: copia }).catch(() => undefined) }
-  if (ya) escribir(); else relojBase = setTimeout(escribir, 500)
-}
-/** La base guardada solo sirve si la escribió la misma pestaña que guardó los datos de este navegador (si no, {}: se une sin borrar nada). */
-const leerBase = async (id: string): Promise<Partial<Record<Clave, unknown>>> => {
-  try { return baseConfiable(await idbGet(nombreBase(id)), escritorLocal()) as Partial<Record<Clave, unknown>> } catch { return {} }
-}
-
 const local = () => useApp.getState() as unknown as Record<Clave, unknown>
 
-/** Aplica datos que llegan de la nube sin volver a subirlos. */
-function aplicar(parcial: Partial<Record<Clave, unknown>>) {
+/** Huella de lo último que se sabía de la nube para una colección (guardada junto a los datos, ver fusion.ts). */
+const baseDe = (k: Clave): Huella | undefined => { const b = useApp.getState().nubeBase; return b && b.empresa === empresaId ? b.huellas[k] : undefined }
+
+/**
+ * Aplica datos que llegan de la nube (sin volver a subirlos) y, EN LA MISMA ESCRITURA, la nueva huella de la nube:
+ * los datos y lo que se sabía de la nube nunca quedan desfasados, ni si la app se cierra de golpe.
+ */
+function aplicar(parcial: Partial<Record<Clave, unknown>>, nubeVista?: Partial<Record<Clave, unknown>>) {
+  const extra: Record<string, unknown> = {}
+  if (nubeVista && empresaId) {
+    const b = useApp.getState().nubeBase
+    const huellas = { ...(b && b.empresa === empresaId ? b.huellas : {}) }
+    for (const [k, v] of Object.entries(nubeVista)) huellas[k] = huella(v)
+    extra.nubeBase = { empresa: empresaId, huellas }
+  }
   remoto = true
-  try { useApp.setState(parcial as never) } finally { remoto = false }
+  try { useApp.setState({ ...parcial, ...extra } as never) } finally { remoto = false }
 }
 
 /** Combina lo que llegó de la nube con lo de este equipo (las colecciones con cambios por subir las combina subir()). */
 function combinarDesdeNube(filas: { clave: string; valor: unknown; actualizado?: string }[]) {
-  const cambios: Partial<Record<Clave, unknown>> = {}
+  const cambios: Partial<Record<Clave, unknown>> = {}, vista: Partial<Record<Clave, unknown>> = {}
   for (const f of filas) {
     const k = f.clave as Clave
     if (!CLAVES.includes(k)) continue
@@ -80,13 +76,12 @@ function combinarDesdeNube(filas: { clave: string; valor: unknown; actualizado?:
     if (f.actualizado) versiones[k] = f.actualizado
     if (pendientes.has(k)) continue
     const aqui = local()[k] ?? vacios()[k]
-    const unido = fusionar(base[k], aqui, f.valor)
+    const unido = fusionar(baseDe(k), aqui, f.valor)
     if (!igual(unido, aqui)) cambios[k] = unido
-    base[k] = f.valor
+    vista[k] = f.valor
     if (!igual(unido, f.valor)) pendientes.add(k) // este equipo tenía algo que la nube no: se sube
   }
-  if (Object.keys(cambios).length) aplicar(cambios)
-  guardarBase()
+  if (Object.keys(vista).length) aplicar(cambios, vista)
 }
 
 /** Sube una colección combinándola con lo que haya en la nube. Si otra persona guardó a la vez, vuelve a combinar. */
@@ -95,18 +90,20 @@ async function subirClave(k: Clave): Promise<boolean> {
     const { data: fila, error } = await supabase.from('datos').select('valor, actualizado').eq('empresa_id', empresaId!).eq('clave', k).maybeSingle()
     if (error) return false
     const aqui = local()[k] ?? vacios()[k]
-    const unido = fila ? fusionar(base[k], aqui, fila.valor) : aqui
-    if (!igual(unido, aqui)) aplicar({ [k]: unido }) // llegan los cambios de las otras personas
-    if (fila && igual(unido, fila.valor)) { base[k] = unido; versiones[k] = fila.actualizado; return true }
+    const unido = fila ? fusionar(baseDe(k), aqui, fila.valor) : aqui
+    // Llegan los cambios de las otras personas y lo de la nube queda como base (en la misma escritura). Si este guardado
+    // choca con otro y se reintenta, no se confunde lo que trajo la nube con algo «nuevo de aquí» (eso revivía lo eliminado).
+    if (fila) { aplicar(igual(unido, aqui) ? {} : { [k]: unido }, { [k]: fila.valor }); versiones[k] = fila.actualizado }
+    if (fila && igual(unido, fila.valor)) return true
     const ahora = new Date().toISOString()
     if (fila) {
       // Solo se guarda si nadie más guardó desde que se leyó (si no, se vuelve a combinar)
       const { data: hecho, error: e } = await supabase.from('datos').update({ valor: unido, actualizado: ahora, actualizado_por: miId }).eq('empresa_id', empresaId!).eq('clave', k).eq('actualizado', fila.actualizado).select('actualizado')
       if (e) return false
-      if (hecho?.length) { base[k] = unido; versiones[k] = hecho[0].actualizado; return true }
+      if (hecho?.length) { aplicar({}, { [k]: unido }); versiones[k] = hecho[0].actualizado; return true }
     } else {
       const { data: hecho, error: e } = await supabase.from('datos').insert({ empresa_id: empresaId, clave: k, valor: unido, actualizado: ahora, actualizado_por: miId }).select('actualizado')
-      if (!e) { base[k] = unido; versiones[k] = hecho?.[0]?.actualizado ?? ahora; return true }
+      if (!e) { aplicar({}, { [k]: unido }); versiones[k] = hecho?.[0]?.actualizado ?? ahora; return true }
       if (e.code !== '23505') return false // 23505: otra persona la creó a la vez → se vuelve a combinar
     }
   }
@@ -124,7 +121,6 @@ async function subir() {
   const fallidas: Clave[] = []
   for (const k of claves) if (!(await subirClave(k).catch(() => false))) fallidas.push(k)
   subiendo = false
-  guardarBase()
   if (fallidas.length) { fallidas.forEach((k) => pendientes.add(k)); fijar('sin-conexion'); reloj = setTimeout(subir, 5000); return }
   if (pendientes.size) programar()
   else fijar('al-dia')
@@ -158,7 +154,7 @@ let relojReintento: ReturnType<typeof setTimeout> | undefined
 const reconectar = () => { if (reintento) conectarNube(reintento.a, reintento.u) }
 const programarReintento = () => { clearTimeout(relojReintento); relojReintento = setTimeout(reconectar, 15000) }
 
-const alCambiarVisibilidad = () => { if (document.visibilityState === 'hidden') { subir(); guardarBase(true) } else sincronizarAhora() }
+const alCambiarVisibilidad = () => { if (document.visibilityState === 'hidden') subir(); else sincronizarAhora() }
 const alVolverInternet = () => { if (empresaId) { subir(); sincronizarAhora() } else reconectar() }
 
 export function conectarNube(a: Acceso, usuario: User): Promise<void> {
@@ -180,8 +176,8 @@ async function conectar(a: Acceso, usuario: User) {
   miId = usuario.id
   // ¿Este equipo ya trabajó con esta empresa? Si no, la nube manda (no se mezclan datos de otra empresa o de pruebas).
   const yaConocido = leerUltima() === a.empresaId
-  base = yaConocido ? await leerBase(a.empresaId) : {}
   versiones = {}
+  if (!yaConocido) useApp.setState({ nubeBase: { empresa: a.empresaId, huellas: {} } }) // otra empresa en este equipo: sin historia
   if (!yaConocido && (data.length || !a.esDueno)) aplicar(vacios())
   if (data.length) combinarDesdeNube(data)
   else if (a.esDueno) { // primera vez de la empresa: el titular sube lo que hay en este navegador
@@ -211,7 +207,6 @@ async function conectar(a: Acceso, usuario: User) {
 
 export function desconectarNube() {
   if (pendientes.size) subir() // último guardado antes de salir
-  guardarBase(true)
   quitarSub?.(); quitarSub = null
   if (canal) supabase.removeChannel(canal)
   canal = null

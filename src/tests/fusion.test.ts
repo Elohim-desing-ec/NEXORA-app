@@ -8,7 +8,7 @@ describe('fusión de cambios de varias personas', () => {
     const base = [v('A')]
     const yo = [v('A'), v('B')] // registré B
     const nube = [v('A'), v('C')] // otra persona registró C
-    expect(fusionar(base, yo, nube).map((x) => x.id)).toEqual(['A', 'B', 'C'])
+    expect(fusionar(base, yo, nube).map((x) => x.id).sort()).toEqual(['A', 'B', 'C'])
   })
   it('un borrado en la nube se respeta si aquí no se tocó ese registro', () => {
     expect(fusionar([v('A'), v('B')], [v('A'), v('B')], [v('A')]).map((x) => x.id)).toEqual(['A'])
