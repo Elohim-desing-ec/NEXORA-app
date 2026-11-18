@@ -5,9 +5,12 @@ import JsBarcode from 'jsbarcode'
 import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
-import { COLORES, CUELLOS, diasParaVencer, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
+import { CUELLOS, diasParaVencer, skuVariante, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
 import type { Producto, Sucursal, SucursalId } from '../data/base'
 import { tiposDe } from '../data/categorias'
+import { ElegirColores, Muestra, useColores } from '../components/Colores'
+import { datosFicha, urlFicha } from '../components/Ficha'
+import { SIMBOLOS } from '../data/paises'
 import type { TipoOperacion } from '../store/useApp'
 import { exportarTabla } from '../lib/export'
 import { categoriasPara } from '../lib/sectores'
@@ -27,9 +30,16 @@ export default function Productos() {
   const soloLectura = esSoloLectura(usuario)
   const [q, setQ] = useState(''), [cat, setCat] = useState('Todas')
   const [edit, setEdit] = useState<Producto | null>(null)
-  // Prenda nueva: varias tallas a la vez, cada una con su cantidad por sucursal (se crea un producto por talla)
-  const [porTalla, setPorTalla] = useState<{ talla: string; stock: Record<SucursalId, number> }[]>([]), [otraTalla, setOtraTalla] = useState('')
-  const abrirEdicion = (p: Producto) => { setPorTalla([]); setOtraTalla(''); setEdit(p) }
+  // Prenda nueva: varios colores y tallas a la vez, con la cantidad de cada combinación (se crea un producto por cada una)
+  const [vari, setVari] = useState<{ colores: string[]; tallas: string[]; cant: Record<string, number>; sucursal: SucursalId }>({ colores: [], tallas: [], cant: {}, sucursal: '' })
+  const [otraTalla, setOtraTalla] = useState('')
+  const coloresEmpresa = useColores()
+  const abrirEdicion = (p: Producto) => { setVari({ colores: [], tallas: [], cant: {}, sucursal: sucursal !== 'TODAS' ? sucursal : SUCURSALES[0]?.id ?? '' }); setOtraTalla(''); setEdit(p) }
+  const esNuevo = !!edit && !productos.some((x) => x.id === edit.id)
+  const conVariantes = !!edit && esNuevo && esPrenda(edit.categoria, edit.tipo) && (vari.colores.length > 0 || vari.tallas.length > 0)
+  const combinaciones = (vari.colores.length ? vari.colores : ['']).flatMap((c) => (vari.tallas.length ? vari.tallas : ['']).map((t) => ({ c, t, k: `${c}|${t}` })))
+  const skuDe = (base: string, c: string, t: string) => (combinaciones.length === 1 ? base.trim().toUpperCase() : skuVariante(base, c, t))
+  const alternarTalla = (t: string) => setVari({ ...vari, tallas: vari.tallas.includes(t) ? vari.tallas.filter((x) => x !== t) : [...vari.tallas, t] })
   const [codigo, setCodigo] = useState<Producto | null>(null)
   const [trans, setTrans] = useState<{ p: Producto; de: SucursalId; a: SucursalId; cant: number; err?: string } | null>(null)
   const [aj, setAj] = useState<{ p: Producto; s: SucursalId; cant: number; tipo: TipoOperacion; nota: string; costo: number; err?: string } | null>(null)
@@ -40,7 +50,7 @@ export default function Productos() {
   // Hasta 5 sucursales: una columna por sucursal. Con más: solo la sucursal elegida arriba (o el total).
   const cols = SUCURSALES.length <= 5 ? SUCURSALES.map((x) => x.id) : sucursal !== 'TODAS' ? [sucursal] : []
   const [pag, setPag] = useState(0), POR_PAG = 50
-  const sector = useApp((s) => s.empresa.sector)
+  const sector = useApp((s) => s.empresa.sector), empresa = useApp((s) => s.empresa)
   const categorias = useMemo(() => [...new Set([...categoriasPara(sector), ...productos.map((p) => p.categoria)])], [productos, sector])
   const lista = useMemo(() => productos.filter((p) => (cat === 'Todas' || p.categoria === cat) && `${p.sku} ${etiquetaProducto(p)} ${p.tipo ?? ''} ${p.lote}`.toLowerCase().includes(q.toLowerCase())), [productos, q, cat])
   const filasK = kx ? kardex(kx.p.id, movimientos, kx.s) : []
@@ -133,11 +143,13 @@ export default function Productos() {
       <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={productos.some((x) => x.id === edit?.id) ? 'Editar producto' : 'Nuevo producto'}>
         {edit && <form className="grid grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); if (!edit.sku || !edit.nombre) return alert('SKU y nombre son obligatorios'); if (edit.min > edit.max) return alert('El mínimo no puede superar al máximo')
           const base: Producto = { ...edit, sku: edit.sku.trim(), nombre: edit.nombre.trim(), categoria: edit.categoria.trim(), tipo: edit.tipo?.trim() || undefined, color: edit.color?.trim() || undefined, talla: edit.talla?.trim() || undefined, cuello: usaCuello(edit.categoria, edit.tipo) ? edit.cuello || undefined : undefined }
-          if (porTalla.length) { // una prenda por talla: SKU-TALLA (ej.: CAM-001-M)
-            const skus = porTalla.map((t) => `${base.sku}-${t.talla}`.toUpperCase())
-            const repetido = skus.find((k) => productos.some((p) => p.sku.toUpperCase() === k))
-            if (repetido) return alert(`Ya existe un producto con el código ${repetido}`)
-            porTalla.forEach((t, k) => guardarProducto({ ...base, id: `${base.id}-${k}`, sku: skus[k], talla: t.talla, stock: t.stock }))
+          if (conVariantes) { // un producto por color y talla: CAM-010-BLA-S, CAM-010-NEG-S…
+            const unica = combinaciones.length === 1
+            const nuevos: Producto[] = combinaciones.map(({ c, t, k }, i) => ({ ...base, id: `${base.id}-${i}`, sku: skuDe(base.sku, c, t), color: c || undefined, talla: t || undefined, modelo: unica ? undefined : base.sku.toUpperCase(),
+              stock: Object.fromEntries(SUCURSALES.map((x) => [x.id, x.id === vari.sucursal ? vari.cant[k] ?? 0 : 0])) }))
+            const repetido = nuevos.find((n) => productos.some((p) => p.sku.toUpperCase() === n.sku))
+            if (repetido) return alert(`Ya existe un producto con el código ${repetido.sku}. Cambie el SKU base.`)
+            nuevos.forEach((n) => guardarProducto(n))
           } else guardarProducto(base)
           setEdit(null) }}>
           <Campo label="SKU"><input className="inp" value={edit.sku} onChange={(e) => set('sku', e.target.value)} /></Campo>
@@ -149,24 +161,34 @@ export default function Productos() {
           <Campo label="Precio ($)"><MontoInput value={edit.precio} onChange={(v) => set('precio', v)} /></Campo>
           {esPrenda(edit.categoria, edit.tipo) && <div className="space-y-3 rounded-xl border border-fg/10 p-3 sm:col-span-2">
             <div className="text-xs font-medium text-muted">Detalles de la prenda</div>
+            {esNuevo && <div>
+              <div className="mb-1.5 text-xs font-medium text-muted">Colores <span className="font-normal">(elija todos los que tiene)</span></div>
+              <ElegirColores elegidos={vari.colores} onChange={(colores) => setVari({ ...vari, colores })} />
+            </div>}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Campo label="Color"><input className="inp" list="colores" value={edit.color ?? ''} onChange={(e) => set('color', e.target.value)} placeholder="Ej.: Blanco" /><datalist id="colores">{COLORES.map((c) => <option key={c} value={c} />)}</datalist></Campo>
+              {!esNuevo && <Campo label="Color"><div className="flex items-center gap-2"><Muestra color={edit.color} size={18} /><input className="inp" list="colores" value={edit.color ?? ''} onChange={(e) => set('color', e.target.value)} placeholder="Ej.: Blanco" /></div><datalist id="colores">{coloresEmpresa.map((c) => <option key={c} value={c} />)}</datalist></Campo>}
               {usaCuello(edit.categoria, edit.tipo) && <Campo label="Tipo de cuello"><select className="inp" value={edit.cuello ?? ''} onChange={(e) => set('cuello', e.target.value)}><option value="">— Elegir —</option>{CUELLOS.map((c) => <option key={c}>{c}</option>)}</select></Campo>}
-              {productos.some((x) => x.id === edit.id) && <Campo label="Talla"><input className="inp" list="tallas" value={edit.talla ?? ''} onChange={(e) => set('talla', e.target.value.toUpperCase())} /><datalist id="tallas">{tallasDe(edit.categoria, edit.tipo).map((t) => <option key={t} value={t} />)}</datalist></Campo>}
+              {!esNuevo && <Campo label="Talla"><input className="inp" list="tallas" value={edit.talla ?? ''} onChange={(e) => set('talla', e.target.value.toUpperCase())} /><datalist id="tallas">{tallasDe(edit.categoria, edit.tipo).map((t) => <option key={t} value={t} />)}</datalist></Campo>}
             </div>
-            {!productos.some((x) => x.id === edit.id) && <div>
-              <div className="mb-1.5 text-xs font-medium text-muted">Tallas <span className="font-normal">(elija las que tiene; se crea un producto por talla con su cantidad)</span></div>
+            {esNuevo && <div>
+              <div className="mb-1.5 text-xs font-medium text-muted">Tallas <span className="font-normal">(elija las que tiene)</span></div>
               <div className="flex flex-wrap items-center gap-1.5">
-                {[...new Set([...tallasDe(edit.categoria, edit.tipo), ...porTalla.map((t) => t.talla)])].map((t) => { const si = porTalla.some((x) => x.talla === t); return (
-                  <button key={t} type="button" onClick={() => setPorTalla(si ? porTalla.filter((x) => x.talla !== t) : [...porTalla, { talla: t, stock: Object.fromEntries(SUCURSALES.map((x) => [x.id, 0])) }])} className={`min-w-[2.6rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${si ? 'border-primario/60 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5'}`}>{t}</button>) })}
-                <input className="inp !w-24 !py-1.5 text-xs" placeholder="Otra talla" value={otraTalla} onChange={(e) => setOtraTalla(e.target.value.toUpperCase())} onKeyDown={(e) => { const t = otraTalla.trim(); if (e.key === 'Enter') { e.preventDefault(); if (t && !porTalla.some((x) => x.talla === t)) setPorTalla([...porTalla, { talla: t, stock: Object.fromEntries(SUCURSALES.map((x) => [x.id, 0])) }]); setOtraTalla('') } }} />
+                {[...new Set([...tallasDe(edit.categoria, edit.tipo), ...vari.tallas])].map((t) => { const si = vari.tallas.includes(t); return (
+                  <button key={t} type="button" aria-pressed={si} onClick={() => alternarTalla(t)} className={`min-w-[2.6rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${si ? 'border-primario/60 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5'}`}>{t}</button>) })}
+                <input className="inp !w-24 !py-1.5 text-xs" placeholder="Otra talla" value={otraTalla} onChange={(e) => setOtraTalla(e.target.value.toUpperCase())} onKeyDown={(e) => { const t = otraTalla.trim(); if (e.key === 'Enter') { e.preventDefault(); if (t && !vari.tallas.includes(t)) alternarTalla(t); setOtraTalla('') } }} />
               </div>
             </div>}
           </div>}
-          {porTalla.length > 0 ? <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Cantidad por talla{SUCURSALES.length > 1 ? ' y sucursal' : ''}</div>
-            <div className="max-h-60 overflow-auto rounded-xl bg-fg/5 p-2"><table className="w-full text-sm"><thead><tr className="text-xs text-muted"><th className="px-1 py-1 text-left font-medium">Talla</th>{SUCURSALES.map((x) => <th key={x.id} className="px-1 py-1 text-left font-medium">{SUCURSALES.length > 1 ? `${x.id} · ${x.ciudad}` : 'Cantidad'}</th>)}</tr></thead>
-              <tbody>{porTalla.map((t, k) => <tr key={t.talla}><td className="px-1 py-1 font-semibold">{t.talla}</td>{SUCURSALES.map((x) => <td key={x.id} className="px-1 py-1"><NumInput value={t.stock[x.id] ?? 0} onChange={(v) => setPorTalla(porTalla.map((y, j) => (j === k ? { ...y, stock: { ...y.stock, [x.id]: Math.max(0, Math.round(v)) } } : y)))} /></td>)}</tr>)}</tbody></table></div>
-            <p className="mt-1 text-[11px] text-muted">Se crearán {porTalla.length === 1 ? '1 producto' : `${porTalla.length} productos`}: {porTalla.map((t) => `${(edit.sku || 'SKU').toUpperCase()}-${t.talla}`).join(', ')}</p></div>
+          {conVariantes ? <div className="sm:col-span-2">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-medium text-muted">Cantidad de cada {vari.colores.length && vari.tallas.length ? 'color y talla' : vari.colores.length ? 'color' : 'talla'}</span>
+              {SUCURSALES.length > 1 && <label className="flex items-center gap-2 text-xs text-muted">Entra en<select className="inp !w-auto !py-1 text-xs" value={vari.sucursal} onChange={(e) => setVari({ ...vari, sucursal: e.target.value })}>{SUCURSALES.map((x) => <option key={x.id} value={x.id}>{x.id} · {x.ciudad}</option>)}</select></label>}</div>
+            <div className="max-h-72 overflow-auto rounded-xl bg-fg/5 p-2"><table className="w-full text-sm">
+              <thead><tr className="text-xs text-muted"><th className="px-1 py-1 text-left font-medium">{vari.colores.length ? 'Color' : ''}</th>{(vari.tallas.length ? vari.tallas : ['']).map((t) => <th key={t} className="min-w-[4.5rem] px-1 py-1 text-left font-medium">{t ? `Talla ${t}` : 'Cantidad'}</th>)}</tr></thead>
+              <tbody>{(vari.colores.length ? vari.colores : ['']).map((c) => <tr key={c}>
+                <td className="whitespace-nowrap px-1 py-1">{c ? <span className="flex items-center gap-1.5 font-medium"><Muestra color={c} />{c}</span> : <span className="text-muted">Cantidad</span>}</td>
+                {(vari.tallas.length ? vari.tallas : ['']).map((t) => <td key={t} className="px-1 py-1"><NumInput value={vari.cant[`${c}|${t}`] ?? 0} onChange={(v) => setVari({ ...vari, cant: { ...vari.cant, [`${c}|${t}`]: Math.max(0, Math.round(v)) } })} /></td>)}
+              </tr>)}</tbody></table></div>
+            <p className="mt-1 text-[11px] text-muted">Se {combinaciones.length === 1 ? 'creará 1 producto' : `crearán ${combinaciones.length} productos`}: {combinaciones.slice(0, 6).map(({ c, t }) => skuDe(edit.sku || 'SKU', c, t)).join(', ')}{combinaciones.length > 6 ? '…' : ''}. Total: {num(combinaciones.reduce((a, x) => a + (vari.cant[x.k] ?? 0), 0), 0)} unidades.</p></div>
           : <div className="sm:col-span-2"><div className="mb-1 text-xs font-medium text-muted">Stock actual por sucursal ({SUCURSALES.length})</div>
             <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto rounded-xl bg-fg/5 p-2 sm:grid-cols-3">{SUCURSALES.map((x) => <Campo key={x.id} label={`${x.id} · ${x.ciudad}`}><NumInput value={edit.stock[x.id] ?? 0} onChange={(v) => set('stock', { ...edit.stock, [x.id]: Math.max(0, Math.round(v)) })} /></Campo>)}</div></div>}
           <Campo label="Stock mínimo (por sucursal)"><NumInput value={edit.min} onChange={(v) => set('min', v)} /></Campo>
@@ -182,7 +204,7 @@ export default function Productos() {
       <Modal abierto={!!codigo} onClose={() => setCodigo(null)} titulo="Etiqueta de producto" ancho="max-w-md">
         {codigo && <div className="space-y-4"><div id="etiqueta" className="flex flex-col items-center gap-3 rounded-xl bg-white p-5 text-slate-900">
           <div className="text-center text-sm font-bold">{etiquetaProducto(codigo)}</div><CodigoBarras valor={codigo.sku} />
-          <QRCodeSVG value={JSON.stringify({ sku: codigo.sku, lote: codigo.lote, vence: codigo.vence })} size={110} /><div className="text-xs">{codigo.lote && `Lote ${codigo.lote} · `}{codigo.vence ? `Vence ${fecha(codigo.vence)}` : 'No vence'} · {money(codigo.precio)}</div>
+          <QRCodeSVG value={urlFicha(datosFicha(codigo, empresa.nombre, SIMBOLOS[empresa.moneda] ?? empresa.moneda))} size={128} level="M" /><div className="-mt-1 text-[10px] text-slate-500">Escanee el QR con la cámara para ver la ficha</div><div className="text-xs">{codigo.lote && `Lote ${codigo.lote} · `}{codigo.vence ? `Vence ${fecha(codigo.vence)}` : 'No vence'} · {money(codigo.precio)}</div>
         </div><Button variante="primario" className="w-full" onClick={() => { const w = window.open('', '_blank', 'width=400,height=500'); if (w) { w.document.write(`<body style="font-family:sans-serif;display:flex;justify-content:center">${document.getElementById('etiqueta')!.outerHTML}</body>`); w.document.close(); w.print() } }}><Printer size={15} />Imprimir etiqueta</Button></div>}
       </Modal>
 

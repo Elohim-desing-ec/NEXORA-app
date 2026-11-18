@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, ChevronDown, MapPin, Pencil, Phone, Plus, Trash2, Truck, Trophy, Building2, ClipboardList, ArrowUpCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, MapPin, Pencil, Phone, Plus, Shirt, Trash2, Truck, Trophy, Building2, ClipboardList, ArrowUpCircle } from 'lucide-react'
 import { useApp, tieneRol, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo, Tabs, cx } from '../components/ui'
 import { UbicacionMapa } from '../components/UbicacionMapa'
@@ -7,9 +7,10 @@ import { IconoNivel } from '../components/Iconos'
 import { LUGARES_TRABAJO, NIVELES_PROVEEDOR, cumplimientoReal, nivelSugerido, sucursalCercana, textoKm, tieneUbicacion, type NivelProveedor } from '../lib/proveedores'
 import { pais } from '../data/paises'
 import { ubicarCiudad } from '../lib/geo'
-import { etiquetaProducto } from '../lib/inventario'
+import { baseDeModelo, esPrenda, etiquetaProducto, modeloDe, skuVariante, stockTotal, tallasDe } from '../lib/inventario'
+import { ElegirColores, Muestra } from '../components/Colores'
 import { money, fecha, num } from '../lib/format'
-import type { Orden, Proveedor, SucursalId } from '../data/base'
+import type { Orden, Producto, Proveedor, SucursalId } from '../data/base'
 import { pedirEliminar } from '../components/Eliminacion'
 
 export const totalOC = (o: Orden) => o.items.reduce((s, i) => s + i.cantidad * i.costo, 0)
@@ -17,12 +18,48 @@ const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: 
 const TONO_NIVEL: Record<NivelProveedor, 'verde' | 'azul' | 'ambar' | 'violeta'> = { Emprendedor: 'verde', Junior: 'azul', Senior: 'ambar', Experimentado: 'violeta' }
 
 export default function Compras() {
-  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, eliminarOrden, guardarProveedor, eliminarProveedor, ir } = useApp()
+  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, eliminarOrden, guardarProveedor, eliminarProveedor, guardarProducto, ir } = useApp()
   const [filtroNivel, setFiltroNivel] = useState<NivelProveedor | 'todos'>('todos'), [masDatos, setMasDatos] = useState(false), [verMapa, setVerMapa] = useState(false)
   const centro = pais(empresa.pais) ?? { lat: -1.8, lng: -78.2 }
   const abrirProv = (p: Proveedor) => { setErr(''); setMasDatos(!!(p.ruc || p.contacto || p.email)); setVerMapa(tieneUbicacion(p)); setProv(p) }
   const [tab, setTab] = useState<'ordenes' | 'proveedores'>('ordenes')
-  const [nueva, setNueva] = useState<{ proveedorId: string; sucursal: SucursalId; items: { productoId: string; cantidad: number; costo: number }[] } | null>(null)
+  /** nuevo: variante de una prenda que aún no existe (otro color o talla); se crea al crear la orden */
+  type ItemOC = { productoId: string; cantidad: number; costo: number; nuevo?: Producto }
+  const [nueva, setNueva] = useState<{ proveedorId: string; sucursal: SucursalId; items: ItemOC[] } | null>(null)
+  // Prenda por colores y tallas: «5 blancas, 5 negras…» de cada talla, al mismo costo
+  const [matriz, setMatriz] = useState<{ k: string; colores: string[]; tallas: string[]; cant: Record<string, number>; costo: number } | null>(null)
+  const modelos = useMemo(() => {
+    const m = new Map<string, Producto[]>()
+    for (const p of productos) if (esPrenda(p.categoria, p.tipo)) { const k = modeloDe(p) ?? `solo:${p.id}`; m.set(k, [...(m.get(k) ?? []), p]) }
+    return [...m.entries()].map(([k, vs]) => ({ k, vs, nombre: `${vs[0].nombre}${vs[0].cuello ? ` · cuello ${vs[0].cuello.toLowerCase()}` : ''}${vs.length > 1 ? ` (${vs.length} variantes)` : ''}` })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [productos])
+  const abrirMatriz = (k: string) => {
+    const vs = modelos.find((m) => m.k === k)?.vs ?? []
+    const orden = tallasDe(vs[0]?.categoria ?? '', vs[0]?.tipo)
+    const tallas = [...new Set(vs.map((v) => v.talla).filter((t): t is string => !!t))].sort((a, b) => (orden.indexOf(a) + 1 || 99) - (orden.indexOf(b) + 1 || 99))
+    setMatriz({ k, colores: [...new Set(vs.map((v) => v.color).filter((c): c is string => !!c))], tallas, cant: {}, costo: vs[0]?.costo ?? 0 })
+  }
+  const agregarMatriz = () => {
+    if (!nueva || !matriz) return
+    const g = modelos.find((m) => m.k === matriz.k); if (!g) return
+    const tpl = g.vs[0], base = baseDeModelo(tpl)
+    const usados = new Set([...productos.map((p) => p.sku.toUpperCase()), ...nueva.items.flatMap((i) => (i.nuevo ? [i.nuevo.sku] : []))])
+    const items: ItemOC[] = []
+    let n = 0
+    for (const c of matriz.colores.length ? matriz.colores : ['']) for (const t of matriz.tallas.length ? matriz.tallas : ['']) {
+      const q = matriz.cant[`${c}|${t}`] ?? 0
+      if (!q) continue
+      const existe = g.vs.find((v) => (v.color ?? '') === c && (v.talla ?? '') === t)
+      if (existe) { items.push({ productoId: existe.id, cantidad: q, costo: matriz.costo }); continue }
+      let sku = skuVariante(base, c, t)
+      for (let i = 2; usados.has(sku); i++) sku = `${skuVariante(base, c, t)}-${i}`
+      usados.add(sku)
+      const nuevo: Producto = { ...tpl, id: `P${Date.now()}-${n++}`, sku, color: c || undefined, talla: t || undefined, modelo: tpl.modelo ?? (tpl.color || tpl.talla ? undefined : base.toUpperCase()), stock: Object.fromEntries(sucursales.map((x) => [x.id, 0])) }
+      items.push({ productoId: nuevo.id, cantidad: q, costo: matriz.costo, nuevo })
+    }
+    setNueva({ ...nueva, items: [...nueva.items, ...items] })
+    setMatriz(null)
+  }
   const [prov, setProv] = useState<Proveedor | null>(null), [err, setErr] = useState(''), [guardando, setGuardando] = useState(false)
   const puedeAprobar = tieneRol(usuario, 'Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Gerente de Sucursal')
   const puedeRecibir = tieneRol(usuario, 'Gerente General', 'Jefe de Bodega', 'Jefe de Logística', 'Gerente de Sucursal')
@@ -40,7 +77,7 @@ export default function Compras() {
     <div className="space-y-5">
       <Titulo titulo="Compras y proveedores" sub="Flujo: Borrador → Aprobada → Recibida (al recibir se actualizan el stock, el costo promedio y el kardex)">
         {puedeEditar && <Button onClick={() => abrirProv(nuevoProv())}><Building2 size={15} />Nuevo proveedor</Button>}
-        {puedeEditar && <Button variante="primario" disabled={!!sinDatos} title={sinDatos} onClick={() => setNueva({ proveedorId: proveedores[0].id, sucursal: sucursales[0]?.id ?? '', items: [item()] })}><Plus size={15} />Nueva orden</Button>}
+        {puedeEditar && <Button variante="primario" disabled={!!sinDatos} title={sinDatos} onClick={() => { setMatriz(null); setNueva({ proveedorId: proveedores[0].id, sucursal: sucursales[0]?.id ?? '', items: modelos.length ? [] : [item()] }) }}><Plus size={15} />Nueva orden</Button>}
       </Titulo>
       {sinDatos && <Card><div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">«Nueva orden» se activa cuando hay sucursal, productos y proveedor. {sinDatos} para poder crear órdenes de compra.</p>
@@ -150,21 +187,42 @@ export default function Compras() {
         </form>}
       </Modal>
 
-      <Modal abierto={!!nueva} onClose={() => setNueva(null)} titulo="Nueva orden de compra">
+      <Modal abierto={!!nueva} onClose={() => setNueva(null)} titulo="Nueva orden de compra" ancho="max-w-3xl">
         {nueva && <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label="Proveedor"><select className="inp" value={nueva.proveedorId} onChange={(e) => setNueva({ ...nueva, proveedorId: e.target.value })}>{proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select></Campo>
             <Campo label="Sucursal de destino"><select className="inp" value={nueva.sucursal} onChange={(e) => setNueva({ ...nueva, sucursal: e.target.value as SucursalId })}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select></Campo>
           </div>
           {nueva.items.map((it, k) => <div key={k} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-fg/10 p-2 sm:grid-cols-[1fr_90px_110px_auto] sm:rounded-none sm:border-0 sm:p-0">
-            <div className="col-span-3 sm:col-span-1"><Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{etiquetaProducto(p)}</option>)}</select></Campo></div>
+            <div className="col-span-3 sm:col-span-1">{it.nuevo ? <Campo label="Producto"><div className="flex min-h-[2.6rem] items-center gap-2 rounded-xl bg-fg/5 px-3 text-sm"><Muestra color={it.nuevo.color} /><span className="truncate">{etiquetaProducto(it.nuevo)}</span><span className="ml-auto shrink-0 rounded-full bg-cian/15 px-2 py-0.5 text-[10px] font-semibold text-cian">nuevo</span></div></Campo>
+              : <Campo label="Producto"><select className="inp" value={it.productoId} onChange={(e) => { const p = productos.find((x) => x.id === e.target.value)!; const items = [...nueva.items]; items[k] = { ...it, productoId: p.id, costo: p.costo }; setNueva({ ...nueva, items }) }}>{productos.map((p) => <option key={p.id} value={p.id}>{etiquetaProducto(p)}</option>)}</select></Campo>}</div>
             <Campo label="Cant."><NumInput value={it.cantidad} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, cantidad: Math.max(1, Math.round(v)) }; setNueva({ ...nueva, items }) }} /></Campo>
             <Campo label="Costo"><MontoInput value={it.costo} onChange={(v) => { const items = [...nueva.items]; items[k] = { ...it, costo: v }; setNueva({ ...nueva, items }) }} /></Campo>
             <Button variante="fantasma" className="text-peligro" onClick={() => setNueva({ ...nueva, items: nueva.items.filter((_, j) => j !== k) })}><Trash2 size={15} /></Button>
           </div>)}
-          <div className="flex items-center justify-between"><Button onClick={() => setNueva({ ...nueva, items: [...nueva.items, item()] })}><Plus size={15} />Ítem</Button>
+          {matriz && (() => { const g = modelos.find((m) => m.k === matriz.k); const vs = g?.vs ?? []; const cols = matriz.tallas.length ? matriz.tallas : ['']; const filas = matriz.colores.length ? matriz.colores : ['']
+            const total = filas.reduce((a, c) => a + cols.reduce((b, t) => b + (matriz.cant[`${c}|${t}`] ?? 0), 0), 0)
+            return <div className="space-y-3 rounded-xl border border-primario/30 bg-primario/5 p-3">
+              <Campo label="Prenda"><select className="inp" value={matriz.k} onChange={(e) => abrirMatriz(e.target.value)}>{modelos.map((m) => <option key={m.k} value={m.k}>{m.nombre}</option>)}</select></Campo>
+              <div><div className="mb-1.5 text-xs font-medium text-muted">Colores que va a pedir</div><ElegirColores elegidos={matriz.colores} onChange={(colores) => setMatriz({ ...matriz, colores })} extra={vs.map((v) => v.color).filter((c): c is string => !!c)} /></div>
+              <div><div className="mb-1.5 text-xs font-medium text-muted">Tallas</div><div className="flex flex-wrap gap-1.5">{[...new Set([...tallasDe(vs[0]?.categoria ?? '', vs[0]?.tipo), ...matriz.tallas])].map((t) => { const si = matriz.tallas.includes(t); return <button key={t} type="button" aria-pressed={si} onClick={() => setMatriz({ ...matriz, tallas: si ? matriz.tallas.filter((x) => x !== t) : [...matriz.tallas, t] })} className={`min-w-[2.6rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${si ? 'border-primario/60 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5'}`}>{t}</button> })}</div></div>
+              {(matriz.colores.length > 0 || matriz.tallas.length > 0) && <div className="max-h-72 overflow-auto rounded-xl bg-fg/5 p-2"><table className="w-full text-sm">
+                <thead><tr className="text-xs text-muted"><th className="px-1 py-1 text-left font-medium">{matriz.colores.length ? 'Color' : ''}</th>{cols.map((t) => <th key={t} className="min-w-[4.5rem] px-1 py-1 text-left font-medium">{t ? `Talla ${t}` : 'Cantidad'}</th>)}</tr></thead>
+                <tbody>{filas.map((c) => <tr key={c}><td className="whitespace-nowrap px-1 py-1">{c ? <span className="flex items-center gap-1.5 font-medium"><Muestra color={c} />{c}</span> : <span className="text-muted">Cantidad</span>}</td>
+                  {cols.map((t) => { const v = vs.find((x) => (x.color ?? '') === c && (x.talla ?? '') === t); return <td key={t} className="px-1 py-1 align-top"><NumInput value={matriz.cant[`${c}|${t}`] ?? 0} onChange={(q) => setMatriz({ ...matriz, cant: { ...matriz.cant, [`${c}|${t}`]: Math.max(0, Math.round(q)) } })} /><div className="mt-0.5 text-[10px] text-muted">{v ? `hay ${stockTotal(v)}` : 'nuevo'}</div></td> })}
+                </tr>)}</tbody></table></div>}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-40"><Campo label="Costo por unidad (igual para todas)"><MontoInput value={matriz.costo} onChange={(v) => setMatriz({ ...matriz, costo: v })} /></Campo></div>
+                <div className="pb-2 text-sm text-muted">{num(total, 0)} unidades · <b className="text-fg tnum">{money(total * matriz.costo)}</b></div>
+                <div className="ml-auto flex gap-2 pb-0.5"><Button onClick={() => setMatriz(null)}>Cancelar</Button><Button variante="primario" disabled={!total} onClick={agregarMatriz}>Agregar a la orden</Button></div>
+              </div>
+            </div> })()}
+          <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex flex-wrap gap-2"><Button onClick={() => setNueva({ ...nueva, items: [...nueva.items, item()] })}><Plus size={15} />Ítem</Button>
+            {modelos.length > 0 && !matriz && <Button onClick={() => abrirMatriz(modelos[0].k)}><Shirt size={15} />Prenda por colores y tallas</Button>}</div>
             <div className="text-sm">Total: <b className="tnum">{money(nueva.items.reduce((s, i) => s + i.cantidad * i.costo, 0))}</b></div></div>
-          <Button variante="primario" className="w-full" disabled={!nueva.items.length} onClick={() => { crearOrden(nueva); setNueva(null) }}>Crear como borrador</Button>
+          <Button variante="primario" className="w-full" disabled={!nueva.items.length || !!matriz} title={matriz ? 'Primero pulse «Agregar a la orden»' : ''} onClick={() => {
+            nueva.items.forEach((i) => { if (i.nuevo) guardarProducto(i.nuevo) }) // colores o tallas que aún no estaban en el inventario
+            crearOrden({ ...nueva, items: nueva.items.map((i) => ({ productoId: i.productoId, cantidad: i.cantidad, costo: i.costo })) }); setNueva(null) }}>Crear como borrador</Button>
         </div>}
       </Modal>
     </div>

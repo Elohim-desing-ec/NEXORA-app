@@ -43,6 +43,7 @@ const RedGlobal = precargable(() => import('./pages/RedGlobal'))
 const Bienvenida = lazy(() => import('./components/Bienvenida').then((m) => ({ default: m.Bienvenida })))
 const Landing = precargable(() => import('./pages/Landing'))
 const Comprar = lazy(() => import('./pages/Comprar'))
+const FichaProducto = lazy(() => import('./pages/FichaProducto'))
 const ResultadoPago = lazy(() => import('./pages/Comprar').then((m) => ({ default: m.ResultadoPago })))
 const Cargando = () => <div className="p-10 text-center text-muted">Cargando…</div>
 
@@ -55,7 +56,7 @@ export default function App() {
   const listo = useSyncExternalStore((cb) => useApp.persist.onFinishHydration(cb), hidratado)
   setMoneda(SIMBOLOS[empresa.moneda] ?? empresa.moneda)
   const [hash, setHash] = useState(location.hash)
-  const [intro, setIntro] = useState(true)
+  const [intro, setIntro] = useState(() => !location.hash.startsWith('#/ficha')) // la ficha del QR se ve directo, sin la intro
   const recuperando = useRecuperando()
   // Al entrar, descarga en segundo plano todas las secciones para que cambiar entre ellas sea instantáneo
   useEffect(() => { if (!usuario) return; const t = setTimeout(() => PRECARGAS.forEach((p) => p().catch(() => undefined)), 600); return () => clearTimeout(t) }, [usuario])
@@ -71,7 +72,9 @@ export default function App() {
   useEffect(() => { if (listo) tomarPestana(desconectarNube).then((activa) => { if (activa) reanudar() }) }, [listo])
 
   let vista
-  if (!listo) vista = null
+  // Ficha de un producto (QR de la etiqueta): pública, se ve sin iniciar sesión
+  if (hash.startsWith('#/ficha')) vista = <Suspense fallback={null}><FichaProducto /></Suspense>
+  else if (!listo) vista = null
   else if (pestana === 'otra') vista = <OtraPestana />
   else if (recuperando) vista = <NuevaClave />
   // Planes y compra se abren también con la sesión iniciada (para cambiar de plan desde "Cuenta y equipo").

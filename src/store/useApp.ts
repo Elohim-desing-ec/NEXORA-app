@@ -129,6 +129,8 @@ interface AppState extends Datos {
   setPresentacion: (v: boolean) => void
   setSucursal: (s: SucursalId | 'TODAS') => void
   guardarEmpresa: (e: Empresa) => void
+  /** Colores de prendas de la empresa (se comparten con todo el equipo) */
+  guardarColores: (colores: string[]) => void
   guardarSucursal: (s: Sucursal, idAnterior?: string) => string | null
   eliminarSucursal: (id: string) => string | null
   guardarProducto: (p: Producto) => void
@@ -289,6 +291,13 @@ export const useApp = create<AppState>()(persist((set, get) => {
     setTemaColor: (t) => { const u = get().usuario; if (u) set({ temasColor: { ...get().temasColor, [u.id]: t } }) },
     setPresentacion: (presentacion) => set({ presentacion }),
     setSucursal: (sucursal) => set({ sucursal }),
+    guardarColores: (colores) => {
+      const antes = get().empresa.colores ?? []
+      const lista = [...new Set(colores.map((c) => c.trim()).filter(Boolean))]
+      set({ empresa: { ...get().empresa, colores: lista } })
+      const nuevos = lista.filter((c) => !antes.includes(c)), quitados = antes.filter((c) => !lista.includes(c))
+      if (nuevos.length || quitados.length) log('Colores de prendas', [nuevos.length && `agregados: ${nuevos.join(', ')}`, quitados.length && `quitados: ${quitados.join(', ')}`].filter(Boolean).join(' · '))
+    },
     guardarEmpresa: (empresa) => { set({ empresa }); log('Datos de empresa actualizados', `${empresa.nombre} · ${empresa.pais} · ${empresa.moneda}`) },
     guardarSucursal: (s, idAnterior) => {
       const id = s.id.trim().toUpperCase()

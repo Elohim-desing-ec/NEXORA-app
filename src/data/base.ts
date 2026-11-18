@@ -12,13 +12,14 @@ export interface Proveedor { id: string; nombre: string; /** Opcional: un empren
   /** Ubicación en el mapa (opcional) */ lat?: number; lng?: number; direccion?: string; pais?: string
   /** true: la ubicación es el centro de su ciudad (se puso sola al guardar); false/vacío: la marcaron en el mapa */ ubicacionAprox?: boolean }
 /** pais = código ISO 3166 (EC, CO, US…); moneda = ISO 4217 (USD, COP, EUR…) usada para costos y reportes. */
-export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string> }
+export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string>; /** Colores de prendas que maneja (los de sus proveedores; se pueden agregar más) */ colores?: string[] }
 export interface Producto {
   id: string; sku: string; nombre: string; categoria: string; costo: number; precio: number
   /** unidades por sucursal: { [códigoSucursal]: unidades } */
   stock: Record<SucursalId, number>; min: number; max: number; lote: string; /** AAAA-MM-DD; vacío = no vence (ropa, tecnología…) */ vence: string; proveedorId: string
   /** Tipo dentro de la categoría (ej.: categoría «Ropa, calzado y textil», tipo «Buzos y sudaderas»). Opcional */ tipo?: string
   /** Ropa y textiles (opcional) */ color?: string; talla?: string; cuello?: string
+  /** Código del modelo que comparten sus variantes de color y talla (ej.: CAM-010 → CAM-010-BLA-S, CAM-010-NEG-M) */ modelo?: string
 }
 export type TipoMov = 'Saldo inicial' | 'Compra' | 'Venta' | 'Transferencia' | 'Ajuste' | 'Merma'
 /** cantidad con signo: + entra a la sucursal, − sale. */

@@ -66,3 +66,35 @@ describe('categorías que lo engloban todo', () => {
     expect(categoriasPara('')).toHaveLength(CATALOGO.length)
   })
 })
+
+import { baseDeModelo, codigoColor, colorHex, modeloDe, skuVariante } from '../lib/inventario'
+import { codificarFicha, leerFicha } from '../components/Ficha'
+
+describe('variantes de una prenda (colores y tallas)', () => {
+  it('código corto de cada color para el SKU', () => {
+    expect(codigoColor('Blanco')).toBe('BLA')
+    expect(codigoColor('Azul marino')).toBe('AZUM')
+    expect(codigoColor('Azul rey')).toBe('AZUR')
+    expect(codigoColor('Celeste acuario')).toBe('CELA')
+    expect(skuVariante('cam-010', 'Plomo oscuro', 'S')).toBe('CAM-010-PLOO-S')
+    expect(skuVariante('CAM-010', '', 'XL')).toBe('CAM-010-XL')
+  })
+  it('los colores de su proveedor tienen muestra', () => {
+    for (const c of ['Blanco', 'Negro', 'Azul camerino', 'Rojo', 'Celeste acuario', 'Azul rey', 'Plomo claro', 'Azul marino', 'Plomo oscuro', 'Crema']) expect(colorHex(c)).toMatch(/^#/)
+  })
+  it('las variantes se agrupan por modelo y se obtiene su código base', () => {
+    expect(modeloDe({ modelo: 'CAM-010', nombre: 'Camiseta', categoria: 'Ropa', color: 'Blanco', talla: 'S' })).toBe('CAM-010')
+    expect(modeloDe({ nombre: 'Camiseta', categoria: 'Ropa', talla: 'S' })).toBe(modeloDe({ nombre: 'Camiseta', categoria: 'Ropa', talla: 'M' }))
+    expect(modeloDe({ nombre: 'Arroz', categoria: 'Alimentos' })).toBeNull()
+    expect(baseDeModelo({ sku: 'CAM-010-BLA-S', color: 'Blanco', talla: 'S' })).toBe('CAM-010')
+    expect(baseDeModelo({ sku: 'CAM-010-M', talla: 'M' })).toBe('CAM-010')
+  })
+})
+
+describe('ficha del QR', () => {
+  it('el QR lleva los datos de la prenda y se leen igual (con tildes y ñ)', () => {
+    const d = { n: 'Camiseta básica niño', s: 'CAM-010-BLA-S', co: 'Blanco', ta: 'S', cu: 'Redondo', p: 12.5, m: '$', e: 'Mi Tienda' }
+    expect(leerFicha(`https://x.github.io/NEXORA-app/#/ficha?d=${codificarFicha(d)}`)).toEqual(d)
+    expect(leerFicha('CAM-010')).toBeNull()
+  })
+})

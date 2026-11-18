@@ -94,7 +94,29 @@ export function tallasDe(categoria: string, tipo = '') {
   return ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 }
 export const CUELLOS = ['Redondo', 'En V', 'Polo', 'Camisero', 'Tortuga', 'Sin cuello']
-export const COLORES = ['Blanco', 'Negro', 'Gris', 'Azul', 'Azul marino', 'Rojo', 'Verde', 'Amarillo', 'Rosado', 'Morado', 'Beige', 'Café']
+/** Colores de prendas por defecto (los de la empresa se guardan en empresa.colores y se pueden agregar más). */
+export const COLORES = ['Blanco', 'Negro', 'Azul camerino', 'Rojo', 'Celeste acuario', 'Azul rey', 'Plomo claro', 'Azul marino', 'Plomo oscuro', 'Crema']
+const HEX: Record<string, string> = {
+  blanco: '#ffffff', negro: '#111111', 'azul camerino': '#3b5a8f', rojo: '#d32f2f', 'celeste acuario': '#6fd3e6', 'azul rey': '#2649c9', 'plomo claro': '#b9bdc4',
+  'azul marino': '#1d2b4f', 'plomo oscuro': '#555b63', crema: '#f2e6c8', gris: '#9ca3af', plomo: '#8a8f97', azul: '#2563eb', celeste: '#7dd3fc', verde: '#16a34a',
+  amarillo: '#facc15', naranja: '#f97316', rosado: '#f9a8d4', fucsia: '#d946ef', morado: '#7e22ce', lila: '#c4b5fd', vino: '#7b1e2b', beige: '#e8d9b5', cafe: '#6b4226', mostaza: '#d4a017', turquesa: '#14b8a6',
+}
+/** Color para la muestra (círculo) de un nombre de color; null si no se conoce. */
+export const colorHex = (nombre: string) => HEX[sinTildes(nombre).trim()] ?? HEX[sinTildes(nombre).trim().split(/\s+/)[0]] ?? null
+/** Código corto de un color para el SKU: «Azul marino» → AZUM, «Blanco» → BLA. */
+export const codigoColor = (nombre: string) => { const w = sinTildes(nombre).toUpperCase().replace(/[^A-Z0-9 ]/g, '').split(/\s+/).filter(Boolean); return (w[0]?.slice(0, 3) ?? 'COL') + w.slice(1).map((x) => x[0]).join('') }
+/** SKU de una variante: CAM-010 + Blanco + S → CAM-010-BLA-S */
+export const skuVariante = (base: string, color?: string, talla?: string) => [base.trim(), color && codigoColor(color), talla && talla.replace(/[^A-Za-z0-9]/g, '')].filter(Boolean).join('-').toUpperCase()
+/** Variantes del mismo modelo (mismos colores y tallas de una prenda): por su código de modelo o, si no lo tiene, por nombre, categoría y cuello. */
+export const modeloDe = (p: Pick<Producto, 'modelo' | 'nombre' | 'categoria' | 'cuello' | 'color' | 'talla'>) => p.modelo ?? (p.color || p.talla ? `${p.nombre}|${p.categoria}|${p.cuello ?? ''}` : null)
+/** Código base de un modelo (para crear una variante nueva): el del modelo o el SKU sin su color y talla. */
+export function baseDeModelo(p: Pick<Producto, 'modelo' | 'sku' | 'color' | 'talla'>) {
+  if (p.modelo) return p.modelo
+  let s = p.sku
+  if (p.talla) s = s.replace(new RegExp(`-${p.talla.replace(/[^A-Za-z0-9]/g, '')}$`, 'i'), '')
+  if (p.color) s = s.replace(new RegExp(`-${codigoColor(p.color)}$`, 'i'), '')
+  return s
+}
 /** Nombre con sus detalles de prenda, para distinguir tallas y colores: «Camiseta básica · Blanco · Talla M · Cuello en V». */
 export const etiquetaProducto = (p: Pick<Producto, 'nombre' | 'color' | 'talla' | 'cuello'>) =>
   [p.nombre, p.color, p.talla && `Talla ${p.talla}`, p.cuello && (p.cuello === 'Sin cuello' ? p.cuello : `Cuello ${p.cuello.charAt(0).toLowerCase()}${p.cuello.slice(1)}`)].filter(Boolean).join(' · ')

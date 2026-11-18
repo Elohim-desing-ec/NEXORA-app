@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { diasRestantes } from '../lib/cuenta'
 import { guardarYa, salir, useEstadoNube } from '../lib/nube'
 import { useVersionNueva } from '../lib/version'
+import { Ficha, datosFicha, leerFicha, type DatosFicha } from './Ficha'
+import { SIMBOLOS } from '../data/paises'
+import { stockTotal } from '../lib/inventario'
+import type { Producto } from '../data/base'
 import { AnimatePresence, motion } from 'framer-motion'
 import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, RefreshCw, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
@@ -101,8 +105,32 @@ export function Layout({ children }: { children: ReactNode }) {
   const [movil, setMovil] = useState(false)
   const [paleta, setPaleta] = useState(false)
   const [notif, setNotif] = useState(false)
+  const [escaneado, setEscaneado] = useState<{ d: DatosFicha; p?: Producto } | null>(null)
+  // Pistola lectora: escribe el código muy rápido y termina con Enter. Si es un producto (o el QR de su etiqueta), se muestra su ficha.
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaleta((v) => !v) } if (e.key === 'Escape') { setPaleta(false); if (presentacion) togglePres(false) } }
+    let buf = '', ultimo = 0
+    const k = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      const ahora = Date.now()
+      if (ahora - ultimo > 80) buf = ''
+      ultimo = ahora
+      if (e.key === 'Enter') {
+        const leido = buf.trim(); buf = ''
+        if (leido.length < 3) return
+        const st = useApp.getState(), ficha = leerFicha(leido)
+        const p = st.productos.find((x) => x.sku.toUpperCase() === (ficha?.s ?? leido).toUpperCase())
+        if (p) setEscaneado({ d: datosFicha(p, st.empresa.nombre, SIMBOLOS[st.empresa.moneda] ?? st.empresa.moneda), p })
+        else if (ficha) setEscaneado({ d: ficha })
+        return
+      }
+      if (e.key.length === 1) buf += e.key
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [])
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaleta((v) => !v) } if (e.key === 'Escape') { setPaleta(false); setEscaneado(null); if (presentacion) togglePres(false) } }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   })
   const togglePres = (v: boolean) => { setPresentacion(v); try { if (v) document.documentElement.requestFullscreen?.(); else if (document.fullscreenElement) document.exitFullscreen() } catch { /* sin pantalla completa */ } }
@@ -140,6 +168,17 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-full"><Fondo quieto />
       <Paleta abierta={paleta} cerrar={() => setPaleta(false)} />
+      <AnimatePresence>{escaneado && (
+        <motion.div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => { if (e.target === e.currentTarget) setEscaneado(null) }}>
+          <div className="relative w-full max-w-sm">
+            <button aria-label="Cerrar" onClick={() => setEscaneado(null)} className="absolute -top-11 right-0 rounded-full bg-white/15 px-3 py-1.5 text-xs text-white hover:bg-white/25">Cerrar (Esc)</button>
+            <Ficha d={escaneado.d} extra={escaneado.p && <div className="rounded-2xl bg-stone-900/[.04] p-3 text-xs">
+              <div className="mb-1.5 flex items-center justify-between"><b className="text-[10px] uppercase tracking-[.18em] text-stone-500">Stock</b><b className="text-sm">{stockTotal(escaneado.p)} u</b></div>
+              {SUCURSALES.filter((s) => escaneado.p!.stock[s.id] !== undefined).map((s) => <div key={s.id} className="flex justify-between py-0.5 text-stone-600"><span>{s.nombre} · {s.ciudad}</span><span className="tnum font-medium text-stone-900">{escaneado.p!.stock[s.id] ?? 0} u</span></div>)}
+            </div>} />
+          </div>
+        </motion.div>)}
+      </AnimatePresence>
       <Asistente />
       {movil && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMovil(false)} />}
       <aside className={cx('glass-clear fixed inset-y-3 left-3 z-40 flex flex-col p-3 transition-[width,transform] duration-300 lg:sticky lg:left-auto lg:top-3 lg:ml-3 lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:translate-x-0', colapsado ? 'w-64 lg:w-[76px]' : 'w-64', movil ? 'translate-x-0' : '-translate-x-[120%]')}>
