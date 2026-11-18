@@ -7,6 +7,7 @@ self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) =
 self.addEventListener('fetch', (e) => {
   const r = e.request
   if (r.method !== 'GET' || !r.url.startsWith('http')) return
+  if (new URL(r.url).pathname.endsWith('/version.json')) return // siempre de la red: así la app sabe si hay una versión nueva
   if (r.mode === 'navigate') {
     // Solo la app se guarda como index.html (las páginas fijas, como privacidad.html, no la reemplazan).
     const app = /\/(index\.html)?$/.test(new URL(r.url).pathname)
