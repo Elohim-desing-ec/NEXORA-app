@@ -9,7 +9,14 @@
  * Para lo demás (datos de la empresa): si este equipo lo cambió gana el local; si no, el de la nube.
  */
 type ConId = { id: string }
-const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+/** Copia con las claves de cada objeto en orden alfabético (las listas conservan su orden). */
+const canonico = (v: unknown): unknown => Array.isArray(v) ? v.map(canonico)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonico((v as Record<string, unknown>)[k])])) : v
+/**
+ * ¿Mismo contenido? Sin importar el orden de los campos: la nube (jsonb de Postgres) devuelve cada objeto con sus campos
+ * en otro orden. Compararlos como texto hacía creer que «otra persona lo cambió» y lo eliminado volvía a aparecer.
+ */
+export const igual = (a: unknown, b: unknown) => a === b || JSON.stringify(a) === JSON.stringify(b) || JSON.stringify(canonico(a)) === JSON.stringify(canonico(b))
 const esListaConId = (v: unknown): v is ConId[] => Array.isArray(v) && v.every((x) => x && typeof x === 'object' && typeof (x as ConId).id === 'string')
 
 export function fusionar<T>(base: T | undefined, local: T, servidor: T | undefined): T {

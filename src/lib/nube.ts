@@ -13,10 +13,9 @@ import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
 import { EMPRESA_BASE } from '../data/base'
 import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
-import { esAnterior, fusionar } from './fusion'
+import { esAnterior, fusionar, igual } from './fusion'
 
 const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
-const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 const CLAVES = ['empresa', 'sucursales', 'proveedores', 'productos', 'movimientos', 'ordenes', 'auditoria', 'gastos', 'cierres', 'ventas', 'tareas', 'notas', 'clientes'] as const
 type Clave = (typeof CLAVES)[number]
