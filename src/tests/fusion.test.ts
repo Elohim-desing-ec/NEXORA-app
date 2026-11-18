@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fusionar } from '../lib/fusion'
+import { esAnterior, fusionar } from '../lib/fusion'
 
 const v = (id: string, total = 10) => ({ id, total })
 
@@ -27,5 +27,13 @@ describe('fusión de cambios de varias personas', () => {
     expect(fusionar({ n: 'X' }, { n: 'Y' }, { n: 'X' })).toEqual({ n: 'Y' })
     expect(fusionar({ n: 'X' }, { n: 'X' }, { n: 'Z' })).toEqual({ n: 'Z' })
     expect(fusionar(undefined, { n: 'viejo' }, { n: 'nube' })).toEqual({ n: 'nube' })
+  })
+  it('una versión vieja que llega tarde se reconoce (si se combinara, borraría lo recién agregado)', () => {
+    // Este equipo ya guardó [A, B] (nuevo: B) y luego llega tarde la versión anterior [A]
+    expect(fusionar([v('A'), v('B')], [v('A'), v('B')], [v('A')]).map((x) => x.id)).toEqual(['A']) // por eso hay que ignorarla
+    expect(esAnterior('2026-11-18T10:00:00.100+00:00', '2026-11-18T10:00:01.250+00:00')).toBe(true)
+    expect(esAnterior('2026-11-18T10:00:01.250+00:00', '2026-11-18T10:00:00.100+00:00')).toBe(false)
+    expect(esAnterior('2026-11-18T10:00:00.123456+00:00', '2026-11-18T10:00:00.123456+00:00')).toBe(false)
+    expect(esAnterior(undefined, '2026-11-18T10:00:00Z')).toBe(false) // sin versión conocida: se combina como siempre
   })
 })

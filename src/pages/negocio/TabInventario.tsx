@@ -7,6 +7,7 @@ import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, cx } f
 import { money, num, pct, plural } from '../../lib/format'
 import { stockTotal, valorInventario } from '../../lib/inventario'
 import { EDITAN, estadoStock, statsProductos, type EstadoStock } from '../../lib/resumen'
+import { BarraPeriodo, EstadoCierre } from '../../components/BarraPeriodo'
 
 const TONO: Record<EstadoStock, 'verde' | 'ambar' | 'rojo'> = { OK: 'verde', 'Stock bajo': 'ambar', Agotado: 'rojo' }
 const r2 = (v: number) => Math.round(v * 100) / 100
@@ -79,6 +80,8 @@ export default function TabInventario() {
 
   return (
     <div className="space-y-5">
+      {/* Año, mes y cierre: los mismos de Operación → Inventario y del Resumen */}
+      <div className="flex flex-wrap items-center justify-between gap-2"><EstadoCierre /><BarraPeriodo /></div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{plural(lista.length, 'producto', 'productos')} · {num(lista.reduce((a, f) => a + f.stock, 0), 0)} unidades · {money(lista.reduce((a, f) => a + f.valor, 0))} en stock. <span className="text-primario">Es el mismo inventario de NEXORA.</span></p>
         <div className="flex flex-wrap gap-2">

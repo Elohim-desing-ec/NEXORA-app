@@ -14,7 +14,7 @@ const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: 
 const TONO_NIVEL: Record<NivelProveedor, 'verde' | 'azul' | 'ambar' | 'violeta'> = { Emprendedor: 'verde', Junior: 'azul', Senior: 'ambar', Experimentado: 'violeta' }
 
 export default function Compras() {
-  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, guardarProveedor, eliminarProveedor } = useApp()
+  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, guardarProveedor, eliminarProveedor, ir } = useApp()
   const [filtroNivel, setFiltroNivel] = useState<NivelProveedor | 'todos'>('todos'), [masDatos, setMasDatos] = useState(false), [verMapa, setVerMapa] = useState(false)
   const centro = pais(empresa.pais) ?? { lat: -1.8, lng: -78.2 }
   const abrirProv = (p: Proveedor) => { setErr(''); setMasDatos(!!(p.ruc || p.contacto || p.email)); setVerMapa(tieneUbicacion(p)); setProv(p) }
@@ -39,7 +39,12 @@ export default function Compras() {
         {puedeEditar && <Button onClick={() => abrirProv(nuevoProv())}><Building2 size={15} />Nuevo proveedor</Button>}
         {puedeEditar && <Button variante="primario" disabled={!!sinDatos} title={sinDatos} onClick={() => setNueva({ proveedorId: proveedores[0].id, sucursal: sucursales[0]?.id ?? '', items: [item()] })}><Plus size={15} />Nueva orden</Button>}
       </Titulo>
-      {sinDatos && <Card><p className="text-sm text-muted">{sinDatos} para poder crear órdenes de compra.</p></Card>}
+      {sinDatos && <Card><div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">«Nueva orden» se activa cuando hay sucursal, productos y proveedor. {sinDatos} para poder crear órdenes de compra.</p>
+        {puedeEditar && (!sucursales.length ? <Button onClick={() => ir('configuracion')}>Ir a Configuración</Button>
+          : !productos.length ? <Button onClick={() => ir('productos')}>Ir a Inventario</Button>
+          : <Button variante="primario" onClick={() => abrirProv(nuevoProv())}><Building2 size={15} />Nuevo proveedor</Button>)}
+      </div></Card>}
       <Tabs items={[{ id: 'ordenes', label: 'Órdenes de compra', icon: <ClipboardList size={14} /> }, { id: 'proveedores', label: 'Proveedores', icon: <Building2 size={14} /> }]} valor={tab} onChange={setTab} />
       {tab === 'ordenes' && <>
         <Card titulo="Órdenes de compra"><Scroll><table className="tabla">

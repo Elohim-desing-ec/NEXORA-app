@@ -1,5 +1,6 @@
 /** Resumen del negocio: ventas, costo de lo vendido, gastos y ganancia por mes o por año. */
 import type { Cierre, EstadoVenta, Gasto, Movimiento, Producto, SucursalId, Venta } from '../data/base'
+import { create } from 'zustand'
 import { enQuiebre, stockTotal } from './inventario'
 
 /** Roles que registran ventas, gastos, productos y cierres en "Tu negocio" (el Auditor solo mira). */
@@ -69,11 +70,19 @@ export const nombrePeriodo = (anio: number, mes: number) => (mes < 0 ? `Todo ${a
 export const cambioTrasCierre = (c: Cierre, a: Agregado) => Math.abs(c.neta - a.neta) >= 0.005 || c.unidades !== a.unidades
 
 /** Años del selector: desde el dato más antiguo hasta el año actual. */
+/** Años que se pueden elegir: desde el primero con datos hasta 10 años después del actual (para los años que vienen). */
+export const ANIOS_ADELANTE = 10
 export function anios(movs: Movimiento[], gastos: Gasto[], cierres: Cierre[], ventas: Venta[] = []) {
-  const ys = [new Date().getFullYear(), ...movs.filter((m) => m.tipo === 'Venta').map((m) => periodoDe(m.fecha).anio), ...ventas.map((v) => periodoDe(v.fecha).anio), ...gastos.map((g) => periodoDe(g.fecha).anio), ...cierres.map((c) => c.anio)].filter((y) => y > 1900 && y < 3000)
+  const ys = [new Date().getFullYear(), new Date().getFullYear() + ANIOS_ADELANTE, ...movs.filter((m) => m.tipo === 'Venta').map((m) => periodoDe(m.fecha).anio), ...ventas.map((v) => periodoDe(v.fecha).anio), ...gastos.map((g) => periodoDe(g.fecha).anio), ...cierres.map((c) => c.anio)].filter((y) => y > 1900 && y < 3000)
   const lo = Math.min(...ys), hi = Math.max(...ys)
   return Array.from({ length: hi - lo + 1 }, (_, k) => hi - k)
 }
+
+/** Año y mes elegidos. Los comparten Resumen e Inventario: cambiar el periodo en uno lo cambia en el otro. mes = -1: todo el año. */
+export const usePeriodo = create<{ anio: number; mes: number; setAnio: (anio: number) => void; setMes: (mes: number) => void }>((set) => ({
+  anio: new Date().getFullYear(), mes: new Date().getMonth(),
+  setAnio: (anio) => set({ anio }), setMes: (mes) => set({ mes }),
+}))
 
 export type EstadoStock = 'OK' | 'Stock bajo' | 'Agotado'
 /** Agotado: sin unidades; stock bajo: en quiebre (menos de 1/3 del mínimo), igual que en el Dashboard. */

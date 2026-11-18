@@ -134,9 +134,9 @@ function TodoElNegocio() {
   const deHoy = auditoria.filter((e) => new Date(e.fecha).toDateString() === hoy.toDateString())
   const ver = permisosDe(usuario)
   const areas: { id: Pagina; titulo: string; valor: string; detalle: string; icono: ReactNode; alerta?: boolean }[] = [
-    { id: 'resumen', titulo: 'Gastos del mes', valor: money(g.reduce((a, x) => a + x.monto, 0), 0), detalle: g.length ? `${plural(g.length, 'gasto', 'gastos')} · más alto: ${mayor[0]}` : 'Sin gastos este mes', icono: <Receipt size={16} /> },
-    { id: 'resumen', titulo: 'Por cobrar', valor: money(cobrar.reduce((a, v) => a + v.total, 0), 0), detalle: cobrar.length ? `${plural(cobrar.length, 'venta pendiente', 'ventas pendientes')} de pago` : 'Nadie le debe', icono: <HandCoins size={16} />, alerta: cobrar.length > 0 },
-    { id: 'resumen', titulo: 'Ventas registradas', valor: num(vMes.length, 0), detalle: `este mes · ${plural(clientes.length, 'cliente guardado', 'clientes guardados')}`, icono: <Wallet size={16} /> },
+    { id: 'gastos', titulo: 'Gastos del mes', valor: money(g.reduce((a, x) => a + x.monto, 0), 0), detalle: g.length ? `${plural(g.length, 'gasto', 'gastos')} · más alto: ${mayor[0]}` : 'Sin gastos este mes', icono: <Receipt size={16} /> },
+    { id: 'ventas', titulo: 'Por cobrar', valor: money(cobrar.reduce((a, v) => a + v.total, 0), 0), detalle: cobrar.length ? `${plural(cobrar.length, 'venta pendiente', 'ventas pendientes')} de pago` : 'Nadie le debe', icono: <HandCoins size={16} />, alerta: cobrar.length > 0 },
+    { id: 'ventas', titulo: 'Ventas registradas', valor: num(vMes.length, 0), detalle: `este mes · ${plural(clientes.length, 'cliente guardado', 'clientes guardados')}`, icono: <Wallet size={16} /> },
     { id: 'compras', titulo: 'Compras pendientes', valor: num(abiertas.length, 0), detalle: abiertas.length ? `${money(porRecibir, 0)} por recibir · ${abiertas.filter((o) => o.estado === 'Borrador').length} por aprobar` : 'Ninguna orden abierta', icono: <ShoppingCart size={16} />, alerta: abiertas.some((o) => o.estado === 'Borrador') },
     { id: 'productos', titulo: 'Inventario', valor: plural(productos.length, 'producto', 'productos'), detalle: `${num(unidades, 0)} u en stock${bajos ? ` · ${bajos} con stock bajo` : ''}`, icono: <Boxes size={16} />, alerta: bajos > 0 },
     { id: 'red', titulo: 'Red global', valor: plural(sucursales.length, 'sucursal', 'sucursales'), detalle: plural(new Set(sucursales.map((s) => s.pais)).size, 'país', 'países'), icono: <Globe2 size={16} /> },
@@ -275,9 +275,9 @@ export default function Dashboard() {
         <div className="space-y-4 xl:col-span-2">
         {/* Indicadores principales */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          <Tarjeta i={0} destacada titulo="Ventas del mes" valor={d.mes.ventas} formato={f$} icono={<Coins size={20} />} cambio={<Cambio oscuro v={variacion(d.mes.ventas, d.mesAnt.ventas)} />} nota="vs mes anterior" onClick={() => ir('resumen')} />
+          <Tarjeta i={0} destacada titulo="Ventas del mes" valor={d.mes.ventas} formato={f$} icono={<Coins size={20} />} cambio={<Cambio oscuro v={variacion(d.mes.ventas, d.mesAnt.ventas)} />} nota="vs mes anterior" onClick={() => ir('ventas')} />
           <Tarjeta i={1} titulo="Ganancia neta del mes" valor={d.res.neta} formato={f$} icono={<TrendingUp size={20} />} cambio={<Cambio v={variacion(d.res.neta, d.resAnt.neta)} />} nota="ventas − costos − gastos" onClick={() => ir('resumen')} />
-          <Tarjeta i={2} titulo="Gastos del mes" valor={d.res.gastos} formato={f$} icono={<Receipt size={20} />} cambio={<Cambio invertir v={variacion(d.res.gastos, d.resAnt.gastos)} />} nota="arriendo, sueldos, servicios…" onClick={() => ir('resumen')} />
+          <Tarjeta i={2} titulo="Gastos del mes" valor={d.res.gastos} formato={f$} icono={<Receipt size={20} />} cambio={<Cambio invertir v={variacion(d.res.gastos, d.resAnt.gastos)} />} nota="arriendo, sueldos, servicios…" onClick={() => ir('gastos')} />
           <Tarjeta i={3} titulo="Valor del inventario" valor={d.valor} formato={f$} icono={<DollarSign size={20} />} cambio={<Cambio v={variacion(d.valor, d.valorAntes)} />} nota="vs hace 30 días" onClick={() => ir('productos')} />
         </div>
 
@@ -323,7 +323,7 @@ export default function Dashboard() {
               <span className="h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-fg/5" style={{ background: ANILLOS[k] }} />
               <span className="min-w-0 flex-1 truncate">{c.nombre}</span><b className="tnum">{f$(c.valor)}</b><Cambio v={variacion(c.valor, c.antes)} />
             </li>))}
-            {!top3.length && <li className="py-2 text-center text-sm text-muted">Sin ventas en el periodo. Registre ventas en Resumen → Ventas.</li>}
+            {!top3.length && <li className="py-2 text-center text-sm text-muted">Sin ventas en el periodo. Registre ventas en Operación → Ventas.</li>}
           </ul>
           {d.catLista.length > 3 && <p className="mt-1 text-[11px] text-muted">+{plural(d.catLista.length - 3, 'categoría más', 'categorías más')}</p>}
         </Panel>
@@ -368,7 +368,7 @@ export default function Dashboard() {
             <ol className="space-y-3">{d.salud.mejorar.map((f, k) => (
               <li key={f.nombre} className="flex gap-3"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-xs font-bold text-black">{k + 1}</span>
                 <div><div className="text-sm font-semibold">{f.nombre} <span className="font-normal text-muted">· {f.valor}</span></div><p className="text-xs leading-relaxed text-muted">{f.consejo}</p></div></li>))}
-              {!d.salud.mejorar.length && <li className="text-sm text-muted">{d.salud.nivel === 'Sin datos' ? 'Registre sus ventas en Resumen → Ventas y aquí verá qué mejorar.' : '¡Excelente! Todos los indicadores están en su meta. Mantenga el control mes a mes.'}</li>}</ol>
+              {!d.salud.mejorar.length && <li className="text-sm text-muted">{d.salud.nivel === 'Sin datos' ? 'Registre sus ventas en Operación → Ventas y aquí verá qué mejorar.' : '¡Excelente! Todos los indicadores están en su meta. Mantenga el control mes a mes.'}</li>}</ol>
           </div>
         </div>
       </Panel>

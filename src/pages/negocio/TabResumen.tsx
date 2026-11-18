@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, Boxes, Coins, FileDown, Lock, Package, Percent, Receipt, ShoppingBag, TrendingUp, Wallet } from 'lucide-react'
+import { useMemo } from 'react'
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, Boxes, Coins, FileDown, Package, Percent, Receipt, ShoppingBag, TrendingUp, Wallet } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, Tooltip, XAxis, YAxis } from 'recharts'
 import { useApp, rolesDe } from '../../store/useApp'
 import { Badge, Button, Card, Contador, Kpi, Scroll, cx } from '../../components/ui'
@@ -7,7 +7,8 @@ import { Degradados, Grafico, TooltipVidrio, ejes, rejilla } from '../../compone
 import { fecha, money, num, pct, plural } from '../../lib/format'
 import { stockTotal, valorInventario } from '../../lib/inventario'
 import { exportarTabla } from '../../lib/export'
-import { EDITAN, MESES, agregar, anios, cambioTrasCierre, estadoStock, gastosDe, idCierre, nombrePeriodo, variacion, type Agregado } from '../../lib/resumen'
+import { EDITAN, MESES, agregar, cambioTrasCierre, estadoStock, gastosDe, idCierre, nombrePeriodo, usePeriodo, variacion, type Agregado } from '../../lib/resumen'
+import { BarraPeriodo } from '../../components/BarraPeriodo'
 import type { TabNegocio } from '../Resumen'
 
 function Delta({ v }: { v: number | null }) {
@@ -16,9 +17,9 @@ function Delta({ v }: { v: number | null }) {
 }
 
 export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
-  const { productos, movimientos, ventas, gastos, cierres, sucursal, usuario, cerrarPeriodo, quitarCierre } = useApp()
-  const [anio, setAnio] = useState(new Date().getFullYear())
-  const [mes, setMes] = useState(new Date().getMonth()) // -1 = todo el año
+  const { productos, movimientos, ventas, gastos, cierres, sucursal, usuario, quitarCierre, ir } = useApp()
+  // Periodo compartido con Inventario (-1 = todo el año)
+  const { anio, mes, setAnio, setMes } = usePeriodo()
   const puede = !!usuario && rolesDe(usuario).some((r) => EDITAN.includes(r))
 
   const d = useMemo(() => {
@@ -44,21 +45,12 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
   const lista = [...cierres].sort((x, y) => y.id.localeCompare(x.id))
   const periodo = nombrePeriodo(anio, mes)
 
-  const cerrar = () => {
-    if (!confirm(`¿${cierre ? 'Actualizar el cierre de' : 'Cerrar'} ${periodo}? Se guarda una foto fija de las ventas, gastos, ganancia y stock de toda la empresa.`)) return
-    const t = d.consolidado(anio, mes)
-    cerrarPeriodo({ id: idCierre(anio, mes), anio, mes, ventas: t.ventas, costo: t.costo, gastos: t.gastos, neta: t.neta, unidades: t.unidades, stockUnidades: productos.reduce((s, p) => s + stockTotal(p), 0), stockValor: valorInventario(productos), cerradoEl: new Date().toISOString(), cerradoPor: usuario?.nombre ?? '' })
-  }
   const exportar = (f: 'xlsx' | 'pdf') => exportarTabla(`Resumen ${anio}`, ['Mes', 'Ventas', 'Costo', 'Gastos', 'Ganancia neta', 'Unidades'],
     [...d.meses.map((m) => [m.nombre, money(m.ventas), money(m.costo), money(m.gastos), money(m.neta), m.unidades]), [`Total ${anio}`, money(d.total.ventas), money(d.total.costo), money(d.total.gastos), money(d.total.neta), d.total.unidades]], f)
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <select className="inp w-auto" aria-label="Año" value={anio} onChange={(e) => setAnio(+e.target.value)}>{anios(movimientos, gastos, cierres, ventas).map((y) => <option key={y}>{y}</option>)}</select>
-        <select className="inp w-auto" aria-label="Mes" value={mes} onChange={(e) => setMes(+e.target.value)}><option value={-1}>Todo el año</option>{MESES.map((m, i) => <option key={m} value={i}>{m}</option>)}</select>
-        {puede && <Button variante="primario" onClick={cerrar}><Lock size={15} />{cierre ? 'Actualizar cierre' : mes < 0 ? 'Cerrar año' : 'Cerrar mes'}</Button>}
-      </div>
+      <BarraPeriodo />
 
       {/* Ganancia neta del periodo */}
       <Card className="relative overflow-hidden border-primario/30">
@@ -82,7 +74,7 @@ export default function TabResumen({ irA }: { irA: (t: TabNegocio) => void }) {
         <Kpi titulo="Ventas totales" valor={a.ventas} formato={money} icono={<Coins size={15} />} sub={a.servicios ? `Incluye ${money(a.servicios)} en servicios` : undefined} />
         <Kpi titulo="Costo de lo vendido" valor={a.costo} formato={money} icono={<Package size={15} />} tono="ambar" sub="Al costo promedio" />
         <Kpi titulo="Ganancia bruta" valor={a.bruta} formato={money} icono={<TrendingUp size={15} />} tono="verde" sub="Ventas − costo" />
-        <Kpi titulo="Gastos del negocio" valor={a.gastos} formato={money} icono={<Receipt size={15} />} tono="rojo" sub={<button className="underline-offset-2 hover:text-primario hover:underline" onClick={() => irA('gastos')}>{plural(d.nGastos, 'gasto', 'gastos')} · ver</button>} />
+        <Kpi titulo="Gastos del negocio" valor={a.gastos} formato={money} icono={<Receipt size={15} />} tono="rojo" sub={<button className="underline-offset-2 hover:text-primario hover:underline" onClick={() => ir('gastos')}>{plural(d.nGastos, 'gasto', 'gastos')} · ver</button>} />
         <Kpi titulo="Margen neto" valor={a.margen * 100} formato={(v) => `${num(v, 1)} %`} icono={<Percent size={15} />} tono="violeta" sub="Ganancia neta ÷ ventas" />
         <Kpi titulo="Unidades vendidas" valor={a.unidades} formato={(v) => num(v, 0)} icono={<ShoppingBag size={15} />} tono="cian" />
       </div>

@@ -29,6 +29,8 @@ const Resumen = precargable(() => import('./pages/Resumen'))
 const Espacio = precargable(() => import('./pages/Espacio'))
 const Productos = precargable(() => import('./pages/Productos'))
 const Compras = precargable(() => import('./pages/Compras'))
+const Ventas = precargable(() => import('./pages/Ventas'))
+const Gastos = precargable(() => import('./pages/Gastos'))
 const IA = precargable(() => import('./pages/IA'))
 const Auditoria = precargable(() => import('./pages/Auditoria'))
 const Reportes = precargable(() => import('./pages/Reportes'))
@@ -74,7 +76,7 @@ export default function App() {
   else if (!usuario) vista = hash.startsWith('#/login') ? <Login /> : <Suspense fallback={null}><Landing /></Suspense>
   else {
     const p = permisosDe(usuario).includes(pagina) ? pagina : 'dashboard'
-    const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]
+    const Pag = { dashboard: Dashboard, espacio: Espacio, resumen: Resumen, red: RedGlobal, productos: Productos, compras: Compras, ventas: Ventas, gastos: Gastos, ia: IA, auditoria: Auditoria, reportes: Reportes, economico: Economico, configuracion: Configuracion }[p]
     vista = <Layout><Suspense fallback={<Cargando />}><Pag />{tieneRol(usuario, 'Gerente General') && !empresa.configurada && <Bienvenida />}</Suspense></Layout>
   }
   return <>{vista}<DefsGraficos /><AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>

@@ -13,7 +13,7 @@ const r = (q: string) => asistente(q, ctx)
 describe('Asistente NEXORA', () => {
   it('explica cómo usar el sistema', () => {
     expect(r('¿Cómo agrego un producto?').ir?.pagina).toBe('productos')
-    expect(r('como registro una venta').texto).toContain('Resumen → Ventas')
+    expect(r('como registro una venta').texto).toContain('Operación → Ventas')
     expect(r('¿Cómo agrego a un ayudante?').ir?.pagina).toBe('configuracion')
     expect(r('quiero cargar mis datos desde excel').texto).toContain('Plantilla')
   })

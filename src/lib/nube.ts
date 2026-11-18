@@ -13,7 +13,7 @@ import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
 import { EMPRESA_BASE } from '../data/base'
 import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
-import { fusionar } from './fusion'
+import { esAnterior, fusionar } from './fusion'
 
 const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
 const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
@@ -73,6 +73,7 @@ function combinarDesdeNube(filas: { clave: string; valor: unknown; actualizado?:
   for (const f of filas) {
     const k = f.clave as Clave
     if (!CLAVES.includes(k)) continue
+    if (esAnterior(f.actualizado, versiones[k])) continue // llegó tarde una versión vieja: ya se tiene una más nueva
     if (f.actualizado) versiones[k] = f.actualizado
     if (pendientes.has(k)) continue
     const aqui = local()[k] ?? vacios()[k]

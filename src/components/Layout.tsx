@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { diasRestantes } from '../lib/cuenta'
 import { salir, useEstadoNube } from '../lib/nube'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Search, ShieldCheck, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
+import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Logo } from './Logo'
@@ -16,15 +16,17 @@ import { useTx } from '../lib/idioma'
 import { SelectorIdioma } from './SelectorIdioma'
 import { SelectorTema } from './SelectorTema'
 
-/** Menú agrupado: arriba el Dashboard, luego Operación, Control y Finanzas; abajo Configuración y la IA. */
+/** Menú agrupado: arriba el Dashboard; Operación (inventario, compras, ventas, gastos), Control (trazabilidad, reportes, red y espacio de trabajo) y Finanzas; abajo Configuración y la IA. */
 export const MENU: { id: Pagina; label: string; icon: ReactNode; grupo?: 'Operación' | 'Control' | 'Finanzas' | 'pie' }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { id: 'espacio', label: 'Espacio de trabajo', icon: <SquareKanban size={18} /> },
   { id: 'productos', label: 'Inventario', icon: <Boxes size={18} />, grupo: 'Operación' },
   { id: 'compras', label: 'Compras', icon: <ShoppingCart size={18} />, grupo: 'Operación' },
-  { id: 'red', label: 'Red global', icon: <Globe2 size={18} />, grupo: 'Operación' },
+  { id: 'ventas', label: 'Ventas', icon: <ShoppingBag size={18} />, grupo: 'Operación' },
+  { id: 'gastos', label: 'Gastos', icon: <Receipt size={18} />, grupo: 'Operación' },
   { id: 'auditoria', label: 'Trazabilidad', icon: <ShieldCheck size={18} />, grupo: 'Control' },
   { id: 'reportes', label: 'Reportes', icon: <FileDown size={18} />, grupo: 'Control' },
+  { id: 'red', label: 'Red global', icon: <Globe2 size={18} />, grupo: 'Control' },
+  { id: 'espacio', label: 'Espacio de trabajo', icon: <SquareKanban size={18} />, grupo: 'Control' },
   { id: 'economico', label: 'Análisis económico', icon: <BarChart3 size={18} />, grupo: 'Finanzas' },
   { id: 'resumen', label: 'Resumen', icon: <Wallet size={18} />, grupo: 'Finanzas' },
   { id: 'configuracion', label: 'Configuración', icon: <Settings size={18} />, grupo: 'pie' },
@@ -33,7 +35,7 @@ export const MENU: { id: Pagina; label: string; icon: ReactNode; grupo?: 'Operac
 const GRUPOS = ['Operación', 'Control', 'Finanzas'] as const
 /** Nombres del menú en inglés y portugués (el español está en MENU y GRUPOS). */
 const TRAD: Record<string, [string, string]> = {
-  dashboard: ['Dashboard', 'Painel'], espacio: ['Workspace', 'Espaço de trabalho'], productos: ['Inventory', 'Estoque'], compras: ['Purchasing', 'Compras'], red: ['Global network', 'Rede global'],
+  dashboard: ['Dashboard', 'Painel'], espacio: ['Workspace', 'Espaço de trabalho'], productos: ['Inventory', 'Estoque'], compras: ['Purchasing', 'Compras'], ventas: ['Sales', 'Vendas'], gastos: ['Expenses', 'Despesas'], red: ['Global network', 'Rede global'],
   auditoria: ['Traceability', 'Rastreabilidade'], reportes: ['Reports', 'Relatórios'], economico: ['Economic analysis', 'Análise econômica'], resumen: ['Summary', 'Resumo'],
   configuracion: ['Settings', 'Configurações'], ia: ['NEXORA AI', 'IA NEXORA'], 'Operación': ['Operations', 'Operação'], Control: ['Control', 'Controle'], Finanzas: ['Finance', 'Finanças'],
 }

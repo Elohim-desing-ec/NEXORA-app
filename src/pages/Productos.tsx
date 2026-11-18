@@ -10,6 +10,7 @@ import { CATEGORIAS, type Producto, type Sucursal, type SucursalId } from '../da
 import type { TipoOperacion } from '../store/useApp'
 import { exportarTabla } from '../lib/export'
 import { perfilDe } from '../lib/sectores'
+import { BarraPeriodo, EstadoCierre } from '../components/BarraPeriodo'
 
 const vacio = (sucs: Sucursal[], categoria = CATEGORIAS[0]): Producto => ({ id: `P${Date.now()}`, sku: '', nombre: '', categoria, costo: 0, precio: 0, stock: Object.fromEntries(sucs.map((x) => [x.id, 0])), min: 10, max: 100, lote: '', vence: new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10), proveedorId: '' })
 
@@ -60,6 +61,8 @@ export default function Productos() {
         {!soloLectura && productos.length > 0 && <Button onClick={() => setAj({ p: productos[0], s: suc0, cant: 1, tipo: 'Venta', nota: '', costo: productos[0].costo })}><PackageMinus size={15} />Registrar movimiento</Button>}
         {!soloLectura && <Button variante="primario" disabled={!SUCURSALES.length} title={SUCURSALES.length ? '' : 'Primero registre una sucursal en Configuración'} onClick={() => setEdit(vacio(SUCURSALES, categorias[0]))}><Plus size={15} />Nuevo producto</Button>}
       </Titulo>
+      {/* Año, mes y cierre: los mismos de Resumen (y del Inventario de Resumen) */}
+      <div className="flex flex-wrap items-center justify-between gap-2"><EstadoCierre /><BarraPeriodo /></div>
       <Card>
         <div className="mb-4 flex flex-wrap gap-2">
           <div className="relative min-w-[220px] flex-1"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" /><input className="inp pl-9" placeholder="Buscar por SKU, nombre o lote…" value={q} onChange={(e) => { setQ(e.target.value); setPag(0) }} /></div>

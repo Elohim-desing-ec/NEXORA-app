@@ -38,3 +38,9 @@ export function fusionar<T>(base: T | undefined, local: T, servidor: T | undefin
   if (base === undefined) return servidor // sin historia: los datos de la empresa los manda la nube
   return igual(local, base) ? servidor : local
 }
+
+/**
+ * ¿La versión `a` (fecha en la nube) es anterior a la `b`? Una consulta lenta puede traer una versión vieja DESPUÉS de que
+ * este equipo ya guardó una más nueva: combinarla haría creer que otra persona borró lo recién agregado (p. ej. un proveedor).
+ */
+export const esAnterior = (a: string | undefined, b: string | undefined) => !!a && !!b && Date.parse(a) < Date.parse(b)

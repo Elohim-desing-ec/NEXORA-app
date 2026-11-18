@@ -8,7 +8,7 @@ import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, t
 export type Rol = 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
   | 'Jefe de Compras' | 'Jefe de Bodega' | 'Jefe de Logística' | 'Jefe de Marketing' | 'Recursos Humanos' | 'Administrador de Sistemas' | 'Asistente Administrativo' | 'Auditor' | 'Socio o Inversionista' | 'Ayudante'
 export const ROLES: Rol[] = ['Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Contador', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Jefe de Compras', 'Jefe de Bodega', 'Jefe de Logística', 'Jefe de Marketing', 'Recursos Humanos', 'Administrador de Sistemas', 'Asistente Administrativo', 'Auditor', 'Socio o Inversionista', 'Ayudante']
-export type Pagina = 'dashboard' | 'espacio' | 'resumen' | 'red' | 'productos' | 'compras' | 'ia' | 'auditoria' | 'reportes' | 'economico' | 'configuracion'
+export type Pagina = 'dashboard' | 'espacio' | 'resumen' | 'red' | 'productos' | 'compras' | 'ventas' | 'gastos' | 'ia' | 'auditoria' | 'reportes' | 'economico' | 'configuracion'
 /** Persona del equipo. nombre = nombre completo para mostrar; el resto es su ficha (opcional). */
 export interface Usuario { id: string; nombre: string; usuario: string; rol: Rol; email: string; clave: string; /** Roles adicionales (máximo 2; en total 3) */ roles?: Rol[]; nombres?: string; apellidos?: string; telefono?: string; cargo?: string; sucursales?: string[]; redes?: Redes; foto?: string }
 export interface Redes { linkedin?: string; whatsapp?: string; discord?: string; slack?: string; instagram?: string }
@@ -30,25 +30,25 @@ export const USUARIOS: Usuario[] = []
 /** Ids de los usuarios de demostración que traían las versiones anteriores (se quitan en la versión 6). */
 const EQUIPO_DEMO = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6']
 
-/** Secciones que ve cada rol. Una persona puede tener hasta 3 roles: ve la suma de todos. */
+/** Secciones que ve cada rol. Una persona puede tener hasta 3 roles: ve la suma de todos. Ventas y Gastos: quien ve Resumen (antes eran pestañas de Resumen). */
 export const PERMISOS: Record<Rol, Pagina[]> = {
-  'Gerente General': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
-  'Gerente Financiero': ['dashboard', 'espacio', 'resumen', 'red', 'compras', 'ia', 'auditoria', 'reportes', 'economico'],
-  'Analista Financiero': ['dashboard', 'espacio', 'resumen', 'red', 'compras', 'ia', 'reportes', 'economico'],
-  Contador: ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
-  'Gerente de Sucursal': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'compras', 'ia', 'reportes'],
-  'Gerente de Ventas': ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'ia', 'reportes'],
-  Vendedor: ['dashboard', 'espacio', 'resumen', 'productos'],
-  Cajero: ['dashboard', 'espacio', 'resumen'],
+  'Gerente General': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
+  'Gerente Financiero': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'compras', 'ia', 'auditoria', 'reportes', 'economico'],
+  'Analista Financiero': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'compras', 'ia', 'reportes', 'economico'],
+  Contador: ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
+  'Gerente de Sucursal': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'compras', 'ia', 'reportes'],
+  'Gerente de Ventas': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'ia', 'reportes'],
+  Vendedor: ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'productos'],
+  Cajero: ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos'],
   'Jefe de Compras': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'ia', 'reportes'],
   'Jefe de Bodega': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'ia', 'reportes'],
   'Jefe de Logística': ['dashboard', 'espacio', 'red', 'productos', 'compras', 'reportes'],
-  'Jefe de Marketing': ['dashboard', 'espacio', 'resumen', 'red', 'ia', 'reportes'],
+  'Jefe de Marketing': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'ia', 'reportes'],
   'Recursos Humanos': ['dashboard', 'espacio', 'reportes'],
   'Administrador de Sistemas': ['dashboard', 'espacio', 'auditoria', 'reportes', 'configuracion'],
-  'Asistente Administrativo': ['dashboard', 'espacio', 'resumen', 'productos', 'compras', 'reportes'],
-  Auditor: ['dashboard', 'espacio', 'resumen', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
-  'Socio o Inversionista': ['dashboard', 'resumen', 'red', 'reportes', 'economico'],
+  'Asistente Administrativo': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'productos', 'compras', 'reportes'],
+  Auditor: ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'auditoria', 'reportes', 'economico'],
+  'Socio o Inversionista': ['dashboard', 'resumen', 'ventas', 'gastos', 'red', 'reportes', 'economico'],
   Ayudante: ['dashboard', 'espacio', 'red', 'productos', 'reportes'],
 }
 /** Qué hace cada rol (se muestra al asignar roles). */
