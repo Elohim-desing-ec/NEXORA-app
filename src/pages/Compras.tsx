@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle2, ChevronDown, MapPin, Pencil, Phone, Plus, Shirt, Trash2, Truck, Trophy, Building2, ClipboardList, ArrowUpCircle } from 'lucide-react'
-import { useApp, tieneRol, soloLectura as esSoloLectura } from '../store/useApp'
+import { useApp, tieneRol, soloLectura as esSoloLectura, porProducto } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo, Tabs, cx } from '../components/ui'
 import { UbicacionMapa } from '../components/UbicacionMapa'
 import { IconoNivel } from '../components/Iconos'
@@ -11,7 +11,7 @@ import { baseDeModelo, esPrenda, etiquetaProducto, modeloDe, skuVariante, stockT
 import { ElegirColores, Muestra } from '../components/Colores'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Producto, Proveedor, SucursalId } from '../data/base'
-import { pedirEliminar } from '../components/Eliminacion'
+import { avisar, pedirEliminar } from '../components/Eliminacion'
 
 export const totalOC = (o: Orden) => o.items.reduce((s, i) => s + i.cantidad * i.costo, 0)
 const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: '', ciudad: '', contacto: '', telefono: '', email: '', cumplimiento: 100, indicePrecio: 1, nivel: 'Junior', provee: '', lugar: '' })
@@ -93,8 +93,17 @@ export default function Compras() {
             <td className="font-mono text-xs">{o.id}</td><td>{fecha(o.fecha)}</td><td>{proveedores.find((p) => p.id === o.proveedorId)?.nombre ?? '—'}</td><td>{o.sucursal}</td><td className="num">{o.items.length}</td><td className="num font-semibold">{money(totalOC(o))}</td>
             <td><Badge tono={tono[o.estado]}>{o.estado}</Badge></td>
             <td>{o.estado === 'Borrador' && <Button variante="exito" disabled={!puedeAprobar} title={puedeAprobar ? '' : 'Requiere Gerente o Analista'} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><CheckCircle2 size={14} />Aprobar</Button>}
-              {o.estado === 'Aprobada' && <Button disabled={!puedeRecibir} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><Truck size={14} />Recibir</Button>}</td>
-            <td>{puedeEditar && o.estado !== 'Recibida' && <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar orden" aria-label={`Eliminar orden ${o.id}`} onClick={() => pedirEliminar({ titulo: `¿Eliminar la orden ${o.id}?`, detalle: `${o.estado} · ${money(totalOC(o))}. Queda en la Papelera por si la necesita.`, listo: `Orden ${o.id} eliminada`, accion: () => eliminarOrden(o.id) })}><Trash2 size={15} /></Button>}</td>
+              {o.estado === 'Aprobada' && <Button disabled={!puedeRecibir} title={puedeRecibir ? 'La mercadería entra al inventario de esta sucursal' : 'Requiere Gerente, Jefe de Bodega o de Logística'} className="!py-1 text-xs" onClick={() => {
+                avanzarOrden(o.id)
+                const u = o.items.reduce((a, i) => a + i.cantidad, 0), suc = sucursales.find((x) => x.id === o.sucursal)
+                avisar(`Orden ${o.id} recibida: ${u} unidades entraron al inventario de ${suc?.nombre ?? o.sucursal}`)
+              }}><Truck size={14} />Recibir</Button>}
+              {o.estado === 'Recibida' && <span className="text-xs text-exito">+{o.items.reduce((a, i) => a + i.cantidad, 0)} u en {sucursales.find((x) => x.id === o.sucursal)?.nombre ?? o.sucursal}</span>}</td>
+            <td>{puedeEditar && (o.estado !== 'Recibida' || puedeRecibir) && <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar orden" aria-label={`Eliminar orden ${o.id}`} onClick={() => pedirEliminar({ titulo: `¿Eliminar la orden ${o.id}?`,
+              detalle: o.estado === 'Recibida'
+                ? `Ya fue recibida: se descuentan del inventario de ${sucursales.find((x) => x.id === o.sucursal)?.nombre ?? o.sucursal} las ${[...porProducto(o).values()].reduce((a, x) => a + x.cantidad, 0)} unidades que entraron con ella (queda registrado en el kardex). La orden queda en la Papelera.`
+                : `${o.estado} · ${money(totalOC(o))}. Queda en la Papelera por si la necesita.`,
+              listo: o.estado === 'Recibida' ? `Orden ${o.id} eliminada y descontada del inventario` : `Orden ${o.id} eliminada`, accion: () => eliminarOrden(o.id) })}><Trash2 size={15} /></Button>}</td>
           </tr>)}</tbody></table></Scroll>
           {!ordenes.length && <p className="py-8 text-center text-sm text-muted">Aún no hay órdenes de compra.</p>}</Card>
       </>}
@@ -204,6 +213,7 @@ export default function Compras() {
             const total = filas.reduce((a, c) => a + cols.reduce((b, t) => b + (matriz.cant[`${c}|${t}`] ?? 0), 0), 0)
             return <div className="space-y-3 rounded-xl border border-primario/30 bg-primario/5 p-3">
               <Campo label="Prenda"><select className="inp" value={matriz.k} onChange={(e) => abrirMatriz(e.target.value)}>{modelos.map((m) => <option key={m.k} value={m.k}>{m.nombre}</option>)}</select></Campo>
+              {!vs.some((v) => v.color || v.talla) && <p className="rounded-lg bg-alerta/10 px-3 py-2 text-xs text-alerta">«{vs[0]?.nombre}» está registrada sin colores ni tallas. Si elige colores o tallas aquí, se crean como productos aparte (cada color y talla con su stock) y lo que reciba entra en ellos, no en «{vs[0]?.nombre}». Para sumar unidades a «{vs[0]?.nombre}» tal como está, use «+ Ítem».</p>}
               <div><div className="mb-1.5 text-xs font-medium text-muted">Colores que va a pedir</div><ElegirColores elegidos={matriz.colores} onChange={(colores) => setMatriz({ ...matriz, colores })} extra={vs.map((v) => v.color).filter((c): c is string => !!c)} /></div>
               <div><div className="mb-1.5 text-xs font-medium text-muted">Tallas</div><div className="flex flex-wrap gap-1.5">{[...new Set([...tallasDe(vs[0]?.categoria ?? '', vs[0]?.tipo), ...matriz.tallas])].map((t) => { const si = matriz.tallas.includes(t); return <button key={t} type="button" aria-pressed={si} onClick={() => setMatriz({ ...matriz, tallas: si ? matriz.tallas.filter((x) => x !== t) : [...matriz.tallas, t] })} className={`min-w-[2.6rem] rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${si ? 'border-primario/60 bg-primario/15 text-primario' : 'border-fg/10 text-muted hover:bg-fg/5'}`}>{t}</button> })}</div></div>
               {(matriz.colores.length > 0 || matriz.tallas.length > 0) && <div className="max-h-72 overflow-auto rounded-xl bg-fg/5 p-2"><table className="w-full text-sm">

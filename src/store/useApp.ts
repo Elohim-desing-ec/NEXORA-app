@@ -141,7 +141,7 @@ interface AppState extends Datos {
   registrar: (productoId: string, s: SucursalId, tipo: TipoOperacion, cantidad: number, nota: string, costoUnit?: number) => string | null
   crearOrden: (o: Omit<Orden, 'id' | 'fecha' | 'estado' | 'creadaPor'>) => void
   avanzarOrden: (id: string) => void
-  /** Elimina una orden en Borrador o Aprobada (una Recibida ya entró al inventario: no se elimina). null si se eliminó; si no, el motivo. */
+  /** Elimina una orden. Si estaba Recibida, descuenta del inventario lo que esa orden había sumado. null si se eliminó; si no, el motivo. */
   eliminarOrden: (id: string) => string | null
   vaciarDatos: () => void
   importarProductos: (filas: FilaImport[]) => { nuevos: number; actualizados: number }
@@ -206,6 +206,13 @@ const almacen: StateStorage = {
   },
 }
 const total = (p: Producto) => Object.values(p.stock).reduce((a, b) => a + (b || 0), 0)
+/** Unidades y costo de cada producto de una orden (si un producto aparece en varias líneas, se suman). */
+export function porProducto(o: Pick<Orden, 'items'>) {
+  const m = new Map<string, { cantidad: number; valor: number }>()
+  for (const it of o.items) { const x = m.get(it.productoId) ?? { cantidad: 0, valor: 0 }; m.set(it.productoId, { cantidad: x.cantidad + it.cantidad, valor: x.valor + it.cantidad * it.costo }) }
+  return m
+}
+const r4 = (v: number) => Math.round(v * 10000) / 10000
 const VACIO = { productos: [], movimientos: [], ordenes: [], auditoria: [], ventas: [], gastos: [], cierres: [] }
 
 export const useApp = create<AppState>()(persist((set, get) => {
@@ -231,8 +238,9 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const lista = get()[e.coleccion] as { id: string }[]
       const papelera = get().papelera.filter((x) => x.id !== id)
       if (lista.some((x) => x.id === e.registro.id)) { set({ papelera }); return 'Ya estaba de vuelta en su lista' }
-      set({ [e.coleccion]: [...lista, e.registro], papelera } as Partial<AppState>)
-      log('Recuperado de la papelera', `${COLECCIONES_PAPELERA[e.coleccion]}: ${nombreEnPapelera(e)}`)
+      const registro = e.coleccion === 'ordenes' && e.registro.estado === 'Recibida' ? { ...e.registro, estado: 'Aprobada' } : e.registro
+      set({ [e.coleccion]: [...lista, registro], papelera } as Partial<AppState>)
+      log('Recuperado de la papelera', `${COLECCIONES_PAPELERA[e.coleccion]}: ${nombreEnPapelera(e)}${registro !== e.registro ? ' (vuelve como Aprobada: al recibirla entra de nuevo al inventario)' : ''}`)
       return null
     },
     vaciarPapelera: () => { set({ papelera: [] }); log('Papelera vaciada', '') },
@@ -375,9 +383,25 @@ export const useApp = create<AppState>()(persist((set, get) => {
     eliminarOrden: (id) => {
       const o = get().ordenes.find((x) => x.id === id)
       if (!o) return 'La orden ya no existe'
-      if (o.estado === 'Recibida') return 'Esta orden ya fue recibida: su mercadería entró al inventario y al kardex. Para corregir el stock use «Registrar movimiento» → Ajuste en Inventario.'
-      set({ ordenes: get().ordenes.filter((x) => x.id !== id) })
-      log('Orden de compra eliminada', `${id} (${o.estado})`, o.sucursal)
+      let productos = get().productos, movimientos = get().movimientos
+      if (o.estado === 'Recibida') {
+        // Se descuenta del inventario lo que entró con esta orden (y queda en el kardex como ajuste)
+        const suma = porProducto(o)
+        for (const [pid, it] of suma) {
+          const p = productos.find((x) => x.id === pid); if (!p) continue // el producto ya no existe: no hay nada que descontar
+          const hay = p.stock[o.sucursal] ?? 0
+          if (hay < it.cantidad) return `No se puede eliminar: la orden ingresó ${it.cantidad} u de «${p.nombre}» en ${o.sucursal}, pero ahora quedan ${hay} u (el resto ya se vendió o se movió). Corrija con «Registrar movimiento» → Ajuste en Inventario.`
+        }
+        productos = productos.map((p) => {
+          const it = suma.get(p.id); if (!it) return p
+          const t = total(p), quedan = t - it.cantidad
+          const costo = quedan > 0 ? r4((t * p.costo - it.valor) / quedan) : p.costo // deshace el promedio ponderado de la compra
+          return { ...p, costo: costo > 0 ? costo : p.costo, stock: { ...p.stock, [o.sucursal]: (p.stock[o.sucursal] ?? 0) - it.cantidad } }
+        })
+        movimientos = [...movimientos, ...[...suma].filter(([pid]) => get().productos.some((p) => p.id === pid)).map(([pid, it]) => mov({ productoId: pid, sucursal: o.sucursal, tipo: 'Ajuste', cantidad: -it.cantidad, costoUnit: it.cantidad ? r4(it.valor / it.cantidad) : 0, nota: `Orden ${id} eliminada` }))]
+      }
+      set({ ordenes: get().ordenes.filter((x) => x.id !== id), productos, movimientos })
+      log('Orden de compra eliminada', `${id} (${o.estado})${o.estado === 'Recibida' ? ' · se descontó su mercadería del inventario' : ''}`, o.sucursal)
       return null
     },
     avanzarOrden: (id) => {
@@ -385,7 +409,9 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const sig: EstadoOC = o.estado === 'Borrador' ? 'Aprobada' : 'Recibida'
       let productos = get().productos, movimientos = get().movimientos
       if (sig === 'Recibida') {
-        productos = productos.map((p) => { const it = o.items.find((i) => i.productoId === p.id); if (!it) return p; const t = total(p); return { ...p, costo: Math.round(((t * p.costo + it.cantidad * it.costo) / (t + it.cantidad)) * 10000) / 10000, stock: { ...p.stock, [o.sucursal]: (p.stock[o.sucursal] ?? 0) + it.cantidad } } })
+        // Todas las líneas de cada producto entran al stock de la sucursal de la orden (antes solo entraba la primera)
+        const suma = porProducto(o)
+        productos = productos.map((p) => { const it = suma.get(p.id); if (!it) return p; const t = total(p); return { ...p, costo: r4((t * p.costo + it.valor) / (t + it.cantidad)), stock: { ...p.stock, [o.sucursal]: (p.stock[o.sucursal] ?? 0) + it.cantidad } } })
         movimientos = [...movimientos, ...o.items.map((it) => mov({ productoId: it.productoId, sucursal: o.sucursal, tipo: 'Compra', cantidad: it.cantidad, costoUnit: it.costo, nota: id }))]
       }
       set({ ordenes: get().ordenes.map((x) => (x.id === id ? { ...x, estado: sig } : x)), productos, movimientos })

@@ -27,6 +27,9 @@ interface Estado {
 }
 const useEliminacion = create<Estado>(() => ({ pedido: null, fase: 'pregunta', error: '', aviso: null }))
 
+/** Muestra un aviso abajo (como el de «Eliminado», sin «Deshacer»). */
+export function avisar(texto: string) { useEliminacion.setState({ aviso: { texto, deshacer: [], id: Date.now() } }) }
+
 /** Pide confirmación con animación y, si se confirma, ejecuta la acción. */
 export function pedirEliminar(p: PedidoEliminar) { useEliminacion.setState({ pedido: p, fase: 'pregunta', error: '' }) }
 

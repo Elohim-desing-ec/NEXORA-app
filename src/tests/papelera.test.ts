@@ -53,9 +53,9 @@ describe('eliminar órdenes de compra', () => {
     expect(useApp.getState().ordenes.map((o) => o.id)).toEqual(['OC-3'])
     expect(useApp.getState().papelera.map((e) => e.registro.id).sort()).toEqual(['OC-1', 'OC-2'])
   })
-  it('una orden Recibida no se elimina (su mercadería ya entró al inventario)', () => {
-    expect(useApp.getState().eliminarOrden('OC-3')).toContain('ya fue recibida')
-    expect(useApp.getState().ordenes).toHaveLength(3)
+  it('una orden Recibida de un producto que ya no existe se elimina sin tocar nada más', () => {
+    expect(useApp.getState().eliminarOrden('OC-3')).toBeNull()
+    expect(useApp.getState().ordenes).toHaveLength(2)
   })
   it('sin órdenes pendientes, el proveedor ya se puede eliminar', () => {
     expect(useApp.getState().eliminarProveedor('p1')).toContain('Recíbalas o elimínelas')
@@ -63,3 +63,45 @@ describe('eliminar órdenes de compra', () => {
     expect(useApp.getState().eliminarProveedor('p1')).toBeNull()
   })
 })
+
+describe('recibir y eliminar órdenes: el inventario queda sincronizado', () => {
+  const camiseta = { id: 'c1', sku: 'CAM-RF', nombre: 'Camiseta regular fit', categoria: 'Ropa', costo: 4, precio: 10, stock: { UIO: 2 }, min: 10, max: 100, lote: '', vence: '', proveedorId: 'p1' }
+  const stock = () => useApp.getState().productos.find((p) => p.id === 'c1')!.stock.UIO
+  beforeEach(() => {
+    origenCambio.pausa = true
+    useApp.setState({ productos: [camiseta], movimientos: [], papelera: [], proveedores: [prov('p1', 'Don Luis')],
+      ordenes: [{ id: 'OC-9', fecha: '2026-11-18', proveedorId: 'p1', sucursal: 'UIO', estado: 'Aprobada', creadaPor: 'Ana', items: [{ productoId: 'c1', cantidad: 10, costo: 5 }, { productoId: 'c1', cantidad: 5, costo: 5 }] }] })
+    origenCambio.pausa = false
+  })
+
+  it('al recibir entran TODAS las líneas (antes solo la primera de cada producto)', () => {
+    useApp.getState().avanzarOrden('OC-9')
+    expect(stock()).toBe(17) // 2 + 10 + 5
+    expect(useApp.getState().movimientos.filter((m) => m.tipo === 'Compra').reduce((a, m) => a + m.cantidad, 0)).toBe(15)
+  })
+  it('eliminar una orden recibida descuenta su mercadería del inventario y deja el costo como estaba', () => {
+    useApp.getState().avanzarOrden('OC-9')
+    expect(useApp.getState().eliminarOrden('OC-9')).toBeNull()
+    const p = useApp.getState().productos[0]
+    expect(p.stock.UIO).toBe(2)
+    expect(p.costo).toBeCloseTo(4, 2) // el promedio se guarda con 4 decimales: puede quedar en 4,0004 (en pantalla, $ 4,00)
+    expect(useApp.getState().movimientos.slice(-1)[0]).toMatchObject({ tipo: 'Ajuste', cantidad: -15, nota: 'Orden OC-9 eliminada' })
+  })
+  it('si ya se vendió parte de lo recibido, no se elimina y explica qué hacer', () => {
+    useApp.getState().avanzarOrden('OC-9')
+    useApp.getState().registrar('c1', 'UIO', 'Venta', 10, '')
+    expect(useApp.getState().eliminarOrden('OC-9')).toContain('quedan 7 u')
+    expect(stock()).toBe(7)
+    expect(useApp.getState().ordenes).toHaveLength(1)
+  })
+  it('una orden recibida que se recupera de la papelera vuelve como Aprobada (al recibirla entra otra vez)', () => {
+    useApp.getState().avanzarOrden('OC-9')
+    useApp.getState().eliminarOrden('OC-9')
+    const e = useApp.getState().papelera.find((x) => x.registro.id === 'OC-9')!
+    expect(useApp.getState().recuperar(e.id)).toBeNull()
+    expect(useApp.getState().ordenes[0].estado).toBe('Aprobada')
+    useApp.getState().avanzarOrden('OC-9')
+    expect(stock()).toBe(17)
+  })
+})
+
