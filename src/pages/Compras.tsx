@@ -6,6 +6,7 @@ import { UbicacionMapa } from '../components/UbicacionMapa'
 import { IconoNivel } from '../components/Iconos'
 import { LUGARES_TRABAJO, NIVELES_PROVEEDOR, cumplimientoReal, nivelSugerido, sucursalCercana, textoKm, tieneUbicacion, type NivelProveedor } from '../lib/proveedores'
 import { pais } from '../data/paises'
+import { ubicarCiudad } from '../lib/geo'
 import { money, fecha, num } from '../lib/format'
 import type { Orden, Proveedor, SucursalId } from '../data/base'
 
@@ -20,7 +21,7 @@ export default function Compras() {
   const abrirProv = (p: Proveedor) => { setErr(''); setMasDatos(!!(p.ruc || p.contacto || p.email)); setVerMapa(tieneUbicacion(p)); setProv(p) }
   const [tab, setTab] = useState<'ordenes' | 'proveedores'>('ordenes')
   const [nueva, setNueva] = useState<{ proveedorId: string; sucursal: SucursalId; items: { productoId: string; cantidad: number; costo: number }[] } | null>(null)
-  const [prov, setProv] = useState<Proveedor | null>(null), [err, setErr] = useState('')
+  const [prov, setProv] = useState<Proveedor | null>(null), [err, setErr] = useState(''), [guardando, setGuardando] = useState(false)
   const puedeAprobar = tieneRol(usuario, 'Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Gerente de Sucursal')
   const puedeRecibir = tieneRol(usuario, 'Gerente General', 'Jefe de Bodega', 'Jefe de Logística', 'Gerente de Sucursal')
   const puedeEditar = !esSoloLectura(usuario)
@@ -73,7 +74,7 @@ export default function Compras() {
               {sube && puedeEditar && <button type="button" onClick={() => guardarProveedor({ ...p, nivel: sube })} className="flex items-center gap-1 text-[11px] font-medium text-exito hover:underline" title="Ya cumplió varias entregas a tiempo"><ArrowUpCircle size={12} />Subir a {sube}</button>}</div></td>
             <td className="text-sm">{p.lugar || '—'}{p.ciudad && <div className="text-xs text-muted">{p.ciudad}</div>}</td>
             <td className="text-sm">{p.contacto && <div>{p.contacto}</div>}{p.telefono && <a href={`tel:${p.telefono.replace(/\s/g, '')}`} className="flex items-center gap-1 text-primario hover:underline"><Phone size={12} />{p.telefono}</a>}{p.email && <div className="text-xs text-muted">{p.email}</div>}{!p.contacto && !p.telefono && !p.email && <span className="text-muted">—</span>}</td>
-            <td className="text-xs">{tieneUbicacion(p) ? <span className="flex items-center gap-1 text-cian"><MapPin size={12} />{cerca ? `a ${textoKm(cerca.km)} de ${cerca.s.nombre}` : 'En el mapa'}</span> : puedeEditar ? <button type="button" onClick={() => { abrirProv({ ...p }); setVerMapa(true) }} className="text-muted hover:text-primario hover:underline">+ Agregar</button> : <span className="text-muted">—</span>}</td>
+            <td className="text-xs">{tieneUbicacion(p) ? <span className="flex items-center gap-1 text-cian"><MapPin size={12} />{cerca ? `a ${p.ubicacionAprox ? '~' : ''}${textoKm(cerca.km)} de ${cerca.s.nombre}` : 'En el mapa'}{p.ubicacionAprox && <span className="text-muted">(su ciudad)</span>}</span> : puedeEditar ? <button type="button" onClick={() => { abrirProv({ ...p }); setVerMapa(true) }} className="text-muted hover:text-primario hover:underline">+ Agregar</button> : <span className="text-muted">—</span>}</td>
             <td>{puedeEditar && <div className="flex gap-1"><Button variante="fantasma" className="!p-1.5" title="Editar" onClick={() => abrirProv({ ...p })}><Pencil size={15} /></Button><Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar" onClick={() => { if (confirm(`¿Eliminar ${p.nombre}?`)) { const e = eliminarProveedor(p.id); if (e) alert(e) } }}><Trash2 size={15} /></Button></div>}</td></tr>
         })}</tbody></table></Scroll>
         {!proveedores.length && <p className="py-6 text-center text-sm text-muted">Registre sus proveedores con "Nuevo proveedor": desde quien recién empieza en su casa hasta una fábrica.</p>}</Card>
@@ -89,7 +90,20 @@ export default function Compras() {
       </div>}
 
       <Modal abierto={!!prov} onClose={() => setProv(null)} titulo={proveedores.some((x) => x.id === prov?.id) ? 'Editar proveedor' : 'Nuevo proveedor'} ancho="max-w-2xl">
-        {prov && <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); const r = guardarProveedor({ ...prov, nombre: prov.nombre.trim(), provee: prov.provee?.trim(), ruc: prov.ruc.trim() }); if (r) setErr(r); else setProv(null) }}>
+        {prov && <form className="space-y-4" onSubmit={async (e) => {
+          e.preventDefault(); if (guardando) return
+          let p: Proveedor = { ...prov, nombre: prov.nombre.trim(), provee: prov.provee?.trim(), ruc: prov.ruc.trim(), ciudad: prov.ciudad.trim() }
+          if (!p.nombre) return setErr('El nombre es obligatorio')
+          // Sin marcarlo en el mapa pero con ciudad: queda en el centro de su ciudad (así aparece en la Red global)
+          const antes = proveedores.find((x) => x.id === p.id)
+          if (p.ciudad && (!tieneUbicacion(p) || (p.ubicacionAprox && antes?.ciudad !== p.ciudad))) {
+            setGuardando(true)
+            const u = await ubicarCiudad(p.ciudad, pais(p.pais || empresa.pais)?.nombre)
+            setGuardando(false)
+            if (u) p = { ...p, lat: u.lat, lng: u.lng, ubicacionAprox: true }
+          }
+          const r = guardarProveedor(p); if (r) setErr(r); else setProv(null)
+        }}>
           <div>
             <div className="mb-1.5 text-xs font-medium text-muted">¿Qué tipo de proveedor es?</div>
             <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">{NIVELES_PROVEEDOR.map((n) => (
@@ -112,9 +126,9 @@ export default function Compras() {
             <button type="button" onClick={() => setVerMapa(!verMapa)} className="flex w-full items-center justify-between px-3 py-2.5 text-sm font-medium"><span className="flex items-center gap-2"><MapPin size={15} className="text-cian" />Ubicación en el mapa <span className="text-xs font-normal text-muted">(opcional · {tieneUbicacion(prov) ? 'ubicado' : 'sin ubicar'})</span></span><ChevronDown size={16} className={cx('transition', verMapa && 'rotate-180')} /></button>
             {verMapa && <div className="space-y-2 border-t border-fg/10 p-3">
               <UbicacionMapa nombre={prov.nombre} inicio={centro} valor={{ lat: prov.lat, lng: prov.lng, ciudad: prov.ciudad, pais: prov.pais, direccion: prov.direccion }}
-                onChange={(u) => setProv({ ...prov, lat: u.lat, lng: u.lng, ciudad: prov.ciudad || u.ciudad || '', pais: u.pais, direccion: u.direccion })} />
+                onChange={(u) => setProv({ ...prov, lat: u.lat, lng: u.lng, ciudad: prov.ciudad || u.ciudad || '', pais: u.pais, direccion: u.direccion, ubicacionAprox: false })} />
               <Campo label="Referencia o dirección"><input className="inp" value={prov.direccion ?? ''} onChange={(e) => setProv({ ...prov, direccion: e.target.value })} placeholder="Ej.: junto a la escuela, casa esquinera" /></Campo>
-              <p className="text-[11px] text-muted">Con la ubicación, NEXORA le avisa qué proveedor queda más cerca cuando falte mercadería y lo muestra en la Red global.</p>
+              <p className="text-[11px] text-muted">Con la ubicación, NEXORA le avisa qué proveedor queda más cerca cuando falte mercadería y lo muestra en la Red global. Si no lo marca, con la ciudad se ubica en el centro de esa ciudad.</p>
             </div>}
           </div>
 
@@ -129,7 +143,7 @@ export default function Compras() {
             </div>}
           </div>
           {err && <p className="text-sm text-peligro">{err}</p>}
-          <div className="flex justify-end gap-2"><Button type="button" onClick={() => setProv(null)}>Cancelar</Button><Button variante="primario" type="submit">Guardar</Button></div>
+          <div className="flex justify-end gap-2"><Button type="button" onClick={() => setProv(null)}>Cancelar</Button><Button variante="primario" type="submit" disabled={guardando}>{guardando ? 'Ubicando en el mapa…' : 'Guardar'}</Button></div>
         </form>}
       </Modal>
 

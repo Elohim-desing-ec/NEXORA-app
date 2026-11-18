@@ -8,7 +8,8 @@ export interface Proveedor { id: string; nombre: string; /** Opcional: un empren
   /** Emprendedor, Junior, Senior o Experimentado */ nivel?: 'Emprendedor' | 'Junior' | 'Senior' | 'Experimentado'
   /** Qué le provee (ej.: camisetas estampadas) */ provee?: string
   /** Desde su casa, taller, local, fábrica o en línea */ lugar?: string
-  /** Ubicación en el mapa (opcional) */ lat?: number; lng?: number; direccion?: string; pais?: string }
+  /** Ubicación en el mapa (opcional) */ lat?: number; lng?: number; direccion?: string; pais?: string
+  /** true: la ubicación es el centro de su ciudad (se puso sola al guardar); false/vacío: la marcaron en el mapa */ ubicacionAprox?: boolean }
 /** pais = código ISO 3166 (EC, CO, US…); moneda = ISO 4217 (USD, COP, EUR…) usada para costos y reportes. */
 export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string> }
 export interface Producto {

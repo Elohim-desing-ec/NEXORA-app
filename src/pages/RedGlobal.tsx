@@ -6,7 +6,7 @@ import type { EstiloGlobo, Vuelo, ArcoGlobo } from '../components/Globo'
 import { pais, SIMBOLOS } from '../data/paises'
 import { money, num, pct } from '../lib/format'
 import { stockTotal, valorInventario, ventasRecientes } from '../lib/inventario'
-import { tiposDeCambio, type Tasas } from '../lib/geo'
+import { tiposDeCambio, ubicarCiudad, type Tasas } from '../lib/geo'
 import { IconoNivel } from '../components/Iconos'
 import { sucursalCercana, textoKm, tieneUbicacion } from '../lib/proveedores'
 
@@ -16,8 +16,16 @@ const nf = (v: number, d = 0) => new Intl.NumberFormat('de-DE', { maximumFractio
 export default function RedGlobal() {
   const { sucursales, productos, movimientos, empresa, usuario, ir, proveedores } = useApp()
   const [verProv, setVerProv] = useState(true)
-  const provMapa = useMemo(() => proveedores.filter(tieneUbicacion).map((p) => ({ p, cerca: sucursalCercana(p, sucursales) })).sort((a, b) => (a.cerca?.km ?? 1e9) - (b.cerca?.km ?? 1e9)), [proveedores, sucursales])
-  const sinUbicar = proveedores.length - provMapa.length
+  // Proveedores sin marcar en el mapa pero con ciudad: se muestran en el centro de su ciudad
+  const [enCiudad, setEnCiudad] = useState<Record<string, { lat: number; lng: number }>>({})
+  useEffect(() => {
+    let vivo = true
+    for (const p of proveedores) if (!tieneUbicacion(p) && p.ciudad?.trim()) ubicarCiudad(p.ciudad, pais(p.pais || empresa.pais)?.nombre).then((u) => { if (vivo && u) setEnCiudad((a) => ({ ...a, [p.id]: u })) })
+    return () => { vivo = false }
+  }, [proveedores, empresa.pais])
+  const ubicados = useMemo(() => proveedores.map((p) => (tieneUbicacion(p) || !enCiudad[p.id] ? p : { ...p, ...enCiudad[p.id], ubicacionAprox: true })), [proveedores, enCiudad])
+  const provMapa = useMemo(() => ubicados.filter(tieneUbicacion).map((p) => ({ p, cerca: sucursalCercana(p, sucursales) })).sort((a, b) => (a.cerca?.km ?? 1e9) - (b.cerca?.km ?? 1e9)), [ubicados, sucursales])
+  const sinUbicar = ubicados.filter((p) => !tieneUbicacion(p))
   const [estilo, setEstilo] = useState<EstiloGlobo>('oscuro'), [rotar, setRotar] = useState(true)
   const [sel, setSel] = useState<string | null>(null), [vuelo, setVuelo] = useState<Vuelo | null>(null)
   const [fx, setFx] = useState<Tasas | null>(null), [fxError, setFxError] = useState(false)
@@ -44,7 +52,7 @@ export default function RedGlobal() {
     return `${SIMBOLOS[m] ?? m} ${nf(valor * fx.tasas[m])}`
   }
   const volar = (id: string) => { const s = sucursales.find((x) => x.id === id); if (s) { setSel(id); setVuelo({ lng: s.lng, lat: s.lat, zoom: 13, t: Date.now() }) } }
-  const volarProv = (id: string) => { const p = proveedores.find((x) => x.id === id); if (p && tieneUbicacion(p)) { setVerProv(true); setSel(`prov:${id}`); setVuelo({ lng: p.lng!, lat: p.lat!, zoom: 13, t: Date.now() }) } }
+  const volarProv = (id: string) => { const p = ubicados.find((x) => x.id === id); if (p && tieneUbicacion(p)) { setVerProv(true); setSel(`prov:${id}`); setVuelo({ lng: p.lng!, lat: p.lat!, zoom: 13, t: Date.now() }) } }
 
   if (!sucursales.length) return <div className="space-y-5"><Titulo titulo="Red global" sub="Sus sucursales en el mundo" />
     <Card><div className="py-10 text-center"><Globe2 className="mx-auto mb-3 text-cian" size={40} /><p className="text-sm text-muted">Aún no hay sucursales registradas.</p>{tieneRol(usuario, 'Gerente General') && <Button variante="primario" className="mt-4" onClick={() => ir('configuracion')}><Plus size={15} />Agregar sucursales</Button>}</div></Card></div>
@@ -65,7 +73,7 @@ export default function RedGlobal() {
         <Card className="!p-3 xl:col-span-2">
           <div className="relative">
             <Suspense fallback={<div className="espacio h-[560px] rounded-xl" />}>
-              <Globo className="h-[460px] sm:h-[560px]" puntos={[...d.filas.map((f) => ({ id: f.s.id, nombre: `${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` })), ...(verProv ? provMapa.map(({ p, cerca }) => ({ id: `prov:${p.id}`, tipo: 'proveedor' as const, nombre: `Proveedor: ${p.nombre}`, lat: p.lat!, lng: p.lng!, valor: 1, detalle: [p.nivel && `Nivel ${p.nivel}`, p.provee, p.lugar, cerca && `A ${textoKm(cerca.km)} de ${cerca.s.nombre}`].filter(Boolean).join('\n') })) : [])]}
+              <Globo className="h-[460px] sm:h-[560px]" puntos={[...d.filas.map((f) => ({ id: f.s.id, nombre: `${f.s.nombre}`, lat: f.s.lat, lng: f.s.lng, valor: f.valor + 1, detalle: `${f.s.tipo} · ${f.s.ciudad}\nInventario: ${money(f.valor, 0)}${local(f.valor, f.s.pais) ? ` (${local(f.valor, f.s.pais)})` : ''}\nVentas 30 d: ${money(f.ventas, 0)}` })), ...(verProv ? provMapa.map(({ p, cerca }) => ({ id: `prov:${p.id}`, tipo: 'proveedor' as const, nombre: `Proveedor: ${p.nombre}`, lat: p.lat!, lng: p.lng!, valor: 1, detalle: [p.nivel && `Nivel ${p.nivel}`, p.provee, p.lugar, p.ubicacionAprox && `Ubicación aproximada: centro de ${p.ciudad}`, cerca && `A ${p.ubicacionAprox ? '~' : ''}${textoKm(cerca.km)} de ${cerca.s.nombre}`].filter(Boolean).join('\n') })) : [])]}
                 arcos={d.arcos} seleccion={sel} onSeleccion={setSel} estilo={estilo} autoRotar={rotar} volarA={vuelo} />
             </Suspense>
             <div className="absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">
@@ -87,13 +95,15 @@ export default function RedGlobal() {
             </button></li>)}</ul></div>)}</div>
         </Card>
       </div>
-      {proveedores.length > 0 && <Card titulo={<span className="flex items-center gap-2"><Truck size={15} className="text-sky-400" />Proveedores en el mapa ({provMapa.length} de {proveedores.length})</span>} accion={sinUbicar > 0 && permisosDe(usuario).includes('compras') ? <Button onClick={() => ir('compras')}><MapPin size={14} />Ubicar {sinUbicar}</Button> : undefined}>
+      {proveedores.length > 0 && <Card titulo={<span className="flex items-center gap-2"><Truck size={15} className="text-sky-400" />Proveedores en el mapa ({provMapa.length} de {proveedores.length})</span>} accion={sinUbicar.length > 0 && permisosDe(usuario).includes('compras') ? <Button onClick={() => ir('compras')}><MapPin size={14} />Ubicar {sinUbicar.length}</Button> : undefined}>
         {provMapa.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">{provMapa.map(({ p, cerca }) => (
           <button key={p.id} type="button" onClick={() => volarProv(p.id)} className={cx('rounded-xl px-3 py-2 text-left transition', sel === `prov:${p.id}` ? 'bg-sky-500/20' : 'bg-fg/5 hover:bg-fg/10')}>
             <div className="flex items-center justify-between gap-2 text-sm"><span className="truncate font-medium">{p.nombre}</span>{p.nivel && <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted"><IconoNivel nivel={p.nivel} size={11} />{p.nivel}</span>}</div>
-            <div className="mt-0.5 flex justify-between gap-2 text-xs text-muted"><span className="truncate">{[p.provee, p.ciudad].filter(Boolean).join(' · ') || p.lugar || '—'}</span>{cerca && <span className="shrink-0 text-cian">{textoKm(cerca.km)} de {cerca.s.id}</span>}</div>
+            <div className="mt-0.5 flex justify-between gap-2 text-xs text-muted"><span className="truncate">{[p.provee, p.ciudad].filter(Boolean).join(' · ') || p.lugar || '—'}</span>{cerca && <span className="shrink-0 text-cian">{p.ubicacionAprox ? '~' : ''}{textoKm(cerca.km)} de {cerca.s.id}</span>}</div>
+            {p.ubicacionAprox && <div className="mt-0.5 text-[11px] text-muted">Aproximado: centro de {p.ciudad}</div>}
           </button>))}</div>
-          : <p className="text-sm text-muted">Ningún proveedor tiene ubicación todavía. En Compras → Proveedores, edite uno y abra «Ubicación en el mapa».</p>}
+          : <p className="text-sm text-muted">Ningún proveedor tiene ubicación todavía. En Compras → Proveedores, edite uno y escriba su ciudad o márquelo en «Ubicación en el mapa».</p>}
+        {provMapa.length > 0 && sinUbicar.length > 0 && <p className="mt-3 text-xs text-muted">Sin ubicación (no tienen ciudad ni punto en el mapa): <b className="text-fg">{sinUbicar.map((p) => p.nombre).join(', ')}</b>. Agrégueles la ciudad en Compras → Proveedores.</p>}
         <p className="mt-3 text-xs text-muted">La distancia es en línea recta hasta su sucursal más cercana. Úsela para decidir a quién pedir cuando falte mercadería.</p>
       </Card>}
 

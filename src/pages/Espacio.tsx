@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plug, NotebookPen, SquareKanban, Users } from 'lucide-react'
+import { Plug, NotebookPen, SquareKanban, Users, UsersRound } from 'lucide-react'
 import { useApp } from '../store/useApp'
 import { Tabs } from '../components/ui'
 import Tablero, { Avatares } from './espacio/Tablero'
 import Notas from './espacio/Notas'
 import Google from './espacio/Google'
 import Equipo from './espacio/Equipo'
+import TabEquipo from './negocio/TabEquipo'
 
 /** Espacio de trabajo del equipo (estilo Notion): tablero de tareas, notas con bloques y herramientas de Google. */
 export default function Espacio() {
   const { empresa, usuarios, usuario, tareas, notas } = useApp()
-  const [tab, setTab] = useState<'tablero' | 'equipo' | 'notas' | 'google'>('tablero')
+  const [tab, setTab] = useState<'tablero' | 'su-equipo' | 'equipo' | 'notas' | 'google'>('tablero')
   const cuenta = (e: string) => tareas.filter((t) => t.estado === e).length
   const hechas = cuenta('hecho'), total = tareas.filter((t) => t.estado !== 'archivado').length
   return (
@@ -31,8 +32,10 @@ export default function Espacio() {
         </div>
         {total > 0 && <div className="relative h-1 bg-fg/10"><motion.div className="h-full bg-gradient-to-r from-violeta via-primario to-amber-200" initial={{ width: 0 }} animate={{ width: `${(hechas / total) * 100}%` }} transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }} /></div>}
       </motion.header>
-      <Tabs items={[{ id: 'tablero', label: 'Tablero de tareas', icon: <SquareKanban size={14} /> }, { id: 'equipo', label: 'Equipo y clientes', icon: <Users size={14} /> }, { id: 'notas', label: 'Notas', icon: <NotebookPen size={14} /> }, { id: 'google', label: 'Conexiones', icon: <Plug size={14} /> }]} valor={tab} onChange={setTab} />
+      <Tabs items={[{ id: 'tablero', label: 'Tablero de tareas', icon: <SquareKanban size={14} /> }, { id: 'su-equipo', label: 'Equipo', icon: <UsersRound size={14} /> }, { id: 'equipo', label: 'Equipo y clientes', icon: <Users size={14} /> }, { id: 'notas', label: 'Notas', icon: <NotebookPen size={14} /> }, { id: 'google', label: 'Conexiones', icon: <Plug size={14} /> }]} valor={tab} onChange={setTab} />
       {tab === 'tablero' && <Tablero />}
+      {/* «Su equipo»: antes era la pestaña Equipo de Resumen */}
+      {tab === 'su-equipo' && <TabEquipo />}
       {tab === 'equipo' && <Equipo />}
       {tab === 'notas' && <Notas />}
       {tab === 'google' && <Google />}

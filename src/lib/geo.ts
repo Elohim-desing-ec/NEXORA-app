@@ -17,6 +17,31 @@ export async function buscarDireccion(texto: string): Promise<Lugar[]> {
   }))
 }
 
+/** Coordenadas del centro de una ciudad (para ubicar en el mapa a un proveedor del que solo se sabe la ciudad). */
+const CIUDADES = 'nx-ciudades'
+const espera = (ms: number) => new Promise((r) => setTimeout(r, ms))
+let fila: Promise<unknown> = Promise.resolve() // Nominatim admite 1 consulta por segundo: se hacen de a una
+export function ubicarCiudad(ciudad: string, pais?: string): Promise<{ lat: number; lng: number } | null> {
+  const q = [ciudad.trim(), pais?.trim()].filter(Boolean).join(', ')
+  if (!ciudad.trim()) return Promise.resolve(null)
+  const clave = q.toLowerCase()
+  const leer = (): Record<string, { lat: number; lng: number } | null> => { try { return JSON.parse(localStorage.getItem(CIUDADES) ?? '{}') } catch { return {} } }
+  const guardada = leer()
+  if (clave in guardada) return Promise.resolve(guardada[clave])
+  const r = fila.then(async () => {
+    const yaEsta = leer() // otra consulta de la fila pudo traerla
+    if (clave in yaEsta) return yaEsta[clave]
+    // Sin internet o sin respuesta en 6 s: null (no se guarda, se vuelve a intentar después)
+    const l = await Promise.race([buscarDireccion(q), espera(6000).then(() => { throw new Error('tiempo') })]).catch(() => undefined)
+    if (!l) return null
+    const v = l[0] ? { lat: l[0].lat, lng: l[0].lng } : null
+    try { localStorage.setItem(CIUDADES, JSON.stringify({ ...leer(), [clave]: v })) } catch { /* sin espacio */ }
+    return v
+  })
+  fila = r.then(() => espera(1100), () => espera(1100))
+  return r
+}
+
 export interface Tasas { base: string; fecha: string; tasas: Record<string, number> }
 export async function tiposDeCambio(base: string): Promise<Tasas | null> {
   const clave = `nx-fx-${base}`
