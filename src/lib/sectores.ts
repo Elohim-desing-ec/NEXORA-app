@@ -3,7 +3,8 @@
  * sus categorías sugeridas, su meta de margen, los indicadores que más le importan y consejos propios.
  */
 import type { Movimiento, Producto, Venta } from '../data/base'
-import { enQuiebre, stockTotal } from './inventario'
+import { enQuiebre, sinTildes, stockTotal } from './inventario'
+import { CATALOGO } from '../data/categorias'
 import { serviciosDe } from './resumen'
 import { money, num, pct, plural } from './format'
 
@@ -59,6 +60,17 @@ export const perfilDe = (sector?: string) => PERFILES.find((p) => sector && p.se
 export interface Indicador { titulo: string; valor: string; nota: string; tono: 'verde' | 'ambar' | 'rojo' | 'gris' }
 
 /** Los 4 indicadores clave del sector, calculados con los datos reales del negocio. */
+/**
+ * Categorías para sugerir al registrar productos: todas las del catálogo, primero las del negocio de la empresa
+ * (una tienda de ropa ve primero «Ropa, calzado y textil»; una farmacia, «Farmacia y salud»).
+ */
+export function categoriasPara(sector: string | undefined): string[] {
+  const propias = perfilDe(sector).categorias.map(sinTildes)
+  const coincide = (a: string, b: string) => a.includes(b) || b.includes(a)
+  const delNegocio = (c: (typeof CATALOGO)[number]) => propias.some((x) => coincide(sinTildes(c.categoria), x.split(' ')[0]) || c.tipos.some((t) => coincide(sinTildes(t), x)))
+  return [...CATALOGO.filter(delNegocio), ...CATALOGO.filter((c) => !delNegocio(c))].map((c) => c.categoria)
+}
+
 export function indicadoresSector(perfil: PerfilSector, d: { productos: Producto[]; movimientos: Movimiento[]; ventas: Venta[]; sucursales: { id: string; nombre: string }[] }, ahora = Date.now()): Indicador[] {
   const { productos, movimientos, ventas } = d
   const dias = (f: string) => (ahora - new Date(f).getTime()) / 864e5

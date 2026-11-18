@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { diasParaVencer, esPrenda, etiquetaProducto, tallasDe, usaCuello, usaVencimiento } from '../lib/inventario'
+import { categoriasPara } from '../lib/sectores'
+import { CATALOGO, tiposDe } from '../data/categorias'
 
 describe('vencimiento según la categoría', () => {
   it('alimentos, medicinas y limpieza vencen; ropa, tecnología y ferretería no', () => {
@@ -30,5 +32,37 @@ describe('prendas: color, talla y tipo de cuello', () => {
   it('el nombre muestra color, talla y cuello para distinguir cada talla', () => {
     expect(etiquetaProducto({ nombre: 'Camiseta básica', color: 'Blanco', talla: 'M', cuello: 'En V' })).toBe('Camiseta básica · Blanco · Talla M · Cuello en V')
     expect(etiquetaProducto({ nombre: 'Arroz 2 kg' })).toBe('Arroz 2 kg')
+  })
+})
+
+describe('categorías que lo engloban todo', () => {
+  const ROPA = 'Ropa, calzado y textil'
+  it('«Ropa, calzado y textil» incluye camisetas, buzos, chalecos, gorras y calzado', () => {
+    for (const t of ['Camisetas', 'Buzos y sudaderas', 'Chalecos', 'Gorras y sombreros', 'Calzado']) expect(tiposDe(ROPA)).toContain(t)
+    expect(CATALOGO.every((c) => c.categoria === 'Otros' || c.tipos.length > 0)).toBe(true)
+  })
+  it('sin tipo: es prenda, con cuello y tallas de ropa (no de calzado)', () => {
+    expect(esPrenda(ROPA)).toBe(true)
+    expect(usaCuello(ROPA)).toBe(true)
+    expect(tallasDe(ROPA)).toContain('M')
+    expect(usaVencimiento(ROPA)).toBe(false)
+  })
+  it('cada tipo pide lo suyo', () => {
+    expect(usaCuello(ROPA, 'Chalecos')).toBe(true)
+    expect(usaCuello(ROPA, 'Gorras y sombreros')).toBe(false)
+    expect(tallasDe(ROPA, 'Gorras y sombreros')).toContain('Única')
+    expect(tallasDe(ROPA, 'Calzado')).toContain('40')
+    expect(esPrenda(ROPA, 'Telas e hilos')).toBe(false)
+  })
+  it('vencimiento por tipo: en hogar, los detergentes vencen y los utensilios no', () => {
+    expect(usaVencimiento('Limpieza y hogar', 'Detergentes')).toBe(true)
+    expect(usaVencimiento('Limpieza y hogar', 'Utensilios de cocina')).toBe(false)
+    expect(usaVencimiento('Mascotas', 'Alimento para mascotas')).toBe(true)
+    expect(usaVencimiento('Tecnología', 'Celulares')).toBe(false)
+  })
+  it('se sugieren primero las categorías del negocio', () => {
+    expect(categoriasPara('Moda y textil')[0]).toBe(ROPA)
+    expect(categoriasPara('Farmacéutico')[0]).toBe('Farmacia y salud')
+    expect(categoriasPara('')).toHaveLength(CATALOGO.length)
   })
 })

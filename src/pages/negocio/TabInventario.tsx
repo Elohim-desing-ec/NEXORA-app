@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, Plus, Search, Tag } from 'lucide-react'
 import { useApp, rolesDe } from '../../store/useApp'
 import type { Producto } from '../../data/base'
-import { perfilDe } from '../../lib/sectores'
+import { categoriasPara } from '../../lib/sectores'
+import { tiposDe } from '../../data/categorias'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, cx } from '../../components/ui'
 import { money, num, pct, plural } from '../../lib/format'
 import { etiquetaProducto, stockTotal, usaVencimiento, valorInventario, venceSugerido } from '../../lib/inventario'
@@ -26,7 +27,7 @@ function Calculadora({ costo, precio, onPrecio }: { costo: number; precio: numbe
   )
 }
 
-interface Nuevo { sku: string; nombre: string; categoria: string; sucursal: string; stock: number; min: number; costo: number; precio: number }
+interface Nuevo { sku: string; nombre: string; categoria: string; tipo: string; sucursal: string; stock: number; min: number; costo: number; precio: number }
 
 export default function TabInventario() {
   const { productos, movimientos, sucursales, sucursal, usuario, empresa, guardarProducto, ir } = useApp()
@@ -50,10 +51,10 @@ export default function TabInventario() {
   }, [productos, movimientos, sucursal])
 
   const t = q.trim().toLowerCase()
-  const lista = d.filas.filter((f) => (!t || `${f.p.sku} ${etiquetaProducto(f.p)} ${f.p.categoria}`.toLowerCase().includes(t)) && (!cat || f.p.categoria === cat) && (!est || f.estado === est))
-  const categorias = [...new Set([...perfilDe(empresa.sector).categorias, ...productos.map((p) => p.categoria)])]
+  const lista = d.filas.filter((f) => (!t || `${f.p.sku} ${etiquetaProducto(f.p)} ${f.p.categoria} ${f.p.tipo ?? ''}`.toLowerCase().includes(t)) && (!cat || f.p.categoria === cat) && (!est || f.estado === est))
+  const categorias = [...new Set([...categoriasPara(empresa.sector), ...productos.map((p) => p.categoria)])]
 
-  const abrirNuevo = () => { setError(''); setNuevo({ sku: '', nombre: '', categoria: '', sucursal: sucursal !== 'TODAS' ? sucursal : sucursales[0]?.id ?? '', stock: 0, min: 10, costo: 0, precio: 0 }) }
+  const abrirNuevo = () => { setError(''); setNuevo({ sku: '', nombre: '', categoria: '', tipo: '', sucursal: sucursal !== 'TODAS' ? sucursal : sucursales[0]?.id ?? '', stock: 0, min: 10, costo: 0, precio: 0 }) }
   const crear = () => {
     if (!nuevo) return
     const sku = nuevo.sku.trim().toUpperCase()
@@ -64,10 +65,10 @@ export default function TabInventario() {
     if (nuevo.stock < 0 || !Number.isInteger(nuevo.stock)) return setError('El stock inicial debe ser un número entero de 0 o más.')
     if (nuevo.costo < 0 || nuevo.precio < 0) return setError('El costo y el precio no pueden ser negativos.')
     guardarProducto({
-      id: `P${Date.now()}`, sku, nombre: nuevo.nombre.trim(), categoria: nuevo.categoria.trim() || 'General', costo: r2(nuevo.costo), precio: r2(nuevo.precio),
+      id: `P${Date.now()}`, sku, nombre: nuevo.nombre.trim(), categoria: nuevo.categoria.trim() || 'General', tipo: nuevo.tipo.trim() || undefined, costo: r2(nuevo.costo), precio: r2(nuevo.precio),
       // Solo la sucursal elegida: las demás "no lo manejan" (no cuentan como agotadas). Con transferencias o compras se agrega a otras.
       stock: { [nuevo.sucursal]: nuevo.stock }, min: Math.max(0, nuevo.min), max: Math.max(nuevo.min, 100),
-      lote: '', vence: usaVencimiento(nuevo.categoria) ? venceSugerido() : '', proveedorId: '', // ropa, tecnología…: sin vencimiento
+      lote: '', vence: usaVencimiento(nuevo.categoria, nuevo.tipo) ? venceSugerido() : '', proveedorId: '', // ropa, tecnología…: sin vencimiento
     })
     setNuevo(null)
   }
@@ -102,7 +103,7 @@ export default function TabInventario() {
           <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th className="num">Stock</th><th className="num">Costo</th><th className="num">Precio</th><th className="num">Ganancia / u</th><th className="num">Margen</th><th className="num">Vendidas</th><th className="num">Ganancia generada</th><th className="num">Valor stock</th><th>Estado</th>{puede && <th></th>}</tr></thead>
           <tbody>{lista.map((f) => (
             <tr key={f.p.id}>
-              <td className="font-mono text-xs">{f.p.sku}</td><td className="max-w-[16rem] truncate font-medium" title={etiquetaProducto(f.p)}>{etiquetaProducto(f.p)}</td><td className="text-muted">{f.p.categoria}</td>
+              <td className="font-mono text-xs">{f.p.sku}</td><td className="max-w-[16rem] truncate font-medium" title={etiquetaProducto(f.p)}>{etiquetaProducto(f.p)}</td><td className="text-muted">{f.p.categoria}{f.p.tipo && <div className="text-xs">{f.p.tipo}</div>}</td>
               <td className="num font-semibold">{num(f.stock, 0)}</td><td className="num">{money(f.p.costo)}</td><td className="num">{money(f.p.precio)}</td>
               <td className={cx('num', f.gu < 0 && 'text-peligro')}>{money(f.gu)}</td><td className="num">{pct(f.p.precio ? f.gu / f.p.precio : 0, 0)}</td>
               <td className="num">{num(f.vendidas, 0)}</td><td className="num">{money(f.ganancia)}</td><td className="num">{money(f.valor)}</td>
@@ -129,7 +130,8 @@ export default function TabInventario() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Campo label="Código (único)"><input className="inp uppercase" placeholder="CAM-001" value={nuevo.sku} onChange={(e) => setNuevo({ ...nuevo, sku: e.target.value })} /></Campo>
             <div className="sm:col-span-2"><Campo label="Nombre del producto"><input className="inp" placeholder="Camiseta negra talla M" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} /></Campo></div>
-            <Campo label="Categoría"><input className="inp" list="categoriasNegocio" placeholder={perfilDe(empresa.sector).categorias[0]} value={nuevo.categoria} onChange={(e) => setNuevo({ ...nuevo, categoria: e.target.value })} /></Campo>
+            <Campo label="Categoría"><input className="inp" list="categoriasNegocio" placeholder={categorias[0]} value={nuevo.categoria} onChange={(e) => setNuevo({ ...nuevo, categoria: e.target.value })} /></Campo>
+            <Campo label="Tipo (opcional)"><input className="inp" list="tiposNegocio" placeholder={tiposDe(nuevo.categoria)[0] ?? ''} value={nuevo.tipo} onChange={(e) => setNuevo({ ...nuevo, tipo: e.target.value })} /></Campo>
             <Campo label="Sucursal donde entra"><select className="inp" value={nuevo.sucursal} onChange={(e) => setNuevo({ ...nuevo, sucursal: e.target.value })}>{sucursales.map((s) => <option key={s.id} value={s.id}>{s.id} · {s.ciudad}</option>)}</select></Campo>
             <Campo label="Stock inicial"><NumInput min={0} value={nuevo.stock} onChange={(v) => setNuevo({ ...nuevo, stock: v })} /></Campo>
             <Campo label="Costo unitario"><MontoInput value={nuevo.costo} onChange={(v) => setNuevo({ ...nuevo, costo: v })} /></Campo>
@@ -137,6 +139,7 @@ export default function TabInventario() {
             <Campo label="Stock mínimo" ayuda="Para avisar cuando queda poco"><NumInput min={0} value={nuevo.min} onChange={(v) => setNuevo({ ...nuevo, min: v })} /></Campo>
           </div>
           <datalist id="categoriasNegocio">{categorias.map((c) => <option key={c} value={c} />)}</datalist>
+          <datalist id="tiposNegocio">{tiposDe(nuevo.categoria).map((t) => <option key={t} value={t} />)}</datalist>
           <Calculadora costo={nuevo.costo} precio={nuevo.precio} onPrecio={(v) => setNuevo({ ...nuevo, precio: v })} />
           <p className="text-xs text-muted">El producto aparece también en Inventario de NEXORA, con su «Saldo inicial» en el kardex.</p>
           {error && <p className="text-sm text-peligro">{error}</p>}

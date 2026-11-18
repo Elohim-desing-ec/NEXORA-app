@@ -1,3 +1,4 @@
+import { CATALOGO } from './categorias'
 /** Tipos de datos de NEXORA. El sistema arranca SIN datos de demostración: cada empresa registra los suyos. */
 /** Código libre de sucursal (ej. "GYE-01", "BOG", "MAD-CD"). Sucursales ilimitadas, en cualquier país. */
 export type SucursalId = string
@@ -16,6 +17,7 @@ export interface Producto {
   id: string; sku: string; nombre: string; categoria: string; costo: number; precio: number
   /** unidades por sucursal: { [códigoSucursal]: unidades } */
   stock: Record<SucursalId, number>; min: number; max: number; lote: string; /** AAAA-MM-DD; vacío = no vence (ropa, tecnología…) */ vence: string; proveedorId: string
+  /** Tipo dentro de la categoría (ej.: categoría «Ropa, calzado y textil», tipo «Buzos y sudaderas»). Opcional */ tipo?: string
   /** Ropa y textiles (opcional) */ color?: string; talla?: string; cuello?: string
 }
 export type TipoMov = 'Saldo inicial' | 'Compra' | 'Venta' | 'Transferencia' | 'Ajuste' | 'Merma'
@@ -49,4 +51,5 @@ export const SECTORES = ['Agricultura y agroindustria', 'Alimentos y bebidas', '
 /** Tamaño del negocio: de un emprendimiento a una multinacional. */
 export const TAMANOS = ['Emprendimiento', 'Microempresa (1 a 9 personas)', 'Pequeña empresa (10 a 49)', 'Mediana empresa (50 a 199)', 'Gran empresa (200 o más)', 'Multinacional']
 /** Categorías sugeridas (se pueden escribir otras). */
-export const CATEGORIAS = ['Alimentos y bebidas', 'Limpieza y hogar', 'Cuidado personal', 'Tecnología', 'Papelería y oficina', 'Ferretería', 'Repuestos', 'Farmacia', 'Textil', 'Materia prima']
+/** Categorías principales (cada una engloba sus tipos: ver data/categorias.ts). */
+export const CATEGORIAS = CATALOGO.map((c) => c.categoria)

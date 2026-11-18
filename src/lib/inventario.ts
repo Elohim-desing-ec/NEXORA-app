@@ -1,4 +1,5 @@
 import type { Movimiento, Producto, SucursalId } from '../data/base'
+import { tiposDe } from '../data/categorias'
 
 /** Unidades de un producto en una sucursal (0 si no la maneja). */
 export const st = (p: Producto, s: SucursalId) => p.stock[s] ?? 0
@@ -59,23 +60,39 @@ export function ventasRecientes(movs: Movimiento[], productos: Producto[], dias 
 }
 
 // ---------- Vencimiento y prendas ----------
-const sinTildes = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+export const sinTildes = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+const tiene = (texto: string, claves: string[]) => { const t = sinTildes(texto); return !!t && claves.some((k) => t.includes(k)) }
 
-/** Categorías que suelen vencer (alimentos, medicinas, limpieza…). Las demás (ropa, tecnología, ferretería…) arrancan sin fecha de vencimiento. */
-const PERECIBLES = ['aliment', 'bebida', 'farmac', 'medicament', 'insumos medicos', 'curacion', 'suplement', 'carne', 'marisco', 'fruta', 'verdura', 'lacteo', 'abarrote', 'panaderia', 'cuidado personal', 'limpieza', 'higiene', 'agroquimic', 'fertiliz', 'semilla', 'cosecha']
-export const usaVencimiento = (categoria: string) => { const c = sinTildes(categoria); return PERECIBLES.some((k) => c.includes(k)) }
+/** Lo que suele vencer (alimentos, medicinas, limpieza…). Lo demás (ropa, tecnología, ferretería…) arranca sin fecha de vencimiento. */
+const PERECIBLES = ['aliment', 'bebida', 'farmac', 'medicament', 'insumos medicos', 'curacion', 'suplement', 'vitamina', 'carne', 'embutido', 'pescado', 'marisco', 'fruta', 'verdura', 'lacteo', 'abarrote', 'grano', 'cereal', 'panaderia', 'pasteleria', 'snack', 'golosina', 'enlatado', 'congelado', 'condimento', 'salsa', 'comida', 'cuidado personal', 'cuidado del cabello', 'cuidado de la piel', 'maquillaje', 'limpieza', 'detergente', 'desinfectante', 'higiene', 'agroquimic', 'fertiliz', 'semilla', 'cosecha']
+/** Tipos que no vencen aunque su categoría sí (en «Limpieza y hogar», los utensilios o la decoración). */
+const NO_VENCEN = ['utensilio', 'menaje', 'decoracion', 'mueble', 'ropa de cama', 'toalla', 'papel', 'desechable', 'equipo', 'herramienta', 'accesorio', 'afeitado']
+export const usaVencimiento = (categoria: string, tipo = '') =>
+  tiene(tipo, NO_VENCEN) ? false : tiene(tipo, PERECIBLES) || tiene(categoria, PERECIBLES)
 /** Días que faltan para que venza (negativo: ya venció). null: el producto no vence. */
 export const diasParaVencer = (p: Pick<Producto, 'vence'>, ahora = Date.now()) => (p.vence ? (new Date(`${p.vence.slice(0, 10)}T12:00:00`).getTime() - ahora) / 864e5 : null)
 /** Fecha de vencimiento sugerida para un producto nuevo de una categoría que vence (dentro de un año). */
 export const venceSugerido = () => new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10)
 
-/** Ropa y textiles: se registran con color, talla y tipo de cuello. */
-const PRENDAS = ['textil', 'camiseta', 'camisa', 'blusa', 'pantalon', 'vestido', 'calzado', 'zapato', 'ropa', 'prenda', 'chompa', 'buzo', 'uniforme', 'temporada']
-export const esPrenda = (categoria: string) => { const c = sinTildes(categoria); return PRENDAS.some((k) => c.includes(k)) }
-const esCalzado = (categoria: string) => /calzado|zapato/.test(sinTildes(categoria))
-/** El tipo de cuello solo aplica a prendas de arriba (no a pantalones ni calzado). */
-export const usaCuello = (categoria: string) => esPrenda(categoria) && !esCalzado(categoria) && !/pantalon/.test(sinTildes(categoria))
-export const tallasDe = (categoria: string) => (esCalzado(categoria) ? ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'] : ['XS', 'S', 'M', 'L', 'XL', 'XXL'])
+/** Ropa, calzado y textiles: se registran con color, talla y tipo de cuello. */
+const PRENDAS = ['textil', 'ropa', 'prenda', 'camiseta', 'camisa', 'blusa', 'polo', 'buzo', 'sudadera', 'chompa', 'sueter', 'chaqueta', 'abrigo', 'chaleco', 'pantalon', 'jean', 'short', 'falda', 'vestido', 'pijama', 'media', 'calcetin', 'traje de bano', 'uniforme', 'gorra', 'sombrero', 'calzado', 'zapat', 'bufanda', 'guante', 'cinturon', 'temporada']
+const NO_PRENDAS = ['ropa de cama', 'toalla', 'tela', 'hilo']
+export const esPrenda = (categoria: string, tipo = '') => !tiene(tipo, NO_PRENDAS) && (tiene(tipo, PRENDAS) || tiene(categoria, PRENDAS))
+/** El tipo de cuello solo aplica a prendas de arriba (no a pantalones, calzado, gorras, medias…). */
+const SIN_CUELLO = ['pantalon', 'jean', 'short', 'falda', 'calzado', 'zapat', 'gorra', 'sombrero', 'media', 'calcetin', 'interior', 'bufanda', 'guante', 'cinturon']
+/** Qué mirar para el cuello y la talla: el tipo; sin tipo, la categoría (salvo una categoría general como «Ropa, calzado y textil», que lo engloba todo). */
+const referencia = (categoria: string, tipo: string) => tipo || (tiposDe(categoria).length ? '' : categoria)
+export const usaCuello = (categoria: string, tipo = '') => esPrenda(categoria, tipo) && !tiene(referencia(categoria, tipo), SIN_CUELLO)
+/** Tallas sugeridas según la prenda (siempre se puede escribir otra). */
+export function tallasDe(categoria: string, tipo = '') {
+  const x = referencia(categoria, tipo)
+  if (tiene(x, ['calzado', 'zapat'])) return ['34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44']
+  if (tiene(x, ['gorra', 'sombrero'])) return ['Única', 'S/M', 'L/XL']
+  if (tiene(x, ['bebe'])) return ['0-3 M', '3-6 M', '6-12 M', '12-18 M', '18-24 M']
+  if (tiene(x, ['jean'])) return ['28', '30', '32', '34', '36', '38']
+  if (tiene(x, ['media', 'calcetin', 'bufanda', 'guante', 'cinturon'])) return ['Única', 'S', 'M', 'L']
+  return ['XS', 'S', 'M', 'L', 'XL', 'XXL']
+}
 export const CUELLOS = ['Redondo', 'En V', 'Polo', 'Camisero', 'Tortuga', 'Sin cuello']
 export const COLORES = ['Blanco', 'Negro', 'Gris', 'Azul', 'Azul marino', 'Rojo', 'Verde', 'Amarillo', 'Rosado', 'Morado', 'Beige', 'Café']
 /** Nombre con sus detalles de prenda, para distinguir tallas y colores: «Camiseta básica · Blanco · Talla M · Cuello en V». */
