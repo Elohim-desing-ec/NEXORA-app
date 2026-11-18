@@ -3,6 +3,7 @@ import { limitesDe } from '../lib/planes'
 import type { TemaColor } from '../lib/temas'
 import { persist, createJSONStorage, type StateStorage } from 'zustand/middleware'
 import { get as idbGet, set as idbSet, del as idbDel } from 'idb-keyval'
+import { PESTANA, estadoPestana } from '../lib/pestana'
 import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC, type Gasto, type Cierre, type Venta, type LineaVenta, type EstadoVenta, type Tarea, type Nota, type EstadoTarea } from '../data/base'
 
 export type Rol = 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
@@ -159,12 +160,20 @@ const local = {
   set: (n: string, v: string) => { try { localStorage.setItem(n, v) } catch { memoria.set(n, v) } },
   del: (n: string) => { try { localStorage.removeItem(n) } catch { /* sin almacenamiento */ } memoria.delete(n) },
 }
+/**
+ * Qué pestaña escribió los datos guardados de este navegador. La nube compara con quién guardó su «base»:
+ * si no es la misma pestaña, no se deduce que algo se eliminó (ver nube.ts).
+ */
+let escritor: string | undefined
+export const escritorLocal = () => escritor
 const almacen: StateStorage = {
   getItem: async (n) => {
     if (hayIDB) try { const v = await idbGet<string>(n); if (v != null) return v } catch { /* IndexedDB bloqueado */ }
     return local.get(n)
   },
   setItem: async (n, v) => {
+    if (estadoPestana() === 'otra') return // pestaña en pausa: NEXORA está activo en otra pestaña
+    if (n === 'nexora-app') escritor = PESTANA
     if (hayIDB) try { await idbSet(n, v); local.del(n); return } catch { /* IndexedDB bloqueado */ }
     local.set(n, v)
   },
@@ -470,7 +479,8 @@ export const useApp = create<AppState>()(persist((set, get) => {
 }, {
   name: 'nexora-app', version: 6,
   storage: createJSONStorage(() => almacen),
-  partialize: (s) => ({ ...s, presentacion: false }),
+  partialize: (s) => ({ ...s, presentacion: false, escritoPor: PESTANA }),
+  onRehydrateStorage: () => (s) => { escritor = (s as { escritoPor?: string } | undefined)?.escritoPor },
   migrate: (old, v) => {
     let o = (old ?? {}) as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
     if (v < 3) return { tema: o.tema ?? 'oscuro' } as unknown as AppState // v3: sin datos de demostración

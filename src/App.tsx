@@ -10,7 +10,9 @@ import { useIdioma } from './lib/idioma'
 import { recordarTema, temaGuardado } from './lib/temas'
 import Login, { NuevaClave } from './pages/Login'
 import { useRecuperando } from './lib/cuenta'
-import { reanudar } from './lib/nube'
+import { desconectarNube, reanudar } from './lib/nube'
+import { tomarPestana, usarAqui, usePestana } from './lib/pestana'
+import { Logo } from './components/Logo'
 import Dashboard from './pages/Dashboard'
 
 /**
@@ -63,11 +65,13 @@ export default function App() {
   useEffect(() => { const t = temaColor ?? temaGuardado(); document.documentElement.dataset.tema = t; if (temaColor) recordarTema(temaColor) }, [temaColor])
   useEffect(() => { document.documentElement.lang = idioma }, [idioma])
   useEffect(() => { const h = () => setHash(location.hash); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])
-  // Con una sesión guardada: revisa que el plan siga vigente y reconecta los datos de la nube.
-  useEffect(() => { if (listo) reanudar() }, [listo])
+  // Una sola pestaña activa (ver lib/pestana.ts). Con una sesión guardada: revisa el plan y reconecta los datos de la nube.
+  const pestana = usePestana()
+  useEffect(() => { if (listo) tomarPestana(desconectarNube).then((activa) => { if (activa) reanudar() }) }, [listo])
 
   let vista
   if (!listo) vista = null
+  else if (pestana === 'otra') vista = <OtraPestana />
   else if (recuperando) vista = <NuevaClave />
   // Planes y compra se abren también con la sesión iniciada (para cambiar de plan desde "Cuenta y equipo").
   else if (hash.startsWith('#/pago')) vista = <Suspense fallback={null}><ResultadoPago /></Suspense> // regreso de Payphone
@@ -81,3 +85,19 @@ export default function App() {
   }
   return <>{vista}<DefsGraficos /><AnimatePresence>{intro && <Splash onFin={fin} />}</AnimatePresence></>
 }
+
+/** NEXORA ya está abierto en otra pestaña o ventana de este navegador. */
+function OtraPestana() {
+  return (
+    <div className="grid min-h-screen place-items-center p-6" style={{ background: 'var(--bg1)' }}>
+      <div className="glass w-full max-w-md p-6 text-center">
+        <div className="mb-4 flex justify-center"><Logo size={40} /></div>
+        <h1 className="font-display text-xl font-bold">NEXORA está abierto en otra pestaña</h1>
+        <p className="mt-2 text-sm text-muted">Para que no se mezclen ni se pierdan datos, NEXORA se usa en una sola pestaña a la vez en este navegador. Puede cerrar esta pestaña o seguir trabajando aquí.</p>
+        <button onClick={usarAqui} className="mt-5 w-full rounded-xl bg-primario px-4 py-2.5 text-sm font-semibold text-black hover:brightness-110">Usar aquí</button>
+        <p className="mt-3 text-[11px] text-muted">La otra pestaña quedará en pausa.</p>
+      </div>
+    </div>
+  )
+}
+

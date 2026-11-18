@@ -10,10 +10,11 @@
 import { useSyncExternalStore } from 'react'
 import type { RealtimeChannel, User } from '@supabase/supabase-js'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
-import { useApp, ROLES, esCuenta, type Rol } from '../store/useApp'
+import { useApp, ROLES, esCuenta, escritorLocal, type Rol } from '../store/useApp'
+import { PESTANA } from './pestana'
 import { EMPRESA_BASE } from '../data/base'
 import { equipoEmpresa, fotoDe, miAcceso, nombreDe, supabase, type Acceso } from './cuenta'
-import { esAnterior, fusionar, igual } from './fusion'
+import { baseConfiable, esAnterior, fusionar, igual } from './fusion'
 
 const comoRol = (r: string): Rol | null => ((ROLES as string[]).includes(r) ? (r as Rol) : null)
 
@@ -53,10 +54,13 @@ let relojBase: ReturnType<typeof setTimeout> | undefined
 const guardarBase = (ya = false) => {
   clearTimeout(relojBase)
   const id = empresaId, copia = base
-  const escribir = () => { if (id) idbSet(nombreBase(id), copia).catch(() => undefined) }
+  const escribir = () => { if (id) idbSet(nombreBase(id), { pestana: PESTANA, datos: copia }).catch(() => undefined) }
   if (ya) escribir(); else relojBase = setTimeout(escribir, 500)
 }
-const leerBase = async (id: string): Promise<Partial<Record<Clave, unknown>>> => { try { return (await idbGet(nombreBase(id))) ?? {} } catch { return {} } }
+/** La base guardada solo sirve si la escribió la misma pestaña que guardó los datos de este navegador (si no, {}: se une sin borrar nada). */
+const leerBase = async (id: string): Promise<Partial<Record<Clave, unknown>>> => {
+  try { return baseConfiable(await idbGet(nombreBase(id)), escritorLocal()) as Partial<Record<Clave, unknown>> } catch { return {} }
+}
 
 const local = () => useApp.getState() as unknown as Record<Clave, unknown>
 

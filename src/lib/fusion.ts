@@ -51,3 +51,14 @@ export function fusionar<T>(base: T | undefined, local: T, servidor: T | undefin
  * este equipo ya guardó una más nueva: combinarla haría creer que otra persona borró lo recién agregado (p. ej. un proveedor).
  */
 export const esAnterior = (a: string | undefined, b: string | undefined) => !!a && !!b && Date.parse(a) < Date.parse(b)
+
+/**
+ * La «base» guardada (lo último que se sabía de la nube) solo es confiable si la guardó la misma pestaña que escribió
+ * los datos locales. Con dos pestañas abiertas, los datos podían venir de una pestaña vieja y la base de otra: lo que
+ * faltaba en la vieja parecía «eliminado» y se borraba. Si no coinciden: base vacía (se une todo, no se borra nada).
+ */
+export function baseConfiable(guardada: unknown, escritor: string | undefined): Record<string, unknown> {
+  const g = guardada as { pestana?: string; datos?: Record<string, unknown> } | undefined
+  return g?.pestana && escritor && g.pestana === escritor && g.datos ? g.datos : {}
+}
+
