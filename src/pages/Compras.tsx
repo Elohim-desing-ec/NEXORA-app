@@ -16,7 +16,7 @@ const nuevoProv = (): Proveedor => ({ id: crypto.randomUUID(), nombre: '', ruc: 
 const TONO_NIVEL: Record<NivelProveedor, 'verde' | 'azul' | 'ambar' | 'violeta'> = { Emprendedor: 'verde', Junior: 'azul', Senior: 'ambar', Experimentado: 'violeta' }
 
 export default function Compras() {
-  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, guardarProveedor, eliminarProveedor, ir } = useApp()
+  const { ordenes, productos, proveedores, sucursales, usuario, empresa, crearOrden, avanzarOrden, eliminarOrden, guardarProveedor, eliminarProveedor, ir } = useApp()
   const [filtroNivel, setFiltroNivel] = useState<NivelProveedor | 'todos'>('todos'), [masDatos, setMasDatos] = useState(false), [verMapa, setVerMapa] = useState(false)
   const centro = pais(empresa.pais) ?? { lat: -1.8, lng: -78.2 }
   const abrirProv = (p: Proveedor) => { setErr(''); setMasDatos(!!(p.ruc || p.contacto || p.email)); setVerMapa(tieneUbicacion(p)); setProv(p) }
@@ -50,12 +50,13 @@ export default function Compras() {
       <Tabs items={[{ id: 'ordenes', label: 'Órdenes de compra', icon: <ClipboardList size={14} /> }, { id: 'proveedores', label: 'Proveedores', icon: <Building2 size={14} /> }]} valor={tab} onChange={setTab} />
       {tab === 'ordenes' && <>
         <Card titulo="Órdenes de compra"><Scroll><table className="tabla">
-          <thead><tr><th>N.°</th><th>Fecha</th><th>Proveedor</th><th>Sucursal</th><th className="num">Ítems</th><th className="num">Total</th><th>Estado</th><th></th></tr></thead>
+          <thead><tr><th>N.°</th><th>Fecha</th><th>Proveedor</th><th>Sucursal</th><th className="num">Ítems</th><th className="num">Total</th><th>Estado</th><th></th><th></th></tr></thead>
           <tbody>{ordenes.slice().reverse().map((o) => <tr key={o.id}>
             <td className="font-mono text-xs">{o.id}</td><td>{fecha(o.fecha)}</td><td>{proveedores.find((p) => p.id === o.proveedorId)?.nombre ?? '—'}</td><td>{o.sucursal}</td><td className="num">{o.items.length}</td><td className="num font-semibold">{money(totalOC(o))}</td>
             <td><Badge tono={tono[o.estado]}>{o.estado}</Badge></td>
             <td>{o.estado === 'Borrador' && <Button variante="exito" disabled={!puedeAprobar} title={puedeAprobar ? '' : 'Requiere Gerente o Analista'} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><CheckCircle2 size={14} />Aprobar</Button>}
               {o.estado === 'Aprobada' && <Button disabled={!puedeRecibir} className="!py-1 text-xs" onClick={() => avanzarOrden(o.id)}><Truck size={14} />Recibir</Button>}</td>
+            <td>{puedeEditar && o.estado !== 'Recibida' && <Button variante="fantasma" className="!p-1.5 text-peligro" title="Eliminar orden" aria-label={`Eliminar orden ${o.id}`} onClick={() => { if (confirm(`¿Eliminar la orden ${o.id} (${o.estado}) de ${money(totalOC(o))}? Queda en la Papelera por si necesita recuperarla.`)) { const e = eliminarOrden(o.id); if (e) alert(e) } }}><Trash2 size={15} /></Button>}</td>
           </tr>)}</tbody></table></Scroll>
           {!ordenes.length && <p className="py-8 text-center text-sm text-muted">Aún no hay órdenes de compra.</p>}</Card>
       </>}

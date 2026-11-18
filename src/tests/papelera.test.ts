@@ -42,3 +42,24 @@ describe('papelera', () => {
     expect(useApp.getState().papelera).toHaveLength(0)
   })
 })
+
+describe('eliminar órdenes de compra', () => {
+  const orden = (id: string, estado: 'Borrador' | 'Aprobada' | 'Recibida') => ({ id, fecha: '2026-11-18', proveedorId: 'p1', sucursal: 'UIO', items: [{ productoId: 'x', cantidad: 2, costo: 5 }], estado, creadaPor: 'Ana' })
+  beforeEach(() => { origenCambio.pausa = true; useApp.setState({ ordenes: [orden('OC-1', 'Borrador'), orden('OC-2', 'Aprobada'), orden('OC-3', 'Recibida')], papelera: [], proveedores: [prov('p1', 'Don Luis')] }); origenCambio.pausa = false })
+
+  it('una orden en Borrador o Aprobada se elimina y queda en la papelera', () => {
+    expect(useApp.getState().eliminarOrden('OC-1')).toBeNull()
+    expect(useApp.getState().eliminarOrden('OC-2')).toBeNull()
+    expect(useApp.getState().ordenes.map((o) => o.id)).toEqual(['OC-3'])
+    expect(useApp.getState().papelera.map((e) => e.registro.id).sort()).toEqual(['OC-1', 'OC-2'])
+  })
+  it('una orden Recibida no se elimina (su mercadería ya entró al inventario)', () => {
+    expect(useApp.getState().eliminarOrden('OC-3')).toContain('ya fue recibida')
+    expect(useApp.getState().ordenes).toHaveLength(3)
+  })
+  it('sin órdenes pendientes, el proveedor ya se puede eliminar', () => {
+    expect(useApp.getState().eliminarProveedor('p1')).toContain('Recíbalas o elimínelas')
+    useApp.getState().eliminarOrden('OC-1'); useApp.getState().eliminarOrden('OC-2')
+    expect(useApp.getState().eliminarProveedor('p1')).toBeNull()
+  })
+})

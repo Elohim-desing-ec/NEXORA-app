@@ -139,6 +139,8 @@ interface AppState extends Datos {
   registrar: (productoId: string, s: SucursalId, tipo: TipoOperacion, cantidad: number, nota: string, costoUnit?: number) => string | null
   crearOrden: (o: Omit<Orden, 'id' | 'fecha' | 'estado' | 'creadaPor'>) => void
   avanzarOrden: (id: string) => void
+  /** Elimina una orden en Borrador o Aprobada (una Recibida ya entró al inventario: no se elimina). null si se eliminó; si no, el motivo. */
+  eliminarOrden: (id: string) => string | null
   vaciarDatos: () => void
   importarProductos: (filas: FilaImport[]) => { nuevos: number; actualizados: number }
   guardarUsuario: (u: Usuario) => string | null
@@ -327,7 +329,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       log(existe ? 'Proveedor editado' : 'Proveedor creado', p.nombre); return null
     },
     eliminarProveedor: (id) => {
-      if (get().ordenes.some((o) => o.proveedorId === id && o.estado !== 'Recibida')) return 'Tiene órdenes de compra pendientes'
+      if (get().ordenes.some((o) => o.proveedorId === id && o.estado !== 'Recibida')) return 'Este proveedor tiene órdenes de compra pendientes. Recíbalas o elimínelas primero en «Órdenes de compra».'
       const p = get().proveedores.find((x) => x.id === id)
       set({ proveedores: get().proveedores.filter((x) => x.id !== id) }); log('Proveedor eliminado', p?.nombre ?? ''); return null
     },
@@ -360,6 +362,14 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const id = nuevoNumero('OC', get().ordenes.map((o) => o.id))
       set({ ordenes: [...get().ordenes, { ...o, id, fecha: sello(), estado: 'Borrador', creadaPor: get().usuario?.nombre ?? '' }] })
       log('Orden de compra creada', id, o.sucursal)
+    },
+    eliminarOrden: (id) => {
+      const o = get().ordenes.find((x) => x.id === id)
+      if (!o) return 'La orden ya no existe'
+      if (o.estado === 'Recibida') return 'Esta orden ya fue recibida: su mercadería entró al inventario y al kardex. Para corregir el stock use «Registrar movimiento» → Ajuste en Inventario.'
+      set({ ordenes: get().ordenes.filter((x) => x.id !== id) })
+      log('Orden de compra eliminada', `${id} (${o.estado})`, o.sucursal)
+      return null
     },
     avanzarOrden: (id) => {
       const o = get().ordenes.find((x) => x.id === id); if (!o || o.estado === 'Recibida') return
