@@ -9,7 +9,7 @@ import { Badge, Button, Campo, Card, Modal, Scroll, Tabs, Titulo, cx } from '../
 import { descargarPlantilla, leerArchivo } from '../lib/importar'
 import { cargarRespaldo, descargarRespaldo } from '../lib/respaldo'
 import { perfilDe } from '../lib/sectores'
-import { TEMAS } from '../lib/temas'
+import { TEMAS, TEMA_INICIAL } from '../lib/temas'
 import { MuestraTema } from '../components/SelectorTema'
 import { InstalarApp } from '../components/InstalarApp'
 import { money } from '../lib/format'
@@ -195,7 +195,7 @@ function Guia() {
 /** Temas de color: cada usuario elige el suyo (también desde el botón de paleta de la barra superior). */
 function Temas() {
   const { usuario, temasColor, setTemaColor, tema, setTema } = useApp()
-  const actual = (usuario && temasColor?.[usuario.id]) || 'oro'
+  const actual = (usuario && temasColor?.[usuario.id]) || TEMA_INICIAL
   return <>
     <Card titulo="Temas de color" accion={<div className="flex rounded-full border border-fg/10 bg-fg/5 p-0.5 text-xs">{(['oscuro', 'claro'] as const).map((m) => <button key={m} onClick={() => setTema(m)} className={cx('rounded-full px-3 py-1 capitalize transition', tema === m ? 'bg-gradient-to-r from-primario to-violeta font-semibold text-black' : 'text-muted hover:text-fg')}>Modo {m}</button>)}</div>}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-fg/5 p-3 text-sm"><span><b>App de escritorio:</b> instale NEXORA en esta computadora para abrirla con su propio ícono, en su propia ventana y sin internet.</span><InstalarApp /></div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Palette } from 'lucide-react'
 import { useApp } from '../store/useApp'
-import { TEMAS, type TemaColor } from '../lib/temas'
+import { TEMAS, TEMA_INICIAL, type TemaColor } from '../lib/temas'
 import { useTx } from '../lib/idioma'
 import { cx } from './ui'
 
@@ -30,7 +30,7 @@ export function MuestraTema({ id, grande }: { id: TemaColor; grande?: boolean })
 export function SelectorTema() {
   const tx = useTx()
   const { usuario, temasColor, setTemaColor } = useApp()
-  const actual = (usuario && temasColor?.[usuario.id]) || 'oro'
+  const actual = (usuario && temasColor?.[usuario.id]) || TEMA_INICIAL
   const [abierto, setAbierto] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => { const f = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setAbierto(false) }; document.addEventListener('mousedown', f); return () => document.removeEventListener('mousedown', f) }, [])

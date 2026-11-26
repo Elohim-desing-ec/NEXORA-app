@@ -12,7 +12,7 @@ export interface Proveedor { id: string; nombre: string; /** Opcional: un empren
   /** Ubicación en el mapa (opcional) */ lat?: number; lng?: number; direccion?: string; pais?: string
   /** true: la ubicación es el centro de su ciudad (se puso sola al guardar); false/vacío: la marcaron en el mapa */ ubicacionAprox?: boolean }
 /** pais = código ISO 3166 (EC, CO, US…); moneda = ISO 4217 (USD, COP, EUR…) usada para costos y reportes. */
-export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string>; /** Colores de prendas que maneja (los de sus proveedores; se pueden agregar más) */ colores?: string[] }
+export interface Empresa { nombre: string; idFiscal: string; pais: string; moneda: string; sector: string; tamano?: string; telefono: string; configurada: boolean; /** Enlaces al espacio de trabajo de la empresa (Discord, Slack, Notion…) */ conexiones?: Record<string, string>; /** Titular de la cuenta NEXORA (el Gerente General que compró): a él se ligan correos y reuniones de Google */ titular?: { email: string; nombre: string }; /** Colores de prendas que maneja (los de sus proveedores; se pueden agregar más) */ colores?: string[] }
 export interface Producto {
   id: string; sku: string; nombre: string; categoria: string; costo: number; precio: number
   /** unidades por sucursal: { [códigoSucursal]: unidades } */

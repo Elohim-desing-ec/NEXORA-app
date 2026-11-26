@@ -10,7 +10,8 @@ const compacta = (d: string) => d.split('-').join('')
 const sumarDia = (d: string) => { const f = new Date(`${d}T12:00:00`); f.setDate(f.getDate() + 1); return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}` }
 
 /** Evento de Google Calendar: de todo el día, o con hora (HH:MM, hora local) y duración en minutos. */
-export function urlCalendario({ titulo, detalle = '', fecha, hora, minutos = 60, invitados = [] }: { titulo: string; detalle?: string; fecha: string; hora?: string; minutos?: number; invitados?: string[] }) {
+export function urlCalendario({ titulo, detalle = '', fecha, hora, minutos = 60, invitados: lista = [] }: { titulo: string; detalle?: string; fecha: string; hora?: string; minutos?: number; invitados?: string[] }) {
+  const invitados = unicos(lista)
   let fechas: string
   if (hora) {
     const ini = new Date(`${fecha}T${hora}:00`), fin = new Date(ini.getTime() + minutos * 60000)
@@ -20,13 +21,32 @@ export function urlCalendario({ titulo, detalle = '', fecha, hora, minutos = 60,
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${q(titulo)}&details=${q(detalle)}&dates=${fechas}${invitados.length ? `&add=${q(invitados.join(','))}` : ''}`
 }
 
-/** Correo redactado en Gmail (la persona solo revisa y pulsa Enviar). */
-export const urlGmail = (para: string[], asunto: string, cuerpo: string) => `https://mail.google.com/mail/?view=cm&fs=1&to=${q(para.filter(Boolean).join(','))}&su=${q(asunto)}&body=${q(cuerpo)}`
+/** Correos sin repetir ni vacíos (en minúsculas). */
+export const unicos = (xs: (string | undefined | null)[]) => [...new Set(xs.filter((x): x is string => !!x && x.includes('@')).map((x) => x.trim().toLowerCase()))]
+/** Correo redactado en Gmail (la persona solo revisa y pulsa Enviar). cc: con copia (por ejemplo, al Gerente General). */
+export const urlGmail = (para: string[], asunto: string, cuerpo: string, cc: string[] = []) => {
+  const a = unicos(para), c = unicos(cc).filter((x) => !a.includes(x))
+  return `https://mail.google.com/mail/?view=cm&fs=1&to=${q(a.join(','))}${c.length ? `&cc=${q(c.join(','))}` : ''}&su=${q(asunto)}&body=${q(cuerpo)}`
+}
+/**
+ * Abre la herramienta de Google con la cuenta de la persona que está en NEXORA (parámetro authuser):
+ * si ya inició sesión con ese correo en el navegador entra directo; si no, Google le pide ingresar con él.
+ */
+export function conCuenta(url: string, email?: string | null) {
+  if (!email || !email.includes('@') || !/\.google\.com\//.test(url)) return url
+  return `${url}${url.includes('?') ? '&' : '?'}authuser=${q(email.trim().toLowerCase())}`
+}
+/** Reunión que empieza ahora (30 min) en Google Calendar con sus invitados: Google agrega el enlace de Meet y les envía la invitación. */
+export function urlReunionAhora(titulo: string, invitados: string[], detalle = '') {
+  const ahora = new Date(), m = ahora.getMinutes()
+  const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`
+  return urlCalendario({ titulo, detalle, fecha: hoy, hora: `${String(ahora.getHours()).padStart(2, '0')}:${String(m - (m % 5)).padStart(2, '0')}`, minutos: 30, invitados: unicos(invitados) })
+}
 export const urlMaps = (lat: number, lng: number) => `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
 export const urlRuta = (o: { lat: number; lng: number }, d: { lat: number; lng: number }) => `https://www.google.com/maps/dir/?api=1&origin=${o.lat},${o.lng}&destination=${d.lat},${d.lng}`
 export const urlEarth = (lat: number, lng: number) => `https://earth.google.com/web/@${lat},${lng},400a,2500d,35y,0h,45t,0r`
 export const URLS = {
-  meet: 'https://meet.google.com/new', drive: 'https://drive.google.com/drive/my-drive', sheets: 'https://sheets.new', docs: 'https://docs.new',
+  meet: 'https://meet.google.com/new', drive: 'https://drive.google.com/drive/my-drive', sheets: 'https://docs.google.com/spreadsheets/create', docs: 'https://docs.google.com/document/create',
   gemini: 'https://gemini.google.com/app', notebook: 'https://notebooklm.google.com/', contactos: 'https://contacts.google.com/', wallet: 'https://wallet.google.com/',
 }
 

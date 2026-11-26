@@ -1,0 +1,17 @@
+{
+  // Explorador ordenado: los archivos de configuración se agrupan bajo package.json
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, tsconfig.json, vite.config.ts, tailwind.config.js, postcss.config.js, .gitignore",
+    "README.md": "*.md"
+  },
+  // Se ocultan carpetas generadas que no se editan
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/*.tsbuildinfo": true,
+    ".playwright-mcp": true,
+    "dist": true
+  },
+  "search.exclude": { "dist": true, "node_modules": true, "package-lock.json": true }
+}

@@ -1,183 +1,141 @@
 # NEXORA — Intelligent Operations Suite
 
-Plataforma web de gestión de operaciones e inventario multi-sucursal con IA y **módulo de Ingeniería Económica** (Unidad 4: análisis de reemplazo y depreciación).
-Diseño **negro y oro** con página de presentación animada (el panel emerge del horizonte dorado al hacer scroll). Para **cualquier empresa, en cualquier país**: sucursales ilimitadas, moneda propia, ubicaciones reales y red global en un globo 3D. Visión completa en **`NEXORA_GLOBAL.md`**.
+Software de gestión empresarial para **empresas y emprendimientos**: ventas, inventario, compras, gastos, equipo y finanzas en un solo sistema, en la nube, para una o varias sucursales en cualquier país.
 
-## 1. Instalación y uso
+Desarrollado por **Elohim** · Ecuador · **https://elohim-desing-ec.github.io/NEXORA-app/**
+
+---
+
+## 1. Qué hace
+
+| Módulo | Para qué sirve |
+|---|---|
+| **Dashboard** | Ventas, ganancia, salud del negocio, quiebres de stock y alertas de un vistazo. |
+| **Espacio de trabajo** | Tablero de tareas, notas, fichas del equipo, conexiones de la empresa (Slack, Discord, Notion, sala de Meet…) y herramientas de Google. |
+| **Inventario** | Productos por sucursal, kardex con costo promedio ponderado, lotes, vencimientos, prendas por color y talla, códigos de barras y QR. Muestra el **% de quiebre** y de **sobrestock** de cada producto. |
+| **Compras** | Proveedores y órdenes de compra (borrador → aprobada → recibida). Al recibir, la mercadería entra al stock. |
+| **Ventas** | Registrar ventas con varios productos o servicios, descuentos, cobros pendientes y clientes. Se pueden anular o **eliminar**; el stock regresa y la venta queda en la Papelera. |
+| **Gastos** | Arriendo, sueldos, servicios… por sucursal y categoría. |
+| **Resumen** | Estado de resultados por mes y año, y cierres de periodo. |
+| **Trazabilidad** | Quién hizo qué, cuándo y en qué sucursal. Incluye la **Papelera** para recuperar lo eliminado. |
+| **Reportes** | Reportes inteligentes con acciones recomendadas, en PDF y Excel. |
+| **Red global** | Sucursales sobre un globo 3D, con direcciones reales y tipos de cambio del día. |
+| **Análisis económico** | Evaluación financiera (VPN, TIR, CAUE, reemplazo y depreciación) con escenarios. |
+| **IA NEXORA** | Pronóstico de demanda, punto de reorden, compras sugeridas y anomalías. Se calcula **en el dispositivo**: no envía datos afuera. |
+| **Asistente** (botón ✦) | Responde en lenguaje natural cómo usar el sistema y consulta datos (stock, más vendidos, vencimientos…). |
+
+Además: funciona **sin internet** (se instala como app y sincroniza al volver la conexión), tiene **3 idiomas** (español, inglés y portugués), modo claro y oscuro, y 4 temas de color. El tema inicial es el **azul Zafiro**.
+
+## 2. Cuentas, planes y equipo
+
+- **Nadie entra sin plan.** Desde la portada se activa la **prueba gratis de 14 días** (sin tarjeta) o se paga un plan con **Payphone**.
+- **Planes** (IVA incluido, sin renovación automática; el pago anual equivale a 10 meses):
+
+  | Plan | Mensual | Anual |
+  |---|---|---|
+  | Emprende | $29 | $290 |
+  | Emprende Plus | $59 | $590 |
+  | Crece | $99 | $990 |
+
+  Los precios viven en el servidor (`supabase/functions/payphone`) y en `src/lib/planes.ts`; si cambian, hay que cambiarlos en los dos lugares.
+- **Ingreso:** con correo y contraseña, o con Google. Hay recuperación de contraseña por correo.
+- **Titular:** quien compra es el **Gerente General** de su empresa. Solo él invita al equipo, asigna roles y maneja el plan (*Configuración → Cuenta y equipo*).
+- **Herramientas de Google:** cada persona las abre con **su propio correo**, pero todo queda ligado al titular. Los correos le llegan con copia, las reuniones lo invitan y la sala de Meet de la empresa es la suya.
+
+### Roles
+
+Cada persona puede tener hasta **3 roles** y ve la suma de sus permisos.
+
+- **Por área** (lo más simple para emprendimientos): *Mano derecha* (todo, menos el plan y el equipo), *Encargado de Inventario*, *de Compras*, *de Ventas*, *de Gastos*, *Supervisor de Resúmenes* y *Monitor general*. Los dos últimos solo consultan.
+- **Cargos de empresa:** Gerente General, Gerente Financiero, Contador, Gerente de Sucursal, Vendedor, Cajero, Jefe de Bodega, Auditor y otros.
+
+Los permisos de cada rol están en `PERMISOS` (`src/store/useApp.ts`).
+
+## 3. Cómo está construido
+
+| Capa | Tecnología |
+|---|---|
+| Interfaz | React 18 + TypeScript + Vite, Tailwind CSS, Framer Motion, Recharts, MapLibre |
+| Estado y datos locales | Zustand, guardado en IndexedDB (funciona sin conexión) |
+| Nube | Supabase: Auth, Postgres con **Row Level Security** por empresa y Edge Functions |
+| Pagos | Payphone (Botón de Pagos por redirección) |
+| Correo | Gmail de la empresa por SMTP (desde una Edge Function) |
+| Publicación | GitHub Pages (rama `gh-pages`) |
+
+**Cómo viajan los datos:** cada dispositivo trabaja sobre su copia local y la sincroniza con la tabla `datos` de Supabase (una fila por colección y empresa). Los cambios de otros equipos llegan en vivo. La base solo deja leer y escribir los datos de la empresa a la que pertenece cada persona.
+
+## 4. Estructura del proyecto
+
+```
+NEXORA/
+├─ index.html                 Página base de la app
+├─ public/                    Archivos que se publican tal cual
+│  ├─ terminos.html · privacidad.html · cookies.html · seguridad.html · legal.css   ← páginas legales
+│  ├─ manifest.webmanifest · sw.js · iconos                                       ← app instalable y sin conexión
+├─ src/
+│  ├─ main.tsx · App.tsx      Arranque y rutas (#/login, #/comprar, #/pago, #/ficha…)
+│  ├─ pages/                  Una pantalla por módulo (Dashboard, Productos, Compras, Ventas…)
+│  │  ├─ negocio/             Pestañas de Resumen, Ventas, Gastos e Inventario
+│  │  ├─ espacio/             Tablero, Notas, Equipo y herramientas de Google
+│  │  ├─ econ/                Análisis económico
+│  │  └─ config/              Cuenta, plan y equipo
+│  ├─ components/             Piezas reutilizables (Layout y menú, ui, gráficos, mapas, asistente…)
+│  ├─ lib/                    Lógica sin interfaz: inventario, finanzas, nube, cuenta y pagos, Google, exportar…
+│  ├─ store/                  Estado global (useApp: operación · useEcon: análisis económico)
+│  ├─ data/                   Catálogos: países y monedas, sectores, categorías
+│  └─ tests/                  Pruebas automáticas (Vitest)
+├─ supabase/
+│  ├─ functions/payphone/     Prepara y confirma los pagos; activa el plan
+│  ├─ functions/correo/       Bienvenida, comprobantes e invitaciones
+│  └─ migrations/             Cambios de seguridad aplicados a la base
+└─ scripts/
+   ├─ publicar.sh             Pruebas → compilación → publicación
+   └─ probar_correo.py        Prueba la contraseña de aplicación de Gmail
+```
+
+## 5. Trabajar en el proyecto
 
 ```bash
-npm install
-npm run dev      # abre http://localhost:5173
-npm test         # 27 pruebas (Vitest)
-npm run build    # compilación de producción
-npm run publicar # pruebas + compilación + publicación en GitHub Pages
+npm install          # una sola vez
+npm run dev          # abre http://localhost:5173
+npm test             # pruebas automáticas
+npm run build        # compilación de producción
+npm run publicar     # pruebas + compilación + publicación en GitHub Pages
 ```
 
-No necesita backend: los datos se guardan en el navegador (localStorage). Al abrir se muestra una intro animada (clic o tecla para saltarla).
+`npm run publicar` **no publica si alguna prueba falla**. La web se actualiza en 1 o 2 minutos y la app avisa a quien la tenga abierta que hay una versión nueva.
 
-El sistema **arranca sin datos de demostración**: la empresa carga sus datos reales.
+## 6. Configuración de Supabase
 
-**Ingreso:** con una cuenta NEXORA (correo, Google o Facebook) que tenga un plan vigente o la prueba gratis. La creadora tiene acceso de **Administrador** (tabla `administradores` en Supabase). Ya no hay usuarios de demostración precargados.
+Proyecto `nexora` (`loldipdbreouzvdciuic`), en la organización **Elohim-pro** (plan Pro, con copias de seguridad diarias).
 
-| Rol | Ve |
-|---|---|
-| Gerente General | Todo + **Configuración** (usuarios y datos) |
-| Analista Financiero | Dashboard, Red global, Compras (aprueba órdenes), Reportes, Análisis económico, IA |
-| Contador | Dashboard, Red global, Inventario, Trazabilidad, Reportes, Análisis económico |
-| Jefe de Compras | Dashboard, Red global, Inventario, Compras (crea órdenes), Reportes, IA |
-| Jefe de Bodega | Dashboard, Red global, Inventario, Compras (recibe órdenes), Reportes, IA |
-| Auditor | Dashboard, Inventario (solo lectura), Trazabilidad, Reportes, Análisis económico |
-| Ayudante | Dashboard, Inventario, Reportes |
+**Pagos (Payphone)**
+1. Payphone Business: crear la sucursal **NEXORA** y un usuario con rol *Desarrollador*.
+2. Payphone Developer: crear una aplicación **WEB** con dominio `https://elohim-desing-ec.github.io` y URL de respuesta `https://elohim-desing-ec.github.io/NEXORA-app/`.
+3. Supabase → *Edge Functions → Secrets*: `PAYPHONE_TOKEN`, `PAYPHONE_STORE_ID` y, opcionalmente, `IVA` (por defecto `0.15`).
 
-Atajos: **Ctrl + K** abre el buscador global · botón **Presentación** pone pantalla completa (Esc para salir) · ☀/🌙 cambia el tema.
+**Correo (Gmail de la empresa)**
+1. Activar la verificación en dos pasos y crear una **contraseña de aplicación**. Se puede probar con `python3 scripts/probar_correo.py`.
+2. Supabase → *Authentication → Emails → SMTP*: `smtp.gmail.com`, puerto `465`, el Gmail y su contraseña de aplicación.
+3. Supabase → *Edge Functions → Secrets*: `GMAIL_USER` y `GMAIL_APP_PASSWORD`.
+4. Supabase → *Authentication → URL Configuration*: Site URL y Redirect URL = `https://elohim-desing-ec.github.io/NEXORA-app/`.
 
-## Cargar SUS propios datos (Configuración, solo Gerente General)
+**Seguridad**
+- Todas las tablas tienen Row Level Security. Solo el titular puede invitar, cambiar roles y quitar miembros.
+- Las claves secretas viven solo en *Edge Functions → Secrets*, nunca en el código. La clave de `src/lib/cuenta.ts` es la **publicable**, hecha para ir en el navegador.
+- Recomendado: *Authentication → Attack Protection → Prevent use of leaked passwords*.
 
-1. **Usuarios** → *Agregar persona*: nombre, correo, rol y contraseña. Con ese correo inicia sesión.
-2. **Empresa** → país, moneda, identificación fiscal y **sucursales ilimitadas** (dirección real con OpenStreetMap o clic en el globo). **Compras → Nuevo proveedor** para los proveedores. Al primer ingreso del Gerente, un asistente de bienvenida hace esta configuración.
-3. *Plantilla* descarga un Excel; llénelo (una fila por producto) e *Importar Excel* (.xlsx, .xls o .csv). Se muestra una vista previa; cada producto queda con su "Saldo inicial" en el kardex. Si el SKU ya existe, se actualiza.
-4. O agregue productos uno por uno en **Inventario → Nuevo producto** (puede escribir categorías nuevas).
-5. **Análisis económico → Parámetros**: escriba sus costos, inversión, TMAR, valores de mercado y COA. Puede agregar o quitar conceptos de costo.
-6. **Inventario → Registrar movimiento**: ventas, compras directas, ajustes y mermas (alimentan el kardex y la IA).
-7. **Mis datos → Respaldo**: descargue/restaure un archivo .json con toda la información.
+## 7. Páginas legales
 
-**Asistente NEXORA** (botón ✦ abajo a la derecha): responde cómo usar el sistema, consulta datos (stock, quiebres, más vendidos, vencimientos) y preguntas del análisis económico. Funciona sin internet.
+En `public/`, enlazadas desde la portada, el ingreso, al crear la cuenta y al pagar:
 
-> Los datos viven en el navegador donde se cargaron. Para llevarlos a otra computadora, exporte desde Reportes. En producción, usuarios y contraseñas irían a un servidor con cifrado.
+- **Términos y condiciones:** cancelación libre, garantía de 7 días, límite de responsabilidad y leyes de Ecuador.
+- **Privacidad:** según la LOPDP de Ecuador.
+- **Cookies:** solo almacenamiento necesario, sin rastreo.
+- **Seguridad.**
 
-## Modo Defensa (herramienta aparte)
+Si cambia algo del servicio (proveedores, precios, garantía), actualice también estas páginas y su fecha.
 
-No forma parte del menú del sistema. Se abre desde el botón de la pantalla de ingreso, desde *Análisis económico → Modo Defensa ↗*, o con la dirección `http://localhost:5173/#/defensa`. Usa los parámetros económicos actuales.
+---
 
-## Versión publicada
-
-**https://elohim-desing-ec.github.io/NEXORA-app/** — se actualiza con `npm run publicar` (solo publica si todas las pruebas pasan).
-
-## Cuentas, planes y datos en la nube (Supabase)
-
-- **Nadie entra sin plan.** Se paga en la portada (*Elija su plan*) con **Payphone** o se activa la **prueba gratis de 14 días** (sin tarjeta).
-- **Ingreso:** correo y contraseña, Google o Facebook; *¿Olvidó su contraseña?* envía un enlace por correo.
-- **Datos en la nube:** productos, ventas, compras, sucursales, etc. se guardan en Supabase (`datos`) y se ven en vivo en todos los equipos de la empresa.
-- **Equipo:** *Configuración → Cuenta y equipo → Invitar*. La persona entra con ese mismo correo (o Google) y ve lo que permite su rol.
-- **Facturación:** en la misma sección: plan, días de prueba, historial, comprobante en PDF, cambiar o cancelar.
-- **Planes (emprendimientos):** Emprende $29/mes, Emprende Plus $59/mes, Crece $99/mes (IVA incluido). Pago anual = 10 meses. Sin renovación automática: al pagar se suma 1 mes o 1 año desde que vence el plan actual. Límites: 1/3/10 sucursales y 3/10/ilimitadas personas. Precios en `src/lib/planes.ts` **y** en `supabase/functions/payphone` (una prueba verifica que coincidan).
-
-Proyecto Supabase: `nexora` (`loldipdbreouzvdciuic`). Función de correo: `supabase/functions/correo`.
-
-### Pagos (Payphone)
-
-Flujo: NEXORA prepara el cobro en el servidor (`supabase/functions/payphone`, acción `preparar`) → la persona paga en la página de Payphone → Payphone vuelve a la web con `?id=…&clientTransactionId=…` → la app abre `#/pago` y el servidor **confirma** con Payphone (hay 5 minutos) y activa el plan (tabla `pagos`).
-
-1. Payphone Business → crear la sucursal **NEXORA** (para separar sus ventas de otras tiendas) y un usuario con rol **Desarrollador** asignado a esa sucursal.
-2. Payphone Developer (con ese usuario) → aplicación tipo **WEB**: Dominio web `https://elohim-desing-ec.github.io` y URL de respuesta `https://elohim-desing-ec.github.io/NEXORA-app/`.
-3. Copiar el **Token** y el **StoreID** de la sucursal NEXORA.
-4. Supabase → **Edge Functions → Secrets**: `PAYPHONE_TOKEN` y `PAYPHONE_STORE_ID`. Opcional: `IVA` (por defecto `0.15`; `0` si no cobra IVA).
-
-### Correo (Gmail de la empresa)
-
-1. En el Gmail de la empresa active la **verificación en dos pasos** y cree una **contraseña de aplicación** en https://myaccount.google.com/apppasswords.
-2. Pruébela: `python3 scripts/probar_correo.py` (envía un correo de prueba a sí mismo; no guarda la contraseña).
-3. Supabase → **Authentication → Emails → SMTP Settings**: host `smtp.gmail.com`, puerto `465`, usuario y remitente = el Gmail, contraseña = la de aplicación, nombre `NEXORA`.
-4. Supabase → **Edge Functions → Secrets**: `GMAIL_USER` = el Gmail y `GMAIL_APP_PASSWORD` = la contraseña de aplicación (bienvenida, comprobantes e invitaciones).
-5. Supabase → **Authentication → URL Configuration**: Site URL y Redirect URL = `https://elohim-desing-ec.github.io/NEXORA-app/`.
-
-Mientras el correo no esté conectado, todo funciona igual: el comprobante se descarga en PDF y la invitación se abre lista en Gmail.
-
-## 2. Estructura
-
-```
-src/
-├─ lib/
-│  ├─ finance.ts         ← TODA la matemática financiera (funciones puras y documentadas)
-│  ├─ procedimientos.ts  ← "Ver procedimiento": fórmula general, sustituida, factores e interpretación
-│  ├─ preguntas.ts       ← Modo Defensa: 62 preguntas + motor de búsqueda con sinónimos
-│  ├─ sorpresa.ts        ← generador de ejercicios aleatorios resueltos
-│  ├─ export.ts          ← Excel (con fórmulas reales) y PDF con membrete
-│  ├─ ai.ts              ← pronóstico, punto de reorden, anomalías
-│  └─ inventario.ts      ← kardex promedio ponderado, ventas
-├─ data/   proyecto.ts (valores del proyecto) · seed.ts (60 productos, 8 proveedores, 6 meses)
-├─ store/  useApp.ts (operación) · useEcon.ts (parámetros y escenarios)
-├─ components/  Layout, ui (componentes estilo shadcn), Procedimiento, charts, Logo
-├─ pages/  Dashboard, Productos, Compras, IA, Auditoria, Reportes, Economico, Defensa, econ/*
-└─ tests/  finance.test.ts · preguntas.test.ts
-```
-
-> Los componentes de interfaz (Card, Button, Modal, Tabs…) siguen el patrón de shadcn/ui (código propio en `components/ui.tsx`, sin dependencias extra).
-
-## 3. Fórmulas utilizadas (`src/lib/finance.ts`)
-
-**Factores** (i en decimal, n en años)
-
-| Factor | Fórmula | Uso |
-|---|---|---|
-| (P/F,i,n) | 1/(1+i)ⁿ | traer un futuro al presente |
-| (F/P,i,n) | (1+i)ⁿ | llevar un presente al futuro |
-| (A/P,i,n) | i(1+i)ⁿ / [(1+i)ⁿ − 1] | recuperación de capital |
-| (P/A,i,n) | [(1+i)ⁿ − 1] / [i(1+i)ⁿ] | VP de una serie uniforme |
-| (A/F,i,n) | i / [(1+i)ⁿ − 1] | fondo de amortización |
-| (F/A,i,n) | [(1+i)ⁿ − 1] / i | futuro de una serie uniforme |
-
-**Reemplazo**
-- Recuperación de capital: `RC = P(A/P,i,n) − Sₙ(A/F,i,n)`
-- COA equivalente: `COA_eq = [Σ COAₜ (P/F,i,t)] · (A/P,i,n)`
-- `CAUE = RC + COA_eq`. La **vida útil económica** es el n con CAUE mínimo.
-- Defensor (enfoque del consultor): P = **valor de mercado hoy**. El costo original y el valor en libros son **costos hundidos**.
-- Veredicto: si CAUE mín. defensor > CAUE mín. retador → **REEMPLAZAR AHORA**.
-- Costo marginal del defensor: `CMₜ = (VMₜ₋₁ − VMₜ) + i·VMₜ₋₁ + COAₜ`. Se conserva mientras CMₜ < CAUE mín. del retador.
-- Período de estudio H: se evalúan todas las combinaciones "defensor k años + retador H−k años" y se elige la de menor VP.
-
-**Depreciación**
-- Línea recta: `D = (P − S)/n`
-- Saldo decreciente: `Dₜ = d·VLₜ₋₁`, `d = factor/n` (2 = doble, 1,5 = 150 %), sin bajar de S
-- SDD con cambio a LR: se cambia cuando `(VL − S)/(años restantes)` supera a la de SDD
-- Suma de dígitos: `Dₜ = (n − t + 1)/[n(n+1)/2] · (P − S)`
-- MACRS (3, 5, 7 años, medio año): `Dₜ = rₜ·P` (ignora S)
-- Unidades de producción: `Dₜ = uₜ/Σu · (P − S)`
-- Ahorro fiscal: `Dₜ·T`; se compara el **VP** de ese ahorro entre métodos.
-
-**Indicadores**
-- `VPN = −P + A(P/A,i,n) + S(P/F,i,n)` · `VAE = VPN(A/P,i,n)`
-- TIR: tasa con VPN = 0, por **bisección**
-- `B/C = [A(P/A) + S(P/F)] / P`
-- Recuperación simple `P/A`; descontada: año en que Σ A(P/F) ≥ P (con interpolación)
-- Ahorro mínimo: `[P − S(P/F)] / (P/A)`
-- Después de impuestos: `FEDI = A − T(A − D)`; el último año suma `S − T(S − VLₙ)`
-- Inflación: `i_f = i + f + i·f`
-
-## 4. Valores verificados por las pruebas (datos por defecto)
-
-| Resultado | Valor |
-|---|---|
-| CAUE retador n = 1…8 | 18.640,00 · 16.224,91 · 15.221,79 · 14.643,09 · **14.347,94** · 14.457,86 · 14.735,60 · 15.165,89 |
-| CAUE defensor n = 1…4 | **20.840,00** · 21.455,09 · 22.234,17 · 23.092,41 |
-| Veredicto | REEMPLAZAR AHORA (20.840,00 > 14.347,94) |
-| Ahorro anual / recuperación simple | 12.600 / 1,94 años |
-| VPN / TIR | 23.473,60 / 44,59 % |
-| SDD | 9.800 · 5.880 · 3.528 · 792 · 0 (VL final 4.500) |
-| MACRS 5 años | 4.900 · 7.840 · 4.704 · 2.822,40 · 2.822,40 · 1.411,20 |
-
-## 5. Guía de demostración (5 minutos)
-
-1. **(30 s) Intro y login** — intro animada; entrar como *Eduardo Lara* (Gerente General) y mostrar en Configuración cómo se agrega una persona.
-2. **(45 s) Dashboard** — KPIs animados, ventas por sucursal, quiebres y anomalías detectadas por IA.
-3. **(45 s) Operación** — *Inventario*: abrir un kardex (promedio ponderado), imprimir código de barras/QR, hacer una transferencia. *IA*: pronóstico a 30 días y "Generar órdenes en borrador".
-4. **(2 min) Análisis económico**
-   - *b · Reemplazo*: veredicto **REEMPLAZAR AHORA**, pulsar "Ver procedimiento" en una fila.
-   - *e · Vida útil*: curva en U con mínimo en n = 5.
-   - *c · Enfoques*: por qué los $15.000 originales son costo hundido.
-   - *f · Depreciación*: comparar métodos y el VP del ahorro fiscal.
-   - *i · Sensibilidad*: mover la TMAR de 5 % a 25 % y ver todo recalcularse.
-   - En **Parámetros** cambiar un valor (ej. inversión a 35.000) → "Guardar escenario" → pestaña *Escenarios*.
-5. **(1 min) Modo Defensa** (botón *Modo Defensa ↗*, se abre en otra pestaña) — escribir una pregunta libre, p. ej. *"¿y si la TMAR fuera 20 %?"* o *"¿qué pasa si el sistema actual se vende en $5.000?"*: la respuesta usa los números de la pregunta y muestra el procedimiento. Generar una **pregunta sorpresa** y usar la calculadora de factores.
-6. **Cierre** — pestaña *k · ¿Con mi dinero?* + exportar el análisis a **Excel** (fórmulas reales) y **PDF**.
-
-Tras cambiar parámetros, use **Restaurar valores del proyecto** para volver a los datos originales.
-
-## 6. Nota tributaria
-
-En Ecuador (SRI) el método usual para efectos tributarios es **línea recta**. Los métodos acelerados (SDD, SDA, MACRS) se incluyen para análisis gerencial y comparación académica.
-
-
-## 7. Material para la exposición
-
-`GUIA_PRESENTACION.md` contiene todo lo necesario para generar las diapositivas y la división de la exposición entre los 6 integrantes.
+© NEXORA · Hecho por Elohim

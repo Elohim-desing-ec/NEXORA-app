@@ -1,10 +1,12 @@
+# Dependencias y compilación
 node_modules
 dist
 *.tsbuildinfo
-.playwright-mcp
-# Material interno de la exposición (incluye contraseñas del equipo)
-GUIA_PRESENTACION.md
+
+# Sistema y herramientas
 .DS_Store
-.env*
-PROMPT_GUIONES.md
+.playwright-mcp
 __pycache__
+
+# Variables y secretos (nunca al repositorio)
+.env*

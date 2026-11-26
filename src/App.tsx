@@ -7,7 +7,7 @@ import { Layout } from './components/Layout'
 import { Splash } from './components/Splash'
 import { DefsGraficos } from './components/charts'
 import { useIdioma } from './lib/idioma'
-import { recordarTema, temaGuardado } from './lib/temas'
+import { recordarTema, temaGuardado, TEMA_INICIAL } from './lib/temas'
 import Login, { NuevaClave } from './pages/Login'
 import { useRecuperando } from './lib/cuenta'
 import { desconectarNube, reanudar } from './lib/nube'
@@ -63,7 +63,7 @@ export default function App() {
   const fin = useCallback(() => setIntro(false), [])
   useEffect(() => { document.documentElement.classList.toggle('dark', tema === 'oscuro') }, [tema])
   const idioma = useIdioma((s) => s.idioma)
-  const temaColor = useApp((s) => (s.usuario ? s.temasColor?.[s.usuario.id] ?? 'oro' : null))
+  const temaColor = useApp((s) => (s.usuario ? s.temasColor?.[s.usuario.id] ?? TEMA_INICIAL : null))
   useEffect(() => { const t = temaColor ?? temaGuardado(); document.documentElement.dataset.tema = t; if (temaColor) recordarTema(temaColor) }, [temaColor])
   useEffect(() => { document.documentElement.lang = idioma }, [idioma])
   useEffect(() => { const h = () => setHash(location.hash); window.addEventListener('hashchange', h); return () => window.removeEventListener('hashchange', h) }, [])

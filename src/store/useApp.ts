@@ -292,7 +292,9 @@ export const useApp = create<AppState>()(persist((set, get) => {
         while (lista.some((x) => x.usuario.toLowerCase() === usuario)) usuario = `${base}${n++}`
         u = { id: idCuenta(email), nombre: c.nombre, usuario, rol: permiso?.rol ?? 'Gerente General', roles: permiso?.roles, email: c.email, clave: crypto.randomUUID(), foto: c.foto }
       }
-      set({ licencia, usuarios: previo ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u] })
+      const emp = get().empresa
+      const titular = licencia.esDueno && emp.titular?.email !== email ? { empresa: { ...emp, titular: { email, nombre: c.nombre || c.email } } } : {}
+      set({ licencia, usuarios: previo ? lista.map((x) => (x.id === u.id ? u : x)) : [...lista, u], ...titular })
       if (!previo) log('Usuario creado', `${u.nombre} (cuenta ${c.email}, plan ${licencia.plan})`)
       get().login(u)
     },
@@ -324,7 +326,10 @@ export const useApp = create<AppState>()(persist((set, get) => {
       // Quien ya no está en el equipo de la nube deja de aparecer
       usuarios = usuarios.filter((u) => !u.id.startsWith('cuenta:') || personas.some((p) => idCuenta(p.email.toLowerCase()) === u.id))
       const yo = usuario ? usuarios.find((u) => u.id === usuario!.id) ?? usuario : usuario
-      set({ usuarios, tareas, usuario: yo, temasColor })
+      // El titular de la cuenta queda anotado en la empresa (así todo el equipo sabe a quién ligar correos y reuniones)
+      const dueno = personas.find((p) => p.esDueno), empresa = get().empresa
+      const titular = dueno ? { email: dueno.email.toLowerCase(), nombre: dueno.nombre || dueno.email } : empresa.titular
+      set({ usuarios, tareas, usuario: yo, temasColor, ...(titular && (titular.email !== empresa.titular?.email || titular.nombre !== empresa.titular?.nombre) ? { empresa: { ...empresa, titular } } : {}) })
     },
     ir: (pagina) => set({ pagina }),
     setTema: (tema) => set({ tema }),

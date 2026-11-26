@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { csvContactos, urlCalendario, urlGmail, urlMaps } from '../lib/google'
+import { conCuenta, csvContactos, urlCalendario, urlGmail, urlMaps, urlReunionAhora } from '../lib/google'
 
 describe('conexión con Google', () => {
   it('evento de todo el día en Calendar (termina al día siguiente)', () => {
@@ -22,5 +22,19 @@ describe('conexión con Google', () => {
     const csv = csvContactos([{ nombre: 'Ferretería "El Sol", S.A.', email: 'ventas@sol.ec', telefono: '0999' }])
     expect(csv.split('\n')[0]).toContain('E-mail 1 - Value')
     expect(csv.split('\n')[1]).toBe('"Ferretería ""El Sol"", S.A.",* Work,ventas@sol.ec,Work,0999,,')
+  })
+  it('abre Google con la cuenta de la persona (authuser) y no toca otros sitios', () => {
+    expect(conCuenta('https://meet.google.com/new', 'Ana@Gmail.com')).toBe('https://meet.google.com/new?authuser=ana%40gmail.com')
+    expect(conCuenta('https://mail.google.com/mail/?view=cm', 'a@b.com')).toContain('&authuser=a%40b.com')
+    expect(conCuenta('https://discord.gg/x', 'a@b.com')).toBe('https://discord.gg/x')
+    expect(conCuenta('https://meet.google.com/new', '')).toBe('https://meet.google.com/new')
+  })
+  it('copia al Gerente General sin repetirlo si ya es destinatario', () => {
+    const u = new URL(urlGmail(['jefe@x.com', ''], 'Hola', 'c', ['JEFE@x.com', 'otro@x.com']))
+    expect(u.searchParams.get('to')).toBe('jefe@x.com')
+    expect(u.searchParams.get('cc')).toBe('otro@x.com')
+  })
+  it('reunión que empieza ahora invita sin duplicados', () => {
+    expect(new URL(urlReunionAhora('R', ['a@b.com', 'A@b.com'])).searchParams.get('add')).toBe('a@b.com')
   })
 })
