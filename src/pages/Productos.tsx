@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ArrowLeftRight, Barcode, FileSpreadsheet, History, Pencil, Plus, Printer, Search, Trash2, PackageMinus } from 'lucide-react'
+import { AlertTriangle, ArrowLeftRight, Barcode, CheckCircle2, FileSpreadsheet, History, Pencil, Plus, Printer, Search, Trash2, PackageMinus } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import JsBarcode from 'jsbarcode'
 import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
-import { CUELLOS, diasParaVencer, skuVariante, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
+import { CUELLOS, coberturaMin, diasParaVencer, enSobrestock, excesoMax, skuVariante, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
 import type { Producto, Sucursal, SucursalId } from '../data/base'
 import { tiposDe } from '../data/categorias'
 import { ElegirColores, Muestra, useColores } from '../components/Colores'
@@ -23,6 +23,25 @@ function CodigoBarras({ valor }: { valor: string }) {
   const ref = useRef<SVGSVGElement>(null)
   useEffect(() => { if (ref.current) JsBarcode(ref.current, valor || '0000', { format: 'CODE128', height: 50, fontSize: 12, background: '#ffffff', lineColor: '#0A0907' }) }, [valor])
   return <svg ref={ref} />
+}
+
+const pct = (v: number) => `${num(Math.max(0, v), 0)} %`
+/** Estado del stock con su porcentaje: quiebre (cuánto del mínimo queda), sobrestock (cuánto pasa el máximo), bajo el mínimo u OK. */
+function EstadoStock({ p, s }: { p: Producto; s: SucursalId | 'TODAS' }) {
+  const c = coberturaMin(p, s)
+  if (enQuiebre(p, s)) return <span title={`Quedan ${pct(c)} del stock mínimo (${p.min} u). Cae en quiebre bajo el 33 %.`}><Badge tono="rojo">Quiebre · {pct(c)}</Badge></span>
+  if (enSobrestock(p, s)) return <span title={`El stock pasa el máximo (${p.max} u) en ${pct(excesoMax(p, s))}. Es sobrestock sobre el 200 %.`}><Badge tono="ambar">Sobrestock · +{pct(excesoMax(p, s))}</Badge></span>
+  if (c < 100) return <span title={`Cubre el ${pct(c)} del mínimo (${p.min} u): todavía no cae en quiebre (bajo 33 %), pero conviene reponer.`}><Badge tono="violeta">Bajo mínimo · {pct(c)}</Badge></span>
+  return <Badge tono="verde">OK</Badge>
+}
+
+/** Aviso de la tarjeta: si algún producto cayó (y qué % del catálogo es) o si no cayó ninguno. */
+function Aviso({ n, total, cayo, nocayo }: { n: number; total: number; cayo: string; nocayo: string }) {
+  const p = total ? (n / total) * 100 : 0
+  return n
+    ? <div className="mb-3 rounded-xl bg-peligro/10 px-3 py-2.5 text-xs text-peligro"><div className="flex items-center gap-2 font-semibold"><AlertTriangle size={14} />{cayo} · {num(n, 0)} de {num(total, 0)} productos ({num(p, p < 10 ? 1 : 0)} %)</div>
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-peligro/15"><div className="h-full rounded-full bg-peligro" style={{ width: `${Math.min(100, p)}%` }} /></div></div>
+    : <div className="mb-3 flex items-center gap-2 rounded-xl bg-exito/10 px-3 py-2.5 text-xs font-semibold text-exito"><CheckCircle2 size={14} />{nocayo} · 0 %</div>
 }
 
 export default function Productos() {
@@ -95,7 +114,7 @@ export default function Productos() {
           return <li key={p.id} className="rounded-xl border border-fg/10 bg-fg/[.03] p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0"><div className="font-medium leading-snug">{etiquetaProducto(p)}</div><div className="mt-0.5 text-xs text-muted"><span className="font-mono">{p.sku}</span> · {p.categoria}{p.tipo && ` · ${p.tipo}`}</div></div>
-              {enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}
+              <EstadoStock p={p} s={sucursal} />
             </div>
             <div className="mt-2.5 grid grid-cols-3 gap-2 text-xs">
               <div><div className="text-muted">Stock</div><div className="font-semibold tnum">{num(t, 0)} u</div></div>
@@ -116,7 +135,7 @@ export default function Productos() {
               <td className="num">{money(p.costo)}</td><td className="num">{money(p.precio)}</td>
               {cols.map((s) => <td key={s} className={`num ${(p.stock[s] ?? 0) < p.min / 3 ? 'text-peligro font-semibold' : ''}`}>{p.stock[s] ?? 0}</td>)}
               <td className="num font-semibold">{t}</td><td className={vence < 60 ? 'text-alerta' : 'text-muted'}>{p.vence ? fecha(p.vence) : 'No vence'}</td>
-              <td>{enQuiebre(p, sucursal) ? <Badge tono="rojo">Quiebre</Badge> : t > p.max * 3 ? <Badge tono="ambar">Sobrestock</Badge> : <Badge tono="verde">OK</Badge>}</td>
+              <td><EstadoStock p={p} s={sucursal} /></td>
               <td><div className="flex gap-0.5">{acciones(p)}</div></td>
             </tr>
           })}</tbody>
@@ -125,12 +144,17 @@ export default function Productos() {
         {!lista.length && <p className="py-10 text-center text-sm text-muted">{productos.length ? 'Ningún producto coincide con la búsqueda.' : 'Aún no hay productos. Pulse "Nuevo producto" o importe un Excel en Configuración → Mis datos.'}</p>}
       </Card>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">{([
-        ['En quiebre', 'Menos de un tercio del mínimo', productos.filter((p) => enQuiebre(p, sucursal)), 'rojo'],
-        ['Sobrestock', 'Más de 3 veces el máximo', productos.filter((p) => stockTotal(p, sucursal) > p.max * 3), 'ambar'],
+        ['En quiebre', 'Menos de un tercio del mínimo', productos.filter((p) => enQuiebre(p, sucursal)).sort((a, b) => coberturaMin(a, sucursal) - coberturaMin(b, sucursal)), 'rojo'],
+        ['Sobrestock', 'Más de 3 veces el máximo', productos.filter((p) => enSobrestock(p, sucursal)).sort((a, b) => excesoMax(b, sucursal) - excesoMax(a, sucursal)), 'ambar'],
         ['Por vencer', 'Vence en los próximos 60 días', productos.filter((p) => stockTotal(p, sucursal) > 0 && (diasParaVencer(p) ?? Infinity) < 60).sort((a, b) => a.vence.localeCompare(b.vence)), 'violeta'],
       ] as const).map(([t, d, ps, tono]) => (
-        <Card key={t} titulo={<span className="flex items-center gap-2">{t}<Badge tono={tono}>{ps.length}</Badge></span>} accion={<span className="text-xs text-muted">{d}</span>}>
-          <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{etiquetaProducto(p)}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge></button></li>)}
+        <Card key={t} titulo={<span className="flex items-center gap-2">{t}<Badge tono={tono}>{ps.length}{productos.length > 0 && ` · ${num((ps.length / productos.length) * 100, 0)} %`}</Badge></span>} accion={<span className="text-xs text-muted">{d}</span>}>
+          {t === 'En quiebre' && productos.length > 0 && <Aviso n={ps.length} total={productos.length} cayo="Cayó en quiebre" nocayo="No cayó en quiebre: todo sobre un tercio del mínimo" />}
+          {t === 'Sobrestock' && productos.length > 0 && <Aviso n={ps.length} total={productos.length} cayo="Hay sobrestock" nocayo="Sin sobrestock: nada pasa 3 veces su máximo" />}
+          <ul className="max-h-[260px] space-y-2 overflow-y-auto text-sm">{ps.map((p) => <li key={p.id}><button onClick={() => setKx({ p, s: 'TODAS' })} className="flex w-full items-center justify-between gap-2 rounded-lg bg-fg/5 px-3 py-2 text-left transition hover:bg-fg/10"><span className="min-w-0"><span className="block truncate">{etiquetaProducto(p)}</span><span className="text-xs text-muted">{p.sku}{t === 'Por vencer' ? ` · vence ${fecha(p.vence + 'T12:00:00')}` : ` · mín ${p.min} · máx ${p.max}`}</span></span>
+              <span className="shrink-0 text-right"><Badge tono={tono}>{stockTotal(p, sucursal)} u</Badge>
+                {t === 'En quiebre' && <span className="mt-0.5 block text-[11px] font-semibold text-peligro tnum">{pct(coberturaMin(p, sucursal))} del mín</span>}
+                {t === 'Sobrestock' && <span className="mt-0.5 block text-[11px] font-semibold text-alerta tnum">+{pct(excesoMax(p, sucursal))} sobre máx</span>}</span></button></li>)}
             {!ps.length && <li className="text-muted">Nada por aquí</li>}</ul>
         </Card>))}</div>
       <Card titulo="Stock por sucursal" accion={<span className="text-xs text-muted">Valor a costo promedio y a precio de venta</span>}>

@@ -150,6 +150,8 @@ interface AppState extends Datos {
   registrarVenta: (v: { fecha: string; sucursal: SucursalId; lineas: { productoId: string; cantidad: number; precio: number; concepto?: string; costo?: number }[]; descuento: number; cliente: string; canal: string; estado: EstadoVenta }) => string | null
   cambiarEstadoVenta: (id: string, estado: Exclude<EstadoVenta, 'Anulada'>) => void
   anularVenta: (id: string) => string | null
+  /** Borra una venta registrada por error (o una venta suelta del inventario, por id de movimiento): el stock regresa y sale del kardex. */
+  eliminarVenta: (id: string) => string | null
   guardarCliente: (c: Cliente) => void
   eliminarCliente: (id: string) => void
   guardarConexiones: (c: Record<string, string>) => void
@@ -239,6 +241,15 @@ export const useApp = create<AppState>()(persist((set, get) => {
       const papelera = get().papelera.filter((x) => x.id !== id)
       if (lista.some((x) => x.id === e.registro.id)) { set({ papelera }); return 'Ya estaba de vuelta en su lista' }
       const registro = e.coleccion === 'ordenes' && e.registro.estado === 'Recibida' ? { ...e.registro, estado: 'Aprobada' } : e.registro
+      if (e.coleccion === 'ventas' && e.registro.estado !== 'Anulada') {
+        // La venta vuelve a descontar su stock y a dejar sus movimientos en el kardex
+        const v = e.registro as unknown as Venta, pide = new Map<string, number>()
+        for (const l of v.lineas) if (l.productoId && get().productos.some((p) => p.id === l.productoId)) pide.set(l.productoId, (pide.get(l.productoId) ?? 0) + l.cantidad)
+        for (const [pid, q] of pide) { const p = get().productos.find((x) => x.id === pid)!; if ((p.stock[v.sucursal] ?? 0) < q) return `No se puede recuperar: la venta necesita ${q} u de «${p.nombre}» en ${v.sucursal} y hay ${p.stock[v.sucursal] ?? 0} u` }
+        const factor = v.total + v.descuento ? v.total / (v.total + v.descuento) : 1
+        const movs: Movimiento[] = v.lineas.filter((l) => pide.has(l.productoId)).map((l) => ({ id: crypto.randomUUID(), fecha: v.fecha, productoId: l.productoId, sucursal: v.sucursal, tipo: 'Venta', cantidad: -l.cantidad, costoUnit: l.costo, precioUnit: l.precio * factor, pedido: v.id, usuario: v.usuario, nota: `${v.id}${v.cliente ? ' · ' + v.cliente : ''}` }))
+        set({ productos: get().productos.map((p) => (pide.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) - pide.get(p.id)! } } : p)), movimientos: [...get().movimientos, ...movs] })
+      }
       set({ [e.coleccion]: [...lista, registro], papelera } as Partial<AppState>)
       log('Recuperado de la papelera', `${COLECCIONES_PAPELERA[e.coleccion]}: ${nombreEnPapelera(e)}${registro !== e.registro ? ' (vuelve como Aprobada: al recibirla entra de nuevo al inventario)' : ''}`)
       return null
@@ -497,6 +508,30 @@ export const useApp = create<AppState>()(persist((set, get) => {
         ventas: get().ventas.map((x) => (x.id === id ? { ...x, estado: 'Anulada' } : x)),
       })
       log('Venta anulada', `${id} · el stock regresó a ${v.sucursal}`, v.sucursal)
+      return null
+    },
+    eliminarVenta: (id) => {
+      const v = get().ventas.find((x) => x.id === id)
+      if (!v) {
+        // Venta suelta registrada en Inventario (un movimiento sin número de venta)
+        const m = get().movimientos.find((x) => x.id === id && x.tipo === 'Venta' && x.cantidad < 0 && !x.pedido)
+        if (!m) return 'La venta ya no existe'
+        set({
+          productos: get().productos.map((p) => (p.id === m.productoId ? { ...p, stock: { ...p.stock, [m.sucursal]: (p.stock[m.sucursal] ?? 0) - m.cantidad } } : p)),
+          movimientos: get().movimientos.filter((x) => x.id !== id),
+        })
+        log('Venta eliminada', `Venta de inventario · ${-m.cantidad} u · el stock regresó a ${m.sucursal}`, m.sucursal)
+        return null
+      }
+      // Si estaba anulada el stock ya regresó; si no, regresa ahora. Sus movimientos salen del kardex.
+      const vuelve = new Map<string, number>()
+      if (v.estado !== 'Anulada') for (const l of v.lineas) if (l.productoId) vuelve.set(l.productoId, (vuelve.get(l.productoId) ?? 0) + l.cantidad)
+      set({
+        productos: get().productos.map((p) => (vuelve.has(p.id) ? { ...p, stock: { ...p.stock, [v.sucursal]: (p.stock[v.sucursal] ?? 0) + vuelve.get(p.id)! } } : p)),
+        movimientos: get().movimientos.filter((m) => m.pedido !== id),
+        ventas: get().ventas.filter((x) => x.id !== id),
+      })
+      log('Venta eliminada', `${id} · ${v.total.toFixed(2)}${vuelve.size ? ` · el stock regresó a ${v.sucursal}` : ''}`, v.sucursal)
       return null
     },
     guardarCliente: (c) => { const existe = get().clientes.some((x) => x.id === c.id); set({ clientes: existe ? get().clientes.map((x) => (x.id === c.id ? c : x)) : [...get().clientes, c] }); log(existe ? 'Cliente editado' : 'Cliente creado', c.nombre) },

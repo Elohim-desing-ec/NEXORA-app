@@ -178,7 +178,7 @@ export default function Login() {
         <div className="mt-6 space-y-2 border-t border-fg/10 pt-5 text-center text-xs text-muted">
           <p>{tx('¿Aún no tiene NEXORA?', 'Don\'t have NEXORA yet?', 'Ainda não tem o NEXORA?')} <button onClick={probarGratis} className="font-semibold text-primario hover:underline">{tx('Pruébelo gratis 14 días', 'Try it free for 14 days', 'Teste grátis por 14 dias')}</button> {tx('o', 'or', 'ou')} <button onClick={verPlanes} className="font-semibold text-primario hover:underline">{tx('elija un plan', 'choose a plan', 'escolha um plano')}</button></p>
           <button onClick={() => cambiar('equipo')} className="inline-flex items-center gap-1.5 hover:text-fg"><Users size={13} />{tx('Soy parte del equipo de una empresa', 'I\'m part of a company team', 'Faço parte da equipe de uma empresa')}</button>
-          <p><a href="privacidad.html" className="hover:text-fg hover:underline">{tx('Política de privacidad', 'Privacy policy', 'Política de privacidade')}</a></p>
+          <p className="flex flex-wrap justify-center gap-x-3 gap-y-1"><a href="privacidad.html" className="hover:text-fg hover:underline">{tx('Privacidad', 'Privacy', 'Privacidade')}</a><a href="cookies.html" className="hover:text-fg hover:underline">Cookies</a><a href="seguridad.html" className="hover:text-fg hover:underline">{tx('Seguridad', 'Security', 'Segurança')}</a></p>
         </div>
       </div>
     </MarcoAcceso>

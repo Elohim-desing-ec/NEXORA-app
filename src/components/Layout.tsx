@@ -7,7 +7,7 @@ import { SIMBOLOS } from '../data/paises'
 import { stockTotal } from '../lib/inventario'
 import type { Producto } from '../data/base'
 import { AnimatePresence, motion } from 'framer-motion'
-import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, RefreshCw, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban } from 'lucide-react'
+import { BarChart3, Bell, Boxes, Brain, ChevronsLeft, Cloud, CloudOff, Gift, RefreshCw, FileDown, LayoutDashboard, LogOut, Settings, Globe2, Maximize2, Minimize2, Moon, Receipt, Search, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Menu, Wallet, SquareKanban, X } from 'lucide-react'
 import { useApp, permisosDe, rolesDe, type Pagina } from '../store/useApp'
 import { useEcon } from '../store/useEcon'
 import { Logo } from './Logo'
@@ -133,6 +133,17 @@ export function Layout({ children }: { children: ReactNode }) {
     const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaleta((v) => !v) } if (e.key === 'Escape') { setPaleta(false); setEscaneado(null); if (presentacion) togglePres(false) } }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   })
+  // Menú del celular abierto: el fondo no se desplaza (en iPhone se movía la página detrás del menú)
+  useEffect(() => {
+    if (!movil) return
+    const b = document.body.style, prev = b.overflow
+    b.overflow = 'hidden'
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setMovil(false) }
+    window.addEventListener('keydown', k)
+    return () => { b.overflow = prev; window.removeEventListener('keydown', k) }
+  }, [movil])
+  // Deslizar el menú hacia la izquierda lo cierra
+  const [toque, setToque] = useState<number | null>(null)
   const togglePres = (v: boolean) => { setPresentacion(v); try { if (v) document.documentElement.requestFullscreen?.(); else if (document.fullscreenElement) document.exitFullscreen() } catch { /* sin pantalla completa */ } }
   if (!usuario) return null
   const permitidas = permisosDe(usuario)
@@ -150,7 +161,7 @@ export function Layout({ children }: { children: ReactNode }) {
   ].map((a) => (a.ir && a.ir !== 'espacio' && !permitidas.includes(a.ir) ? { ...a, ir: undefined } : a))
   const urgentes = alertas.filter((a) => a.t !== 'info').length
   const item = (m: (typeof MENU)[number]) => (
-    <button key={m.id} onClick={() => { ir(m.id); setMovil(false) }} aria-label={nombre(m.id, m.label)} className={cx('group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition', colapsado && 'lg:justify-center lg:px-0', pagina === m.id ? 'text-fg' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
+    <button key={m.id} onClick={() => { ir(m.id); setMovil(false) }} aria-label={nombre(m.id, m.label)} className={cx('group relative flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[15px] font-medium transition lg:py-2.5 lg:text-sm', colapsado && 'lg:justify-center lg:px-0', pagina === m.id ? 'text-fg' : 'text-muted hover:bg-fg/5 hover:text-fg')}>
       {pagina === m.id && <motion.span layoutId="nav" className="absolute inset-0 rounded-xl border border-primario/30 bg-gradient-to-r from-primario/25 to-violeta/10" />}
       <span className={cx('relative shrink-0', pagina === m.id && 'text-primario')}>{m.icon}</span>
       <span className={cx('relative truncate whitespace-nowrap', colapsado && 'lg:hidden')}>{nombre(m.id, m.label)}</span>
@@ -180,15 +191,24 @@ export function Layout({ children }: { children: ReactNode }) {
         </motion.div>)}
       </AnimatePresence>
       <Asistente />
-      {movil && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setMovil(false)} />}
-      <aside className={cx('glass-clear fixed inset-y-3 left-3 z-40 flex flex-col p-3 transition-[width,transform] duration-300 lg:sticky lg:left-auto lg:top-3 lg:ml-3 lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:translate-x-0', colapsado ? 'w-64 lg:w-[76px]' : 'w-64', movil ? 'translate-x-0' : '-translate-x-[120%]')}>
+      <div aria-hidden className={cx('fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden', movil ? 'opacity-100' : 'pointer-events-none opacity-0')} onClick={() => setMovil(false)} />
+      <aside aria-label={tx('Menú principal', 'Main menu', 'Menu principal')}
+        onTouchStart={(e) => setToque(e.touches[0].clientX)} onTouchEnd={(e) => { if (toque !== null && toque - e.changedTouches[0].clientX > 70) setMovil(false); setToque(null) }}
+        className={cx('glass-clear fixed z-40 flex flex-col max-lg:z-[61] transition-[width,transform] duration-300 ease-out',
+          'max-lg:inset-y-0 max-lg:left-0 max-lg:h-[100dvh] max-lg:w-[min(21rem,88vw)] max-lg:!rounded-l-none max-lg:!rounded-r-[28px] max-lg:px-4 max-lg:pb-[max(1rem,env(safe-area-inset-bottom))] max-lg:pt-[max(1rem,env(safe-area-inset-top))] max-lg:shadow-[24px_0_80px_-20px_rgba(0,0,0,.7)]',
+          'lg:sticky lg:inset-y-auto lg:left-auto lg:top-3 lg:ml-3 lg:h-[calc(100vh-1.5rem)] lg:shrink-0 lg:translate-x-0 lg:p-3', colapsado ? 'lg:w-[76px]' : 'lg:w-64', movil ? 'translate-x-0' : '-translate-x-[110%]')}>
         <div className={cx('flex h-11 shrink-0 items-center px-1', colapsado && 'lg:justify-center lg:px-0')}>
           <span className={cx(colapsado && 'lg:hidden')}><Logo size={34} /></span>
           {colapsado && <span className="hidden lg:block"><Logo size={36} texto={false} /></span>}
-          <button aria-label="Cerrar menú" onClick={() => setMovil(false)} className="ml-auto rounded-lg p-1.5 text-muted hover:bg-fg/10 lg:hidden"><ChevronsLeft size={18} /></button>
+          <button aria-label={tx('Cerrar menú', 'Close menu', 'Fechar menu')} onClick={() => setMovil(false)} className="ml-auto grid h-10 w-10 place-items-center rounded-full border border-fg/10 bg-fg/5 text-muted transition hover:bg-fg/10 hover:text-fg lg:hidden"><X size={18} /></button>
+        </div>
+        {/* Celular: quién ingresó, arriba del menú */}
+        <div className="mt-4 flex shrink-0 items-center gap-3 rounded-2xl border border-primario/20 bg-gradient-to-r from-primario/15 to-violeta/5 p-3 lg:hidden">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primario to-violeta text-sm font-bold text-black">{usuario.nombre.split(' ').map((w) => w[0]).slice(0, 2).join('')}</div>
+          <div className="min-w-0 leading-tight"><div className="truncate text-sm font-semibold">{usuario.nombre}</div><div className="truncate text-[11px] text-muted">{rolesDe(usuario).join(' · ')}</div></div>
         </div>
         <div className="my-3 h-px shrink-0 bg-fg/10" />
-        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 overscroll-contain px-1', !colapsado && 'overflow-y-auto')}>
+        <nav className={cx('-mx-1 flex min-h-0 flex-1 flex-col gap-1 overscroll-contain px-1 max-lg:overflow-y-auto max-lg:[-webkit-overflow-scrolling:touch]', !colapsado && 'lg:overflow-y-auto')}>
           {visibles.filter((m) => !m.grupo).map(item)}
           {GRUPOS.map((g) => { const ms = visibles.filter((m) => m.grupo === g); return ms.length > 0 && (
             <div key={g} className="mt-2 flex flex-col gap-1">
@@ -196,12 +216,13 @@ export function Layout({ children }: { children: ReactNode }) {
               {colapsado && <div className="mx-4 mb-1 hidden h-px bg-fg/10 lg:block" />}
               {ms.map(item)}
             </div>) })}
+          <div className="mt-2 flex flex-col gap-1 border-t border-fg/10 pt-2 lg:hidden">{visibles.filter((m) => m.grupo === 'pie').map(item)}</div>
         </nav>
         <div className="mt-3 shrink-0 space-y-1 border-t border-fg/10 pt-3">
-          {visibles.filter((m) => m.grupo === 'pie').map(item)}
+          <div className="hidden space-y-1 lg:block">{visibles.filter((m) => m.grupo === 'pie').map(item)}</div>
           {/* En el celular y la tablet el idioma se cambia desde aquí (en la barra superior no hay espacio) */}
           <SelectorIdioma className="mx-auto w-fit lg:hidden" />
-          <div className={cx('rounded-xl bg-fg/5 px-3 py-2 text-xs', colapsado && 'lg:hidden')}><div className="truncate font-semibold">{empresa.nombre || 'Mi empresa'}</div><div className="truncate text-muted">{plural(SUCURSALES.length, 'sucursal', 'sucursales')} · {plural(new Set(SUCURSALES.map((s) => s.pais)).size, 'país', 'países')}</div></div>
+          <div className={cx('rounded-xl bg-fg/5 px-3 py-2 text-xs max-lg:hidden', colapsado && 'lg:hidden')}><div className="truncate font-semibold">{empresa.nombre || 'Mi empresa'}</div><div className="truncate text-muted">{plural(SUCURSALES.length, 'sucursal', 'sucursales')} · {plural(new Set(SUCURSALES.map((s) => s.pais)).size, 'país', 'países')}</div></div>
           <button onClick={() => setColapsado(!colapsado)} aria-label={colapsado ? tx('Expandir menú', 'Expand menu', 'Expandir menu') : tx('Contraer menú', 'Collapse menu', 'Recolher menu')} className={cx('group relative hidden w-full items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium text-muted transition hover:bg-fg/5 hover:text-fg lg:flex', colapsado && 'justify-center px-0')}>
             <ChevronsLeft size={18} className={cx('shrink-0 transition-transform duration-300', colapsado && 'rotate-180')} />{!colapsado && <span className="whitespace-nowrap">{tx('Contraer menú', 'Collapse menu', 'Recolher menu')}</span>}
             {colapsado && <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap rounded-lg border border-fg/10 px-2.5 py-1.5 text-xs text-fg opacity-0 shadow-xl transition group-hover:opacity-100" style={{ background: 'var(--bg2)' }}>{tx('Expandir menú', 'Expand menu', 'Expandir menu')}</span>}
@@ -210,7 +231,7 @@ export function Layout({ children }: { children: ReactNode }) {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col lg:pl-3">
         <header className="glass-clear no-print sticky top-3 z-20 mx-3 mt-3 flex items-center gap-2 px-3 py-2 lg:ml-0">
-          <button aria-label="Abrir menú" className="rounded-lg p-2 hover:bg-fg/10 lg:hidden" onClick={() => setMovil(true)}><Menu size={18} /></button>
+          <button aria-label={tx('Abrir menú', 'Open menu', 'Abrir menu')} aria-expanded={movil} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-fg/10 bg-fg/5 hover:bg-fg/10 lg:hidden" onClick={() => setMovil(true)}><Menu size={19} /></button>
           <button onClick={() => setPaleta(true)} className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-fg/5 px-3 py-2 text-left text-sm text-muted hover:bg-fg/10 sm:max-w-md"><Search size={15} /><span className="truncate">{tx('Buscar en NEXORA…', 'Search NEXORA…', 'Buscar no NEXORA…')}</span><kbd className="ml-auto hidden shrink-0 whitespace-nowrap rounded border border-fg/20 px-1.5 text-[10px] sm:block [@media(hover:none)]:!hidden">Ctrl K</kbd></button>
           <select aria-label="Sucursal" value={sucursal} onChange={(e) => setSucursal(e.target.value as typeof sucursal)} className="inp hidden !w-auto shrink-0 md:block"><option value="TODAS">{tx('Todas las sucursales', 'All branches', 'Todas as filiais')}</option>{SUCURSALES.map((s) => <option key={s.id} value={s.id}>{s.ciudad}</option>)}</select>
           <button title="Modo presentación" onClick={() => togglePres(true)} aria-label="Modo presentación" className="hidden shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium hover:bg-fg/10 sm:flex"><Maximize2 size={15} /><span className="hidden 2xl:inline">{tx('Presentación', 'Presentation', 'Apresentação')}</span></button>

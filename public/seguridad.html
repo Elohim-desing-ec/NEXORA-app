@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seguridad · NEXORA</title>
+  <meta name="description" content="Cómo protege NEXORA la información de su empresa: cifrado, aislamiento de datos, permisos por rol, pagos seguros y cómo reportar una vulnerabilidad." />
+  <link rel="icon" href="logo.svg" />
+  <link rel="stylesheet" href="legal.css" />
+</head>
+<body>
+<header class="barra"><div>
+  <a class="marca" href="./">NEXORA</a>
+  <nav class="legal" aria-label="Páginas legales"><a href="privacidad.html">Privacidad</a><a href="cookies.html">Cookies</a><a href="seguridad.html" aria-current="page">Seguridad</a></nav>
+</div></header>
+<main>
+  <h1>Seguridad</h1>
+  <p class="fecha">Última actualización: 25 de noviembre de 2026</p>
+  <p>La información de su empresa es lo más valioso que nos confía. Así la protegemos.</p>
+
+  <h2 id="cifrado">1. Conexiones cifradas</h2>
+  <p>Toda la comunicación entre su dispositivo, NEXORA y nuestros servidores viaja cifrada con <strong>HTTPS (TLS)</strong>. Nadie en la misma red wifi puede leer lo que envía o recibe.</p>
+
+  <h2 id="cuentas">2. Cuentas y contraseñas</h2>
+  <ul>
+    <li>Las cuentas se gestionan con <strong>Supabase Auth</strong>. Las contraseñas se guardan cifradas con un algoritmo de un solo sentido (bcrypt): nadie, ni siquiera el equipo de NEXORA, puede verlas.</li>
+    <li>El inicio de sesión con Google o Facebook usa el flujo seguro <strong>OAuth con PKCE</strong>: NEXORA nunca recibe su contraseña de esos servicios.</li>
+    <li>Cerrar sesión en un dispositivo no cierra la de los demás, y la sesión se renueva con tokens de corta duración.</li>
+  </ul>
+
+  <h2 id="aislamiento">3. Los datos de cada empresa están aislados</h2>
+  <p>Cada tabla de la base de datos tiene activada la <strong>seguridad a nivel de fila (Row Level Security)</strong>: la propia base de datos verifica, en cada consulta, que la persona pertenezca a la empresa cuyos datos pide. Aunque alguien intentara consultar la base directamente, solo obtendría los datos de su propia empresa.</p>
+
+  <h2 id="roles">4. Permisos por rol</h2>
+  <p>El titular decide qué puede ver y hacer cada persona de su equipo (gerente, contador, vendedor, bodega, auditor…). Un vendedor, por ejemplo, no entra a la configuración de la empresa, a la auditoría ni a las compras.</p>
+
+  <h2 id="auditoria">5. Trazabilidad y recuperación</h2>
+  <ul>
+    <li><strong>Auditoría:</strong> cada acción importante queda registrada con quién la hizo, cuándo y en qué sucursal.</li>
+    <li><strong>Papelera:</strong> lo que se elimina (productos, ventas, gastos, órdenes…) se puede recuperar con un clic.</li>
+    <li><strong>Exportación:</strong> puede descargar sus datos y reportes en Excel o PDF cuando quiera; sus datos no quedan atrapados en NEXORA.</li>
+    <li><strong>Sin conexión:</strong> si se cae el internet, NEXORA sigue funcionando y sincroniza los cambios al volver.</li>
+  </ul>
+
+  <h2 id="pagos">6. Pagos seguros</h2>
+  <p>Los planes se pagan con <strong>Payphone</strong>, una pasarela de pagos de Ecuador. Usted ingresa los datos de su tarjeta directamente en la página de Payphone: <strong>NEXORA nunca ve ni guarda el número completo ni el código de seguridad</strong>. Los precios se calculan en el servidor y cada pago se confirma con Payphone antes de activar el plan, por lo que no pueden alterarse desde el navegador.</p>
+
+  <h2 id="infraestructura">7. Infraestructura</h2>
+  <p>Los datos se alojan en <strong>Supabase</strong>, sobre centros de datos de nivel empresarial, y además cada dispositivo conserva una copia de trabajo que se vuelve a sincronizar con la nube. Las claves secretas (pagos y correo) viven solo en el servidor; la clave que usa el navegador es pública por diseño y no da acceso a datos sin una sesión válida.</p>
+
+  <h2 id="usted">8. Lo que usted puede hacer</h2>
+  <ul>
+    <li>Use una contraseña larga y única para NEXORA, y no la comparta: invite a cada persona con su propia cuenta.</li>
+    <li>Dé a cada persona solo el rol que necesita y quite del equipo a quien ya no trabaje con usted.</li>
+    <li>Cierre sesión en computadoras compartidas.</li>
+    <li>Desconfíe de correos que le pidan su contraseña: NEXORA nunca se la pedirá.</li>
+  </ul>
+
+  <section class="destacado" id="reportar">
+    <h2>¿Encontró una vulnerabilidad?</h2>
+    <p>Si cree haber encontrado un problema de seguridad, escríbanos a <a href="mailto:modacristiana2025@gmail.com?subject=Seguridad%20NEXORA">modacristiana2025@gmail.com</a> con el asunto <strong>«Seguridad NEXORA»</strong> y una descripción de cómo reproducirlo. Le responderemos lo antes posible. Le pedimos no acceder a datos de otras personas, no afectar el servicio y darnos un tiempo razonable para corregirlo antes de hacerlo público.</p>
+  </section>
+
+  <p class="nota" style="margin-top:32px">Ningún sistema conectado a internet es 100 % invulnerable, pero revisamos y mejoramos estas medidas de forma continua. Vea también la <a href="privacidad.html">política de privacidad</a>.</p>
+</main>
+<footer class="pie"><div><span>© 2026 NEXORA · Hecho por Elohim</span><a href="./">← Volver a NEXORA</a></div></footer>
+</body>
+</html>

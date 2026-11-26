@@ -6,6 +6,16 @@ export const st = (p: Producto, s: SucursalId) => p.stock[s] ?? 0
 export const stockTotal = (p: Producto, s: SucursalId | 'TODAS' = 'TODAS') => (s === 'TODAS' ? Object.values(p.stock).reduce((a, b) => a + (b || 0), 0) : st(p, s))
 /** Quiebre: stock por debajo de 1/3 del mínimo (en la sucursal elegida o en cualquiera que maneje el producto). */
 export const enQuiebre = (p: Producto, s: SucursalId | 'TODAS' = 'TODAS') => (s === 'TODAS' ? Object.values(p.stock).some((v) => v < p.min / 3) : st(p, s) < p.min / 3)
+/** Sobrestock: más de 3 veces el máximo. */
+export const enSobrestock = (p: Producto, s: SucursalId | 'TODAS' = 'TODAS') => p.max > 0 && stockTotal(p, s) > p.max * 3
+/** Qué tanto del mínimo cubre el stock (100 % = justo en el mínimo; bajo 33 % = quiebre). En TODAS, la sucursal más baja. */
+export const coberturaMin = (p: Producto, s: SucursalId | 'TODAS' = 'TODAS') => {
+  if (!(p.min > 0)) return Infinity
+  const v = s === 'TODAS' ? Math.min(...Object.values(p.stock).map((x) => x || 0)) : st(p, s)
+  return (v / p.min) * 100
+}
+/** Cuánto pasa el stock al máximo, en % (0 % = justo en el máximo; más de 200 % = sobrestock). */
+export const excesoMax = (p: Producto, s: SucursalId | 'TODAS' = 'TODAS') => (p.max > 0 ? ((stockTotal(p, s) - p.max) / p.max) * 100 : 0)
 /** Valor del inventario a costo promedio, total o por sucursal. */
 export const valorInventario = (ps: Producto[], s: SucursalId | 'TODAS' = 'TODAS') => ps.reduce((a, p) => a + stockTotal(p, s) * p.costo, 0)
 

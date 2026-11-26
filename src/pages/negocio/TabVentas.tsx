@@ -18,7 +18,7 @@ const linea = (): Linea => ({ k: sig++, productoId: '', cantidad: 1, precio: 0 }
 const servicio = (): Linea => ({ k: sig++, productoId: '', cantidad: 1, precio: 0, servicio: true, concepto: '', costo: 0 })
 
 export default function TabVentas() {
-  const { productos, movimientos, ventas, gastos, cierres, sucursales, sucursal, usuario, registrarVenta, cambiarEstadoVenta, anularVenta } = useApp()
+  const { productos, movimientos, ventas, gastos, cierres, sucursales, sucursal, usuario, registrarVenta, cambiarEstadoVenta, anularVenta, eliminarVenta } = useApp()
   const puede = !!usuario && rolesDe(usuario).some((r) => EDITAN.includes(r))
   // Formulario de la venta
   const [suc, setSuc] = useState(sucursal !== 'TODAS' ? sucursal : sucursales[0]?.id ?? '')
@@ -175,7 +175,10 @@ export default function TabVentas() {
               <td className={cx('num font-semibold', f.estado === 'Anulada' && 'line-through')}>{money(f.total)}</td><td className="num">{money(f.ganancia)}</td>
               {puede && <td className="whitespace-nowrap text-right">{f.venta && f.estado !== 'Anulada' && <>
                 <Button variante="fantasma" className="px-2 py-1 text-xs" onClick={() => cambiarEstadoVenta(f.id, f.estado === 'Pagada' ? 'Por cobrar' : 'Pagada')}>{f.estado === 'Pagada' ? 'Por cobrar' : 'Cobrada'}</Button>
-                <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => pedirEliminar({ titulo: `¿Anular la venta ${f.id}?`, detalle: `${money(f.total)}. El stock regresa a ${f.sucursal}.`, boton: 'Anular', listo: `Venta ${f.id} anulada`, accion: () => anularVenta(f.id) })}><Trash2 size={13} />Anular</Button></>}</td>}
+                <Button variante="fantasma" className="px-2 py-1 text-xs text-peligro" onClick={() => pedirEliminar({ titulo: `¿Anular la venta ${f.id}?`, detalle: `${money(f.total)}. El stock regresa a ${f.sucursal}.`, boton: 'Anular', listo: `Venta ${f.id} anulada`, accion: () => anularVenta(f.id) })}><X size={13} />Anular</Button></>}
+                <button aria-label="Eliminar venta" title="Eliminar venta" className="rounded-lg p-1.5 text-peligro hover:bg-peligro/10" onClick={() => pedirEliminar(f.venta
+                  ? { titulo: `¿Eliminar la venta ${f.id}?`, detalle: `${money(f.total)}${f.estado !== 'Anulada' && f.unidades ? `. El stock regresa a ${f.sucursal}` : ''}. Deja de contar en sus ventas y queda en la Papelera por si la necesita.`, listo: `Venta ${f.id} eliminada`, accion: () => eliminarVenta(f.id) }
+                  : { titulo: '¿Eliminar esta venta de Inventario?', detalle: `${f.detalle} · ${money(f.total)}. El stock regresa a ${f.sucursal}.`, listo: 'Venta eliminada', accion: () => eliminarVenta(f.key) })}><Trash2 size={14} /></button></td>}
             </tr>))}
             {!lista.length && <tr><td colSpan={10} className="py-6 text-center text-muted">{d.todas.length ? 'Ninguna venta coincide con los filtros.' : 'Todavía no hay ventas.'}</td></tr>}
           </tbody>
