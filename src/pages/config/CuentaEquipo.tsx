@@ -103,7 +103,7 @@ export default function CuentaEquipo() {
 
   if (!cuenta) return (
     <Card titulo={<span className="flex items-center gap-2"><CreditCard size={16} />Cuenta y equipo</span>}>
-      <p className="text-sm text-muted">Ingresó con un usuario de este dispositivo. El plan, la facturación y las invitaciones del equipo los administra el titular desde su cuenta NEXORA (correo, Google o Facebook).</p>
+      <p className="text-sm text-muted">Ingresó con un usuario de este dispositivo. El plan, la facturación y las invitaciones del equipo los administra el titular desde su cuenta NEXORA (correo o Google).</p>
     </Card>
   )
 

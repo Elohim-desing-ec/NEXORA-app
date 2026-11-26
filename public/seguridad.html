@@ -24,7 +24,7 @@
   <h2 id="cuentas">2. Cuentas y contraseñas</h2>
   <ul>
     <li>Las cuentas se gestionan con <strong>Supabase Auth</strong>. Las contraseñas se guardan cifradas con un algoritmo de un solo sentido (bcrypt): nadie, ni siquiera el equipo de NEXORA, puede verlas.</li>
-    <li>El inicio de sesión con Google o Facebook usa el flujo seguro <strong>OAuth con PKCE</strong>: NEXORA nunca recibe su contraseña de esos servicios.</li>
+    <li>El inicio de sesión con Google usa el flujo seguro <strong>OAuth con PKCE</strong>: NEXORA nunca recibe su contraseña de Google.</li>
     <li>Cerrar sesión en un dispositivo no cierra la de los demás, y la sesión se renueva con tokens de corta duración.</li>
   </ul>
 

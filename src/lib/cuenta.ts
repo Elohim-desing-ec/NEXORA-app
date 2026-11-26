@@ -1,5 +1,5 @@
 /**
- * Cuentas de NEXORA (Supabase Auth): correo + contraseña, Google, Facebook y recuperación de contraseña.
+ * Cuentas de NEXORA (Supabase Auth): correo + contraseña, Google y recuperación de contraseña.
  * Sin un plan vigente del titular (licencia o prueba de 14 días) no se puede ingresar. El pago es simulado: no cobra dinero.
  */
 import { useSyncExternalStore } from 'react'
@@ -29,10 +29,10 @@ export interface Miembro { email: string; nombre: string; rol: string; roles: st
 
 export const diasRestantes = (vence: string | null | undefined) => (vence ? Math.max(0, Math.ceil((new Date(vence).getTime() - Date.now()) / 86400000)) : null)
 
-/** Dirección a la que vuelven Google, Facebook y los correos (sin # ni parámetros). */
+/** Dirección a la que vuelven Google y los correos (sin # ni parámetros). */
 export const urlRetorno = () => location.origin + location.pathname
 
-// A dónde llevar a la persona cuando vuelve de Google, Facebook o del enlace del correo.
+// A dónde llevar a la persona cuando vuelve de Google o del enlace del correo.
 const DESTINO = 'nexora-destino'
 export type Destino = 'login' | `comprar:${string}`
 export const guardarDestino = (d: Destino) => { try { localStorage.setItem(DESTINO, d) } catch { /* sin almacenamiento */ } }
@@ -42,15 +42,15 @@ export function tomarDestino(): Destino | null {
 /** Ruta (#…) que corresponde a un destino. */
 export const rutaDe = (d: Destino) => (d === 'login' ? '#/login' : `#/comprar?plan=${encodeURIComponent(d.slice(8))}`)
 
-/** ¿Está activado Google/Facebook en Supabase? (si no, Supabase mostraría una página de error). */
-async function proveedorActivo(proveedor: 'google' | 'facebook') {
+/** ¿Está activado Google en Supabase? (si no, Supabase mostraría una página de error). */
+async function proveedorActivo(proveedor: 'google') {
   try {
     const r = await fetch(`${URL_SUPABASE}/auth/v1/settings`, { headers: { apikey: CLAVE_PUBLICA } })
     return !!(await r.json())?.external?.[proveedor]
   } catch { return true } // sin respuesta: se intenta igual
 }
 
-export async function entrarCon(proveedor: 'google' | 'facebook', destino: Destino) {
+export async function entrarCon(proveedor: 'google', destino: Destino) {
   if (!(await proveedorActivo(proveedor))) return { error: new Error('provider is not enabled') }
   guardarDestino(destino)
   return supabase.auth.signInWithOAuth({ provider: proveedor, options: { redirectTo: urlRetorno() } })
@@ -155,7 +155,7 @@ export async function enviarCorreo(pedido: { tipo: 'recibo' } | { tipo: 'invitac
   try { const { data, error } = await supabase.functions.invoke('correo', { body: pedido }); return !error && !!data?.enviado } catch { return false }
 }
 
-/** Nombre visible de la cuenta (Google y Facebook lo envían en los metadatos). */
+/** Nombre visible de la cuenta (Google lo envía en los metadatos). */
 export const nombreDe = (u: User) => String(u.user_metadata?.full_name ?? u.user_metadata?.name ?? u.email?.split('@')[0] ?? 'Usuario')
 export const fotoDe = (u: User) => (u.user_metadata?.avatar_url as string | undefined) ?? undefined
 
@@ -179,7 +179,7 @@ export function mensajeError(e: unknown, tx: (es: string, en: string, pt: string
   return m
 }
 
-// ---------- Regreso desde Google, Facebook o el enlace del correo ----------
+// ---------- Regreso desde Google o el enlace del correo ----------
 // Se escucha desde que carga el módulo: Supabase avisa apenas termina de leer el ?code=… de la URL.
 let recuperando = false
 let errorRetorno = ''
@@ -189,10 +189,10 @@ const suscribir = (f: () => void) => { oyentes.add(f); return () => { oyentes.de
 /** true mientras la persona llegó desde el correo de "Olvidé mi contraseña" y debe crear una nueva. */
 export const useRecuperando = () => useSyncExternalStore(suscribir, () => recuperando)
 export const terminarRecuperacion = () => { recuperando = false; avisar() }
-/** Error que devolvió Google/Facebook/Supabase al volver (se lee una sola vez). */
+/** Error que devolvió Google/Supabase al volver (se lee una sola vez). */
 export const tomarErrorRetorno = () => { const e = errorRetorno; errorRetorno = ''; return e }
 
-/** Al volver de Google/Facebook, la pantalla de ingreso continúa sola (sin pedir otro clic). */
+/** Al volver de Google, la pantalla de ingreso continúa sola (sin pedir otro clic). */
 const AUTO = 'nexora-auto'
 export const pedirContinuar = () => { try { sessionStorage.setItem(AUTO, '1') } catch { /* sin almacenamiento */ } }
 export const tomarContinuar = () => { try { const v = sessionStorage.getItem(AUTO) === '1'; sessionStorage.removeItem(AUTO); return v } catch { return false } }

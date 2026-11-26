@@ -67,7 +67,7 @@ export default function Login() {
     } catch (e) { setError(mensajeError(e, tx)) } finally { setOcupado(false) }
   }
 
-  // Sesión ya abierta (o recién vuelta de Google/Facebook): se muestra la cuenta y, si viene de allá, sigue sola.
+  // Sesión ya abierta (o recién vuelta de Google): se muestra la cuenta y, si viene de allá, sigue sola.
   useEffect(() => {
     let vivo = true
     const auto = tomarContinuar()
