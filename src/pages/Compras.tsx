@@ -61,8 +61,8 @@ export default function Compras() {
     setMatriz(null)
   }
   const [prov, setProv] = useState<Proveedor | null>(null), [err, setErr] = useState(''), [guardando, setGuardando] = useState(false)
-  const puedeAprobar = tieneRol(usuario, 'Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Gerente de Sucursal')
-  const puedeRecibir = tieneRol(usuario, 'Gerente General', 'Jefe de Bodega', 'Jefe de Logística', 'Gerente de Sucursal')
+  const puedeAprobar = tieneRol(usuario, 'Gerente General', 'Mano derecha', 'Gerente Financiero', 'Analista Financiero', 'Gerente de Sucursal')
+  const puedeRecibir = tieneRol(usuario, 'Gerente General', 'Mano derecha', 'Encargado de Inventario', 'Encargado de Compras', 'Jefe de Bodega', 'Jefe de Logística', 'Gerente de Sucursal')
   const puedeEditar = !esSoloLectura(usuario)
   // Cumplimiento real: % de órdenes aprobadas que ya fueron recibidas (si hay historial); si no, el valor registrado.
   const ranking = useMemo(() => proveedores.map((p) => {

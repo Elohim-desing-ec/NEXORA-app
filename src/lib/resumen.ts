@@ -4,7 +4,7 @@ import { create } from 'zustand'
 import { enQuiebre, stockTotal } from './inventario'
 
 /** Roles que registran ventas, gastos, productos y cierres en "Tu negocio" (el Auditor solo mira). */
-export const EDITAN: string[] = ['Gerente General', 'Gerente Financiero', 'Contador', 'Analista Financiero', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Asistente Administrativo']
+export const EDITAN: string[] = ['Mano derecha', 'Encargado de Ventas', 'Encargado de Gastos', 'Gerente General', 'Gerente Financiero', 'Contador', 'Analista Financiero', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Asistente Administrativo']
 /** Fecha de hoy como AAAA-MM-DD (hora local). */
 export const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
 /** Fecha y hora para guardar una venta del día elegido (hoy: la hora actual; otro día: mediodía). */

@@ -37,7 +37,7 @@ export default function Google() {
   const st = useApp()
   const { usuario, guardarConexiones } = st
   const [con, setCon] = useState<Record<string, string>>(st.empresa.conexiones ?? {})
-  const esGerente = tieneRol(usuario, 'Gerente General', 'Administrador de Sistemas')
+  const esGerente = tieneRol(usuario, 'Gerente General', 'Mano derecha', 'Administrador de Sistemas')
   const { empresa, productos, movimientos, gastos, ventas, proveedores, sucursales, usuarios, tareas } = st
   const [aviso, setAviso] = useState('')
   const avisar = (t: string) => { setAviso(t); setTimeout(() => setAviso(''), 6000) }

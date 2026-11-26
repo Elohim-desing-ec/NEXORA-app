@@ -7,9 +7,14 @@ import { estadoPestana } from '../lib/pestana'
 import type { Huella } from '../lib/fusion'
 import { EMPRESA_BASE, type Empresa, type Evento, type Movimiento, type Orden, type Producto, type Proveedor, type Sucursal, type SucursalId, type EstadoOC, type Gasto, type Cierre, type Venta, type LineaVenta, type EstadoVenta, type Tarea, type Nota, type EstadoTarea } from '../data/base'
 
-export type Rol = 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
+export type Rol = 'Mano derecha' | 'Encargado de Inventario' | 'Encargado de Compras' | 'Encargado de Ventas' | 'Encargado de Gastos' | 'Supervisor de Resúmenes' | 'Monitor general'
+  | 'Gerente General' | 'Gerente Financiero' | 'Analista Financiero' | 'Contador' | 'Gerente de Sucursal' | 'Gerente de Ventas' | 'Vendedor' | 'Cajero'
   | 'Jefe de Compras' | 'Jefe de Bodega' | 'Jefe de Logística' | 'Jefe de Marketing' | 'Recursos Humanos' | 'Administrador de Sistemas' | 'Asistente Administrativo' | 'Auditor' | 'Socio o Inversionista' | 'Ayudante'
-export const ROLES: Rol[] = ['Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Contador', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Jefe de Compras', 'Jefe de Bodega', 'Jefe de Logística', 'Jefe de Marketing', 'Recursos Humanos', 'Administrador de Sistemas', 'Asistente Administrativo', 'Auditor', 'Socio o Inversionista', 'Ayudante']
+/** Roles por área: simples, pensados para emprendimientos y negocios pequeños. */
+export const ROLES_AREA: Rol[] = ['Mano derecha', 'Encargado de Inventario', 'Encargado de Compras', 'Encargado de Ventas', 'Encargado de Gastos', 'Supervisor de Resúmenes', 'Monitor general']
+/** Cargos de empresa: para organizaciones con departamentos. */
+export const ROLES_CARGO: Rol[] = ['Gerente General', 'Gerente Financiero', 'Analista Financiero', 'Contador', 'Gerente de Sucursal', 'Gerente de Ventas', 'Vendedor', 'Cajero', 'Jefe de Compras', 'Jefe de Bodega', 'Jefe de Logística', 'Jefe de Marketing', 'Recursos Humanos', 'Administrador de Sistemas', 'Asistente Administrativo', 'Auditor', 'Socio o Inversionista', 'Ayudante']
+export const ROLES: Rol[] = [...ROLES_AREA, ...ROLES_CARGO]
 export type Pagina = 'dashboard' | 'espacio' | 'resumen' | 'red' | 'productos' | 'compras' | 'ventas' | 'gastos' | 'ia' | 'auditoria' | 'reportes' | 'economico' | 'configuracion'
 /** Persona del equipo. nombre = nombre completo para mostrar; el resto es su ficha (opcional). */
 export interface Usuario { id: string; nombre: string; usuario: string; rol: Rol; email: string; clave: string; /** Roles adicionales (máximo 2; en total 3) */ roles?: Rol[]; nombres?: string; apellidos?: string; telefono?: string; cargo?: string; sucursales?: string[]; redes?: Redes; foto?: string }
@@ -34,6 +39,13 @@ const EQUIPO_DEMO = ['u1', 'u2', 'u3', 'u4', 'u5', 'u6']
 
 /** Secciones que ve cada rol. Una persona puede tener hasta 3 roles: ve la suma de todos. Ventas y Gastos: quien ve Resumen (antes eran pestañas de Resumen). */
 export const PERMISOS: Record<Rol, Pagina[]> = {
+  'Mano derecha': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
+  'Encargado de Inventario': ['dashboard', 'espacio', 'productos', 'compras', 'red', 'ia', 'reportes'],
+  'Encargado de Compras': ['dashboard', 'espacio', 'compras', 'productos', 'red', 'ia', 'reportes'],
+  'Encargado de Ventas': ['dashboard', 'espacio', 'ventas', 'productos', 'reportes'],
+  'Encargado de Gastos': ['dashboard', 'espacio', 'gastos', 'reportes'],
+  'Supervisor de Resúmenes': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'reportes', 'economico'],
+  'Monitor general': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico'],
   'Gerente General': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'productos', 'compras', 'ia', 'auditoria', 'reportes', 'economico', 'configuracion'],
   'Gerente Financiero': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'compras', 'ia', 'auditoria', 'reportes', 'economico'],
   'Analista Financiero': ['dashboard', 'espacio', 'resumen', 'ventas', 'gastos', 'red', 'compras', 'ia', 'reportes', 'economico'],
@@ -55,6 +67,13 @@ export const PERMISOS: Record<Rol, Pagina[]> = {
 }
 /** Qué hace cada rol (se muestra al asignar roles). */
 export const DESCRIPCION_ROL: Record<Rol, string> = {
+  'Mano derecha': 'Su persona de confianza: maneja todo como usted (menos el plan y el equipo)',
+  'Encargado de Inventario': 'Productos, stock, transferencias y recibir mercadería',
+  'Encargado de Compras': 'Proveedores, órdenes de compra y recibir mercadería',
+  'Encargado de Ventas': 'Registrar ventas, cobros y clientes; consulta productos',
+  'Encargado de Gastos': 'Registrar y ordenar los gastos del negocio',
+  'Supervisor de Resúmenes': 'Solo consulta: resumen, ventas, gastos y reportes',
+  'Monitor general': 'Solo consulta: ve todo el negocio sin poder cambiar nada',
   'Gerente General': 'Todo el sistema, usuarios y configuración', 'Gerente Financiero': 'Finanzas, análisis económico, aprobar compras y auditoría',
   'Analista Financiero': 'Indicadores, análisis económico y aprobar compras', Contador: 'Resumen, gastos, cierres, auditoría y reportes',
   'Gerente de Sucursal': 'Su sucursal: ventas, inventario, compras y recepciones', 'Gerente de Ventas': 'Ventas, clientes, metas e inventario',
@@ -65,7 +84,7 @@ export const DESCRIPCION_ROL: Record<Rol, string> = {
   Auditor: 'Solo consulta: trazabilidad, resumen y reportes', 'Socio o Inversionista': 'Solo consulta: resultados, red y análisis económico', Ayudante: 'Consulta de inventario y tareas',
 }
 /** Roles que solo consultan (no editan inventario ni compras). */
-export const SOLO_LECTURA: Rol[] = ['Auditor', 'Socio o Inversionista']
+export const SOLO_LECTURA: Rol[] = ['Auditor', 'Socio o Inversionista', 'Supervisor de Resúmenes', 'Monitor general']
 export const MAX_ROLES = 3
 /** Roles de una persona: el principal y hasta 2 adicionales. */
 export const rolesDe = (u?: Pick<Usuario, 'rol' | 'roles'> | null): Rol[] => (!u ? [] : [u.rol, ...(u.roles ?? []).filter((r) => r !== u.rol)].slice(0, MAX_ROLES))
@@ -73,6 +92,9 @@ export const tieneRol = (u: Pick<Usuario, 'rol' | 'roles'> | null | undefined, .
 /** Secciones que ve la persona: la suma de los permisos de todos sus roles. */
 export const permisosDe = (u?: Pick<Usuario, 'rol' | 'roles'> | null): Pagina[] => [...new Set(rolesDe(u).flatMap((r) => PERMISOS[r]))]
 export const soloLectura = (u?: Pick<Usuario, 'rol' | 'roles'> | null) => rolesDe(u).every((r) => SOLO_LECTURA.includes(r))
+/** Roles que solo consultan el inventario (venden, pero no cambian productos ni stock desde Inventario). */
+export const CONSULTAN_INVENTARIO: Rol[] = ['Encargado de Ventas']
+export const soloConsultaInventario = (u?: Pick<Usuario, 'rol' | 'roles'> | null) => rolesDe(u).every((r) => SOLO_LECTURA.includes(r) || CONSULTAN_INVENTARIO.includes(r))
 
 /**
  * Papelera: todo lo que desaparece de una lista (lo elimine alguien aquí o lo quite la sincronización con la nube)

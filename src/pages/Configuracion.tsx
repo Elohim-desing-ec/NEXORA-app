@@ -56,7 +56,7 @@ function Usuarios() {
       },
     })
   }
-  const tono = (r: Rol) => (r === 'Gerente General' ? 'violeta' : SOLO_LECTURA.includes(r) ? 'ambar' : /Financ|Contador/.test(r) ? 'cian' : /Ventas|Vendedor|Cajero|Marketing/.test(r) ? 'verde' : r === 'Ayudante' ? 'gris' : 'azul')
+  const tono = (r: Rol) => (r === 'Gerente General' || r === 'Mano derecha' ? 'violeta' : SOLO_LECTURA.includes(r) ? 'ambar' : /Financ|Contador/.test(r) ? 'cian' : /Ventas|Vendedor|Cajero|Marketing/.test(r) ? 'verde' : r === 'Ayudante' ? 'gris' : 'azul')
   return <>
     <Card titulo={`Usuarios del sistema (${usuarios.length})`} accion={<Button variante="primario" onClick={() => { setErr(''); setEdit({ id: crypto.randomUUID(), nombre: '', usuario: '', email: '', rol: 'Ayudante', clave: '' }) }}><Plus size={15} />Agregar persona</Button>}>
       <Scroll><table className="tabla"><thead><tr><th>Nombre</th><th>Usuario o correo</th><th>Roles</th><th>Puede ver</th><th /></tr></thead>

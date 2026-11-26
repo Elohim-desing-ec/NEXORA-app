@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, ArrowLeftRight, Barcode, CheckCircle2, FileSpreadsheet, History, Pencil, Plus, Printer, Search, Trash2, PackageMinus } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import JsBarcode from 'jsbarcode'
-import { useApp, soloLectura as esSoloLectura } from '../store/useApp'
+import { useApp, soloConsultaInventario } from '../store/useApp'
 import { Badge, Button, Campo, Card, Modal, MontoInput, NumInput, Scroll, Titulo } from '../components/ui'
 import { money, fecha, fechaHora, num } from '../lib/format'
 import { CUELLOS, coberturaMin, diasParaVencer, enSobrestock, excesoMax, skuVariante, enQuiebre, esPrenda, etiquetaProducto, kardex, stockTotal, tallasDe, usaCuello, usaVencimiento, venceSugerido } from '../lib/inventario'
@@ -46,7 +46,7 @@ function Aviso({ n, total, cayo, nocayo }: { n: number; total: number; cayo: str
 
 export default function Productos() {
   const { productos, movimientos, usuario, sucursal, guardarProducto, eliminarProducto, transferir, registrar, proveedores, sucursales: SUCURSALES } = useApp()
-  const soloLectura = esSoloLectura(usuario)
+  const soloLectura = soloConsultaInventario(usuario)
   const [q, setQ] = useState(''), [cat, setCat] = useState('Todas')
   const [edit, setEdit] = useState<Producto | null>(null)
   // Prenda nueva: varios colores y tallas a la vez, con la cantidad de cada combinación (se crea un producto por cada una)

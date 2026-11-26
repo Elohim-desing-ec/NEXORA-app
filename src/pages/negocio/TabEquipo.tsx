@@ -8,7 +8,7 @@ export default function TabEquipo() {
   const { usuarios, usuario, ir } = useApp()
   const acceso = (u: Parameters<typeof permisosDe>[0]) => !permisosDe(u).includes('resumen') ? ['gris', 'Sin acceso a esta sección'] as const : rolesDe(u).some((r) => EDITAN.includes(r)) ? ['verde', 'Registra ventas, gastos, productos y cierres'] as const : ['azul', 'Solo puede mirar'] as const
   return (
-    <Card titulo="Su equipo" accion={tieneRol(usuario, 'Gerente General', 'Administrador de Sistemas') && <Button variante="primario" onClick={() => ir('configuracion')}>Crear o editar usuarios<ArrowRight size={14} /></Button>}>
+    <Card titulo="Su equipo" accion={tieneRol(usuario, 'Gerente General', 'Mano derecha', 'Administrador de Sistemas') && <Button variante="primario" onClick={() => ir('configuracion')}>Crear o editar usuarios<ArrowRight size={14} /></Button>}>
       <p className="mb-4 text-sm text-muted">Cada persona entra con su propio usuario y contraseña. Lo que hace queda guardado en Trazabilidad con su nombre.</p>
       <Scroll><table className="tabla">
         <thead><tr><th>Nombre</th><th>Usuario</th><th>Roles</th><th>En «Tu negocio»</th></tr></thead>

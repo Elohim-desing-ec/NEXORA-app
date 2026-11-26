@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { ArrowRight, CreditCard, Download, Mail, Pencil, Trash2, UserPlus, Users, XCircle } from 'lucide-react'
 import { Badge, Button, Campo, Card, Modal, Scroll } from '../../components/ui'
 import { SelectorRoles, seccionesQueVe } from '../../components/SelectorRoles'
-import { ROLES, type Rol } from '../../store/useApp'
+import { ROLES_AREA, ROLES_CARGO, DESCRIPCION_ROL, type Rol } from '../../store/useApp'
 import { cancelarPlan, diasRestantes, enviarCorreo, esComprable, guardarMiembro, historialCompras, historialPagos, listarMiembros, mensajeError, miAcceso, quitarMiembro, supabase, urlRetorno, type Acceso, type Compra, type Miembro, type Pago } from '../../lib/cuenta'
 import { limitesDe } from '../../lib/planes'
 import { money } from '../../lib/format'
@@ -178,7 +178,7 @@ export default function CuentaEquipo() {
         {acceso.esDueno && <form onSubmit={invitar} className="mt-4 grid gap-3 border-t border-fg/10 pt-4 sm:grid-cols-[1fr_1.3fr_1fr_auto] sm:items-end">
           <Campo label="Nombre"><input className="inp" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Ej.: Ana Pérez" /></Campo>
           <Campo label="Correo"><input required type="email" className="inp" value={nuevo.email} onChange={(e) => setNuevo({ ...nuevo, email: e.target.value })} placeholder="ana@gmail.com" /></Campo>
-          <Campo label="Rol"><select className="inp" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })}>{ROLES.map((r) => <option key={r}>{r}</option>)}</select></Campo>
+          <Campo label="Rol"><select className="inp" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })}><optgroup label="Por área">{ROLES_AREA.map((r) => <option key={r} value={r}>{r}</option>)}</optgroup><optgroup label="Cargos de empresa">{ROLES_CARGO.map((r) => <option key={r} value={r}>{r}</option>)}</optgroup></select><span className="mt-1 block text-[11px] text-muted">{DESCRIPCION_ROL[nuevo.rol as Rol]}</span></Campo>
           <Button variante="primario" type="submit" disabled={ocupado}><UserPlus size={15} />{ocupado ? 'Invitando…' : 'Invitar'}</Button>
         </form>}
         {aviso && <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-exito/30 bg-exito/10 px-3 py-2 text-xs"><span className="flex-1">{aviso.texto}</span>{aviso.gmail && <a href={aviso.gmail} target="_blank" rel="noreferrer" className="rounded-lg bg-primario px-3 py-1 font-semibold text-black hover:brightness-110">Abrir Gmail</a>}</div>}
