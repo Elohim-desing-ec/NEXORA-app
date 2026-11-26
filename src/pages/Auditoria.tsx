@@ -1,20 +1,49 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Globe2, RotateCcw, ScrollText, Trash2 } from 'lucide-react'
 import { useApp, soloLectura, COLECCIONES_PAPELERA, nombreEnPapelera } from '../store/useApp'
 import { Badge, Button, Card, Scroll, Titulo, Tabs } from '../components/ui'
 import { fechaHora, money } from '../lib/format'
+import { useEstadoNube } from '../lib/nube'
 import { stockTotal, valorInventario } from '../lib/inventario'
 import { pedirEliminar } from '../components/Eliminacion'
 
 const Globo = lazy(() => import('../components/Globo'))
+
+/** «hace 2 min», «hace 3 h»… (y la fecha completa a partir de una semana). */
+function hace(iso: string, ahora: number) {
+  const s = Math.max(0, (ahora - new Date(iso).getTime()) / 1000)
+  if (s < 45) return 'ahora'
+  if (s < 3600) return `hace ${Math.round(s / 60)} min`
+  if (s < 86400) return `hace ${Math.round(s / 3600)} h`
+  if (s < 604800) { const d = Math.round(s / 86400); return d === 1 ? 'ayer' : `hace ${d} días` }
+  return fechaHora(iso)
+}
+const ESTADO_NUBE: Record<string, [string, string]> = { 'al-dia': ['bg-exito', 'En vivo · se actualiza solo con lo que hace todo el equipo'], guardando: ['bg-primario', 'Sincronizando…'], conectando: ['bg-alerta', 'Conectando…'], 'sin-conexion': ['bg-peligro', 'Sin conexión · se pondrá al día al volver internet'], apagada: ['bg-muted', 'Solo este equipo'] }
 
 export default function Auditoria() {
   const { auditoria, movimientos, productos, sucursales: SUCURSALES, papelera, recuperar, vaciarPapelera, usuario } = useApp()
   const [tab, setTab] = useState<'bitacora' | 'papelera' | 'mapa'>('bitacora')
   const [aviso, setAviso] = useState('')
   const [q, setQ] = useState(''), [vista, setVista] = useState<'eventos' | 'movimientos'>('eventos')
-  const ev = useMemo(() => auditoria.slice().reverse().filter((e) => `${e.usuario} ${e.accion} ${e.detalle} ${e.sucursal}`.toLowerCase().includes(q.toLowerCase())).slice(0, 300), [auditoria, q])
-  const mv = useMemo(() => movimientos.slice(-400).reverse().filter((m) => `${m.usuario} ${m.tipo} ${m.sucursal} ${productos.find((p) => p.id === m.productoId)?.nombre}`.toLowerCase().includes(q.toLowerCase())).slice(0, 300), [movimientos, productos, q])
+  // Reloj: los «hace X min» se refrescan solos
+  const [ahora, setAhora] = useState(Date.now())
+  useEffect(() => { const t = setInterval(() => setAhora(Date.now()), 30000); return () => clearInterval(t) }, [])
+  const nube = useEstadoNube()
+  // Eventos que llegaron mientras la pantalla está abierta (se resaltan unos segundos)
+  const vistos = useRef<Set<string> | null>(null)
+  const [nuevos, setNuevos] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (!vistos.current) { vistos.current = new Set(auditoria.map((e) => e.id)); return }
+    const llegan = auditoria.filter((e) => !vistos.current!.has(e.id)).map((e) => e.id)
+    if (!llegan.length) return
+    llegan.forEach((id) => vistos.current!.add(id))
+    setNuevos((n) => new Set([...n, ...llegan]))
+    const t = setTimeout(() => setNuevos((n) => { const x = new Set(n); llegan.forEach((id) => x.delete(id)); return x }), 6000)
+    return () => clearTimeout(t)
+  }, [auditoria])
+  // Lo más reciente arriba, por la hora real (los eventos de otros equipos llegan en cualquier orden)
+  const ev = useMemo(() => auditoria.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).filter((e) => `${e.usuario} ${e.accion} ${e.detalle} ${e.sucursal}`.toLowerCase().includes(q.toLowerCase())).slice(0, 300), [auditoria, q])
+  const mv = useMemo(() => movimientos.slice().sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 400).filter((m) => `${m.usuario} ${m.tipo} ${m.sucursal} ${productos.find((p) => p.id === m.productoId)?.nombre}`.toLowerCase().includes(q.toLowerCase())).slice(0, 300), [movimientos, productos, q])
   return (
     <div className="space-y-5">
       <Titulo titulo="Trazabilidad y auditoría" sub="Quién hizo qué, cuándo y dónde — registro inmutable de cada acción" />
@@ -33,12 +62,12 @@ export default function Auditoria() {
           </table></Scroll></div>
           {!papelera.length && <p className="py-8 text-center text-sm text-muted">La papelera está vacía.</p>}
         </Card>}
-        {tab === 'bitacora' && <Card titulo="Bitácora" accion={<div className="flex w-full flex-wrap gap-2 sm:w-auto"><select className="inp !w-auto" value={vista} onChange={(e) => setVista(e.target.value as 'eventos')}><option value="eventos">Eventos del sistema</option><option value="movimientos">Movimientos de inventario</option></select><input className="inp min-w-0 flex-1 sm:!w-56 sm:flex-none" placeholder="Filtrar…" value={q} onChange={(e) => setQ(e.target.value)} /></div>}>
+        {tab === 'bitacora' && <Card titulo={<span className="flex flex-wrap items-center gap-2">Bitácora<span className="flex items-center gap-1.5 rounded-full bg-fg/5 px-2.5 py-0.5 text-[11px] font-normal text-muted"><span className="relative flex h-2 w-2">{nube === 'al-dia' && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${ESTADO_NUBE[nube][0]}`} />}<span className={`relative inline-flex h-2 w-2 rounded-full ${ESTADO_NUBE[nube]?.[0] ?? 'bg-muted'}`} /></span>{ESTADO_NUBE[nube]?.[1]}</span></span>} accion={<div className="flex w-full flex-wrap gap-2 sm:w-auto"><select className="inp !w-auto" value={vista} onChange={(e) => setVista(e.target.value as 'eventos')}><option value="eventos">Eventos del sistema</option><option value="movimientos">Movimientos de inventario</option></select><input className="inp min-w-0 flex-1 sm:!w-56 sm:flex-none" placeholder="Filtrar…" value={q} onChange={(e) => setQ(e.target.value)} /></div>}>
           <div className="max-h-[520px] overflow-auto"><Scroll><table className="tabla">
             {vista === 'eventos' ? <><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th>Sucursal</th></tr></thead>
-              <tbody>{ev.map((e) => <tr key={e.id}><td>{fechaHora(e.fecha)}</td><td>{e.usuario}</td><td><Badge tono="azul">{e.accion}</Badge></td><td className="max-w-xs truncate">{e.detalle}</td><td>{e.sucursal}</td></tr>)}</tbody></>
+              <tbody>{ev.map((e) => <tr key={e.id} className={nuevos.has(e.id) ? 'bg-primario/15 transition-colors duration-1000' : 'transition-colors duration-1000'}><td className="whitespace-nowrap" title={fechaHora(e.fecha)}>{hace(e.fecha, ahora)}</td><td>{e.usuario}</td><td><Badge tono="azul">{e.accion}</Badge></td><td className="max-w-md truncate" title={e.detalle}>{e.detalle}</td><td>{e.sucursal}</td></tr>)}</tbody></>
               : <><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Producto</th><th>Sucursal</th><th className="num">Cant.</th></tr></thead>
-                <tbody>{mv.map((m) => <tr key={m.id}><td>{fechaHora(m.fecha)}</td><td>{m.usuario}</td><td><Badge tono={m.cantidad > 0 ? 'verde' : m.tipo === 'Merma' ? 'ambar' : 'gris'}>{m.tipo}</Badge></td><td>{productos.find((p) => p.id === m.productoId)?.nombre}</td><td>{m.sucursal}</td><td className={`num ${m.cantidad > 0 ? 'text-exito' : 'text-peligro'}`}>{m.cantidad}</td></tr>)}</tbody></>}
+                <tbody>{mv.map((m) => <tr key={m.id}><td className="whitespace-nowrap" title={fechaHora(m.fecha)}>{hace(m.fecha, ahora)}</td><td>{m.usuario}</td><td><Badge tono={m.cantidad > 0 ? 'verde' : m.tipo === 'Merma' ? 'ambar' : 'gris'}>{m.tipo}</Badge></td><td>{productos.find((p) => p.id === m.productoId)?.nombre}</td><td>{m.sucursal}</td><td className={`num ${m.cantidad > 0 ? 'text-exito' : 'text-peligro'}`}>{m.cantidad}</td></tr>)}</tbody></>}
           </table></Scroll></div>
         </Card>}
         {tab === 'mapa' && <Card titulo="Mapa global de sucursales">

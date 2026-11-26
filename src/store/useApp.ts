@@ -174,6 +174,8 @@ interface AppState extends Datos {
   anularVenta: (id: string) => string | null
   /** Borra una venta registrada por error (o una venta suelta del inventario, por id de movimiento): el stock regresa y sale del kardex. */
   eliminarVenta: (id: string) => string | null
+  /** Anota un evento en la Trazabilidad desde cualquier pantalla (equipo en la nube, herramientas de Google…). */
+  anotar: (accion: string, detalle: string, sucursal?: SucursalId | '—') => void
   guardarCliente: (c: Cliente) => void
   eliminarCliente: (id: string) => void
   guardarConexiones: (c: Record<string, string>) => void
@@ -537,6 +539,7 @@ export const useApp = create<AppState>()(persist((set, get) => {
       log('Venta anulada', `${id} · el stock regresó a ${v.sucursal}`, v.sucursal)
       return null
     },
+    anotar: (accion, detalle, sucursal = '—') => log(accion, detalle, sucursal),
     eliminarVenta: (id) => {
       const v = get().ventas.find((x) => x.id === id)
       if (!v) {

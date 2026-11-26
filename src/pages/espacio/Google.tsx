@@ -11,7 +11,7 @@ import { saludNegocio } from '../../lib/salud'
 import { perfilDe } from '../../lib/sectores'
 import { exportarLibro } from '../../lib/export'
 import { descargarRespaldo } from '../../lib/respaldo'
-import { abrir, conCuenta, copiar, csvContactos, descargar, urlCalendario, urlEarth, urlGmail, urlMaps, urlReunionAhora, urlRuta, URLS } from '../../lib/google'
+import { abrir, conCuenta, descripcionGoogle, copiar, csvContactos, descargar, urlCalendario, urlEarth, urlGmail, urlMaps, urlReunionAhora, urlRuta, URLS } from '../../lib/google'
 
 const suave = [0.16, 1, 0.3, 1] as const
 /** Espacio de trabajo de cada empresa: enlaces a las herramientas que ya usa. */
@@ -51,6 +51,8 @@ export default function Google() {
   const soyTitular = !!licencia?.esDueno || (!!titular && titular.email === miCorreo)
   const copiaTitular = titular && !soyTitular ? [titular.email] : []
   const G = (url: string) => conCuenta(url, miCorreo)
+  /** Abre la herramienta y lo deja en la Trazabilidad: quién, con qué correo y qué hizo. */
+  const abrirYAnotar = (url: string) => { abrir(url); st.anotar('Herramienta de Google', `${descripcionGoogle(url)} · ${usuario?.nombre ?? ''}${miCorreo ? ` <${miCorreo}>` : ''}`) }
   const sala = empresa.conexiones?.meet
   const ahoraTxt = () => new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
 
@@ -94,48 +96,48 @@ export default function Google() {
             <div className="min-w-0 flex-1"><div className="text-xs font-semibold">{c.nombre}</div>
               {esGerente ? <input className="mt-0.5 w-full bg-transparent text-xs text-muted outline-none placeholder:text-muted/50 focus:text-fg" placeholder={c.ejemplo} value={con[c.k] ?? ''} onChange={(e) => setCon({ ...con, [c.k]: e.target.value })} />
                 : <div className="truncate text-xs text-muted">{empresa.conexiones?.[c.k] || 'Sin conectar'}</div>}</div>
-            <Button className="text-xs" disabled={!(empresa.conexiones?.[c.k] || con[c.k])} onClick={() => abrir(G(con[c.k] || empresa.conexiones![c.k]))}>Abrir</Button>
+            <Button className="text-xs" disabled={!(empresa.conexiones?.[c.k] || con[c.k])} onClick={() => abrirYAnotar(G(con[c.k] || empresa.conexiones![c.k]))}>Abrir</Button>
           </div>))}</div>
       </section>
 
       <div className="flex items-center gap-2 pt-1"><Marca slug="google" tam={28} /><h3 className="font-semibold">Herramientas de Google</h3></div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Herramienta i={0} nombre="Gmail" que="Correos al equipo y a proveedores" slug="gmail" icono={<Mail size={18} />}>
-          {titular && !soyTitular && <Accion onClick={() => abrir(G(urlGmail([titular.email], `Mensaje de ${usuario?.nombre ?? 'su equipo'} · ${empresa.nombre || 'NEXORA'}`, `Hola ${titular.nombre.split(' ')[0]}:\n\n\n\n${usuario?.nombre ?? ''}\nEnviado desde NEXORA.`)))}>Escribir al Gerente General</Accion>}
-          <Accion onClick={() => abrir(G(urlGmail(correosEquipo, `Resumen de ${nombrePeriodo(Y, M)}`, `Hola equipo:\n\n${resumenNegocio()}\n\nEnviado desde NEXORA.`, copiaTitular)))}>Enviar el resumen del mes</Accion>
-          <Accion disabled={!proveedores.length} onClick={() => abrir(G(urlGmail(proveedores.map((p) => p.email), 'Pedido / cotización', `Estimados proveedores:\n\nLes solicitamos cotización de los siguientes productos con stock bajo:\n${productos.filter((p) => enQuiebre(p)).map((p) => `- ${p.nombre} (${p.sku})`).join('\n') || '- (detalle)'}\n\nSaludos,\n${empresa.nombre}`, copiaTitular)))}>Pedir cotización a proveedores</Accion>
+          {titular && !soyTitular && <Accion onClick={() => abrirYAnotar(G(urlGmail([titular.email], `Mensaje de ${usuario?.nombre ?? 'su equipo'} · ${empresa.nombre || 'NEXORA'}`, `Hola ${titular.nombre.split(' ')[0]}:\n\n\n\n${usuario?.nombre ?? ''}\nEnviado desde NEXORA.`)))}>Escribir al Gerente General</Accion>}
+          <Accion onClick={() => abrirYAnotar(G(urlGmail(correosEquipo, `Resumen de ${nombrePeriodo(Y, M)}`, `Hola equipo:\n\n${resumenNegocio()}\n\nEnviado desde NEXORA.`, copiaTitular)))}>Enviar el resumen del mes</Accion>
+          <Accion disabled={!proveedores.length} onClick={() => abrirYAnotar(G(urlGmail(proveedores.map((p) => p.email), 'Pedido / cotización', `Estimados proveedores:\n\nLes solicitamos cotización de los siguientes productos con stock bajo:\n${productos.filter((p) => enQuiebre(p)).map((p) => `- ${p.nombre} (${p.sku})`).join('\n') || '- (detalle)'}\n\nSaludos,\n${empresa.nombre}`, copiaTitular)))}>Pedir cotización a proveedores</Accion>
           {!soyTitular && titular && <p className="text-[11px] text-muted">Con copia a {titular.email}.</p>}
         </Herramienta>
         <Herramienta i={1} nombre="Calendar" que="Fechas clave del negocio" slug="googlecalendar" icono={<CalendarDays size={18} />}>
-          <Accion onClick={() => abrir(G(urlCalendario({ titulo: `Cierre de mes · ${empresa.nombre || 'NEXORA'}`, detalle: 'Revisar Resumen → Cerrar mes en NEXORA.', fecha: finDeMes(), invitados: [...correosEquipo, ...(titular ? [titular.email] : [])] })))}>Agendar el cierre de mes</Accion>
-          <Accion onClick={() => abrir(G(urlCalendario({ titulo: 'Reunión semanal del equipo', detalle: 'Revisar el tablero de tareas en NEXORA → Espacio de trabajo.', fecha: proximoLunes(), hora: '09:00', minutos: 30, invitados: [...correosEquipo, ...(titular ? [titular.email] : [])] })))}>Reunión semanal (lunes 9:00)</Accion>
+          <Accion onClick={() => abrirYAnotar(G(urlCalendario({ titulo: `Cierre de mes · ${empresa.nombre || 'NEXORA'}`, detalle: 'Revisar Resumen → Cerrar mes en NEXORA.', fecha: finDeMes(), invitados: [...correosEquipo, ...(titular ? [titular.email] : [])] })))}>Agendar el cierre de mes</Accion>
+          <Accion onClick={() => abrirYAnotar(G(urlCalendario({ titulo: 'Reunión semanal del equipo', detalle: 'Revisar el tablero de tareas en NEXORA → Espacio de trabajo.', fecha: proximoLunes(), hora: '09:00', minutos: 30, invitados: [...correosEquipo, ...(titular ? [titular.email] : [])] })))}>Reunión semanal (lunes 9:00)</Accion>
         </Herramienta>
         <Herramienta i={2} nombre="Meet" que="Videollamadas del equipo" slug="googlemeet" icono={<Video size={18} />}>
-          {sala && <Accion onClick={() => abrir(G(sala))}>Entrar a la sala de la empresa</Accion>}
+          {sala && <Accion onClick={() => abrirYAnotar(G(sala))}>Entrar a la sala de la empresa</Accion>}
           {soyTitular ? <>
-            <Accion onClick={() => abrir(G(URLS.meet))}>Iniciar una reunión ahora</Accion>
-            <Accion disabled={!correosEquipo.length} onClick={() => { abrir(G(urlReunionAhora(`Reunión del equipo · ${empresa.nombre || 'NEXORA'}`, correosEquipo, `Convocada desde NEXORA a las ${ahoraTxt()}.`))); avisar('Guarde el evento: Google agrega el enlace de Meet y envía la invitación a su equipo.') }}>Convocar al equipo ahora</Accion>
-          </> : <Accion disabled={!titular} onClick={() => { abrir(G(urlReunionAhora(`Reunión con ${usuario?.nombre ?? 'el equipo'} · ${empresa.nombre || 'NEXORA'}`, titular ? [titular.email] : [], `Solicitada desde NEXORA a las ${ahoraTxt()}.`))); avisar('Guarde el evento: Google agrega el enlace de Meet y le llega la invitación al Gerente General.') }}>Iniciar reunión con el Gerente General</Accion>}
+            <Accion onClick={() => abrirYAnotar(G(URLS.meet))}>Iniciar una reunión ahora</Accion>
+            <Accion disabled={!correosEquipo.length} onClick={() => { abrirYAnotar(G(urlReunionAhora(`Reunión del equipo · ${empresa.nombre || 'NEXORA'}`, correosEquipo, `Convocada desde NEXORA a las ${ahoraTxt()}.`))); avisar('Guarde el evento: Google agrega el enlace de Meet y envía la invitación a su equipo.') }}>Convocar al equipo ahora</Accion>
+          </> : <Accion disabled={!titular} onClick={() => { abrirYAnotar(G(urlReunionAhora(`Reunión con ${usuario?.nombre ?? 'el equipo'} · ${empresa.nombre || 'NEXORA'}`, titular ? [titular.email] : [], `Solicitada desde NEXORA a las ${ahoraTxt()}.`))); avisar('Guarde el evento: Google agrega el enlace de Meet y le llega la invitación al Gerente General.') }}>Iniciar reunión con el Gerente General</Accion>}
           <p className="text-[11px] text-muted">{sala ? 'La sala de la empresa pertenece a la cuenta del Gerente General.' : soyTitular ? 'Consejo: guarde una sala fija de Meet arriba, en el espacio de trabajo.' : 'La invitación con el enlace de Meet le llega al Gerente General.'}</p>
         </Herramienta>
         <Herramienta i={3} nombre="Gemini" que="Asesor con inteligencia artificial" slug="googlegemini" icono={<Sparkles size={18} />}>
-          <Accion onClick={async () => { const ok = await copiar(`Actúa como asesor de negocios para una empresa de ${perfil.nombre.toLowerCase()}. Con estos datos reales de mi sistema NEXORA, dame 5 acciones concretas para mejorar la ganancia el próximo mes:\n\n${resumenNegocio()}`); abrir(G(URLS.gemini)); avisar(ok ? 'Pregunta copiada: péguela en Gemini (Ctrl/Cmd + V).' : 'Abra Gemini y escriba su pregunta.') }}>Pedir consejos sobre mi negocio</Accion>
+          <Accion onClick={async () => { const ok = await copiar(`Actúa como asesor de negocios para una empresa de ${perfil.nombre.toLowerCase()}. Con estos datos reales de mi sistema NEXORA, dame 5 acciones concretas para mejorar la ganancia el próximo mes:\n\n${resumenNegocio()}`); abrirYAnotar(G(URLS.gemini)); avisar(ok ? 'Pregunta copiada: péguela en Gemini (Ctrl/Cmd + V).' : 'Abra Gemini y escriba su pregunta.') }}>Pedir consejos sobre mi negocio</Accion>
         </Herramienta>
         <Herramienta i={4} nombre="Drive" que="Respaldos en la nube" slug="googledrive" icono={<HardDrive size={18} />}>
-          <Accion onClick={() => { descargarRespaldo(); abrir(G(empresa.conexiones?.drive || URLS.drive)); avisar('Respaldo descargado: arrástrelo a su Drive para guardarlo en la nube.') }}>Guardar respaldo en Drive</Accion>
+          <Accion onClick={() => { descargarRespaldo(); abrirYAnotar(G(empresa.conexiones?.drive || URLS.drive)); avisar('Respaldo descargado: arrástrelo a su Drive para guardarlo en la nube.') }}>Guardar respaldo en Drive</Accion>
         </Herramienta>
         <Herramienta i={5} nombre="Hojas de cálculo" que="Sus datos en Google Sheets" slug="googlesheets" icono={<FileSpreadsheet size={18} />}>
           <Accion onClick={() => {
             exportarLibro('Para_Google_Sheets', [['Inventario', [['Código', 'Producto', 'Categoría', 'Costo', 'Precio', 'Stock'], ...productos.map((p) => [p.sku, p.nombre, p.categoria, p.costo, p.precio, stockTotal(p)])]],
               ['Ventas', [['N.º', 'Fecha', 'Cliente', 'Productos', 'Canal', 'Estado', 'Total'], ...filasVentas(ventas, movimientos, productos).map((f) => [f.id, f.fecha.slice(0, 10), f.cliente, f.detalle, f.canal, f.estado, Math.round(f.total * 100) / 100])]]])
-            abrir(G(URLS.sheets)); avisar('Archivo descargado: en la hoja nueva use Archivo → Importar → Subir.')
+            abrirYAnotar(G(URLS.sheets)); avisar('Archivo descargado: en la hoja nueva use Archivo → Importar → Subir.')
           }}>Abrir inventario y ventas en Sheets</Accion>
         </Herramienta>
         <Herramienta i={6} nombre="Documentos" que="Informes para compartir" slug="googledocs" icono={<FileText size={18} />}>
-          <Accion onClick={async () => { const ok = await copiar(`Informe de ${empresa.nombre || 'la empresa'} — ${nombrePeriodo(Y, M)}\n\n${resumenNegocio()}`); abrir(G(URLS.docs)); avisar(ok ? 'Informe copiado: péguelo en el documento nuevo.' : 'Abra un documento y escriba su informe.') }}>Crear informe del mes</Accion>
+          <Accion onClick={async () => { const ok = await copiar(`Informe de ${empresa.nombre || 'la empresa'} — ${nombrePeriodo(Y, M)}\n\n${resumenNegocio()}`); abrirYAnotar(G(URLS.docs)); avisar(ok ? 'Informe copiado: péguelo en el documento nuevo.' : 'Abra un documento y escriba su informe.') }}>Crear informe del mes</Accion>
         </Herramienta>
         <Herramienta i={7} nombre="NotebookLM" que="Cuaderno de estudio con IA" slug="google" icono={<BookOpen size={18} />}>
-          <Accion onClick={() => { descargar(`NEXORA_fuente_${hoyISO()}.txt`, `Fuente para NotebookLM\n\n${resumenNegocio()}\n\nInventario:\n${productos.map((p) => `- ${p.nombre} (${p.categoria}): ${stockTotal(p)} u, costo ${money(p.costo)}, precio ${money(p.precio)}`).join('\n')}`); abrir(G(URLS.notebook)); avisar('Fuente descargada: súbala como fuente en un cuaderno nuevo.') }}>Crear fuente con mis datos</Accion>
+          <Accion onClick={() => { descargar(`NEXORA_fuente_${hoyISO()}.txt`, `Fuente para NotebookLM\n\n${resumenNegocio()}\n\nInventario:\n${productos.map((p) => `- ${p.nombre} (${p.categoria}): ${stockTotal(p)} u, costo ${money(p.costo)}, precio ${money(p.precio)}`).join('\n')}`); abrirYAnotar(G(URLS.notebook)); avisar('Fuente descargada: súbala como fuente en un cuaderno nuevo.') }}>Crear fuente con mis datos</Accion>
         </Herramienta>
         <Herramienta i={8} nombre="Maps" que="Ubicación y rutas de sucursales" slug="googlemaps" icono={<MapPin size={18} />}>
           {sucursales.slice(0, 3).map((s) => <Accion key={s.id} onClick={() => abrir(urlMaps(s.lat, s.lng))}>Ver {s.ciudad || s.nombre}</Accion>)}
@@ -150,7 +152,7 @@ export default function Google() {
           <Accion disabled={!proveedores.length && !ventas.some((v) => v.cliente)} onClick={() => {
             const clientes = [...new Set(ventas.map((v) => v.cliente).filter(Boolean))].map((c) => ({ nombre: c, nota: 'Cliente (NEXORA)' }))
             descargar(`NEXORA_contactos_${hoyISO()}.csv`, csvContactos([...proveedores.map((p) => ({ nombre: p.contacto ? `${p.contacto} (${p.nombre})` : p.nombre, email: p.email, telefono: p.telefono, empresa: p.nombre, nota: 'Proveedor (NEXORA)' })), ...clientes]), 'text/csv;charset=utf-8')
-            abrir(G(URLS.contactos)); avisar('Contactos descargados: en Google Contactos use Importar y elija el archivo.')
+            abrirYAnotar(G(URLS.contactos)); avisar('Contactos descargados: en Google Contactos use Importar y elija el archivo.')
           }}>Exportar a Google Contactos</Accion>
         </Herramienta>
         <Herramienta i={11} pronto nombre="Wallet" que="Tarjetas de fidelidad y cupones" slug="googlepay" icono={<Wallet size={18} />}>

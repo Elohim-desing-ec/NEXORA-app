@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { conCuenta, csvContactos, urlCalendario, urlGmail, urlMaps, urlReunionAhora } from '../lib/google'
+import { conCuenta, csvContactos, descripcionGoogle, urlCalendario, urlGmail, urlMaps, urlReunionAhora } from '../lib/google'
 
 describe('conexión con Google', () => {
   it('evento de todo el día en Calendar (termina al día siguiente)', () => {
@@ -36,5 +36,11 @@ describe('conexión con Google', () => {
   })
   it('reunión que empieza ahora invita sin duplicados', () => {
     expect(new URL(urlReunionAhora('R', ['a@b.com', 'A@b.com'])).searchParams.get('add')).toBe('a@b.com')
+  })
+  it('describe en la Trazabilidad lo que se hizo en Google', () => {
+    expect(descripcionGoogle(urlGmail(['a@b.com'], 'Pedido', 'x', ['jefe@b.com']))).toBe('Gmail: correo «Pedido» para a@b.com (copia a jefe@b.com)')
+    expect(descripcionGoogle(urlReunionAhora('Reunión', ['jefe@b.com']))).toBe('Calendar: «Reunión» con jefe@b.com')
+    expect(descripcionGoogle('https://meet.google.com/new?authuser=a%40b.com')).toBe('Meet: reunión nueva')
+    expect(descripcionGoogle('https://discord.gg/x')).toBe('Conexión: discord.gg')
   })
 })

@@ -66,6 +66,7 @@ export default function CuentaEquipo() {
       // Se muestra al instante (una lectura justo después de guardar a veces aún no lo trae).
       setMiembros((l) => [...l.filter((x) => x.email !== email), { ...m, roles: [], creado: new Date().toISOString() }])
       setNuevo({ nombre: '', email: '', rol: nuevo.rol })
+      useApp.getState().anotar('Miembro invitado', `${m.nombre || email} <${email}> · ${m.rol}`)
       refrescarEquipo()
       if (await enviarCorreo({ tipo: 'invitacion', email })) setAviso({ texto: `Listo: le enviamos la invitación a ${email}.` })
       else setAviso({ texto: `${email} ya tiene acceso. Avísele con un correo: abra Gmail con la invitación lista y pulse Enviar.`, gmail: invitacionGmail(m, acceso.empresa, cuenta?.user_metadata?.full_name ?? cuenta?.email ?? '') })
@@ -77,7 +78,7 @@ export default function CuentaEquipo() {
     pedirEliminar({
       titulo: `¿Quitar a ${m.nombre || m.email} del equipo?`, detalle: 'Ya no podrá ingresar a NEXORA.', boton: 'Quitar', listo: `${m.nombre || m.email} ya no está en el equipo`,
       accion: async () => {
-        try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)); refrescarEquipo() } catch (err) { return mensajeError(err, tx) }
+        try { await quitarMiembro(acceso.empresaId, m.email); setMiembros((l) => l.filter((x) => x.email !== m.email)); useApp.getState().anotar('Miembro quitado del equipo', `${m.nombre || m.email} <${m.email}>`); refrescarEquipo() } catch (err) { return mensajeError(err, tx) }
       },
     })
   }
@@ -89,6 +90,7 @@ export default function CuentaEquipo() {
     try {
       await guardarMiembro(acceso.empresaId, editar)
       setMiembros((l) => l.map((x) => (x.email === editar.email ? { ...x, nombre: editar.nombre, rol: editar.rol, roles: editar.roles } : x)))
+      useApp.getState().anotar('Roles actualizados', `${editar.nombre || editar.email} <${editar.email}> · ${[editar.rol, ...editar.roles.filter((r) => r !== editar.rol)].join(', ')}`)
       setEditar(null)
       refrescarEquipo()
     } catch (err) { setError(mensajeError(err, tx)) } finally { setOcupado(false) }
@@ -96,7 +98,7 @@ export default function CuentaEquipo() {
 
   const cancelar = async () => {
     if (!confirm('¿Cancelar su plan? Usted y todo su equipo dejarán de poder ingresar a NEXORA. Sus datos se conservan si vuelve a comprar un plan.')) return
-    try { await cancelarPlan(); await salir() } catch (err) { setError(mensajeError(err, tx)) }
+    try { await cancelarPlan(); useApp.getState().anotar('Plan cancelado', `${acceso?.plan ?? ''} · ${acceso?.empresa ?? ''}`); await salir() } catch (err) { setError(mensajeError(err, tx)) }
   }
 
   if (cargando) return <Card><p className="py-6 text-center text-sm text-muted">Cargando su cuenta…</p></Card>

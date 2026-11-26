@@ -63,4 +63,16 @@ export function descargar(nombre: string, contenido: string, tipo = 'text/plain;
 export async function copiar(texto: string) {
   try { await navigator.clipboard.writeText(texto); return true } catch { return false }
 }
+/** Descripción corta de lo que hace un enlace (para la Trazabilidad). */
+export function descripcionGoogle(url: string) {
+  let u: URL
+  try { u = new URL(url) } catch { return 'Enlace' }
+  const p = u.searchParams, h = u.hostname
+  if (h === 'mail.google.com') return `Gmail: correo «${p.get('su') ?? ''}» para ${p.get('to') || '—'}${p.get('cc') ? ` (copia a ${p.get('cc')})` : ''}`
+  if (h === 'calendar.google.com') return `Calendar: «${p.get('text') ?? 'evento'}»${p.get('add') ? ` con ${p.get('add')}` : ''}`
+  if (h === 'meet.google.com') return u.pathname.startsWith('/new') ? 'Meet: reunión nueva' : `Meet: sala ${u.pathname.slice(1)}`
+  if (h === 'docs.google.com') return u.pathname.includes('spreadsheets') ? 'Hojas de cálculo' : 'Documentos'
+  const nombres: Record<string, string> = { 'drive.google.com': 'Drive', 'gemini.google.com': 'Gemini', 'notebooklm.google.com': 'NotebookLM', 'contacts.google.com': 'Contactos', 'www.google.com': 'Maps', 'earth.google.com': 'Earth' }
+  return nombres[h] ?? `Conexión: ${h}`
+}
 export const abrir = (url: string) => window.open(url, '_blank', 'noopener,noreferrer')
